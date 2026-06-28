@@ -1,0 +1,58 @@
+export const FAKE_WALLET_TRANSACTIONS = [
+  {
+    dateTime: "2025-11-20 23:31",
+    amount: 5000,
+    currency: "NGN",
+    type: "credit",
+    status: "initiated",
+  },
+  {
+    dateTime: "2025-11-20 23:31",
+    amount: 4500,
+    currency: "NGN",
+    type: "debit",
+    status: "pending",
+  },
+  {
+    dateTime: "2025-11-20 23:31",
+    amount: 200,
+    currency: "NGN",
+    type: "credit",
+    status: "unsettled",
+  },
+  {
+    dateTime: "2025-11-20 23:31",
+    amount: 1000,
+    currency: "NGN",
+    type: "credit",
+    status: "failed",
+  },
+  {
+    dateTime: "2025-11-20 23:31",
+    amount: 4500,
+    currency: "NGN",
+    type: "credit",
+    status: "success",
+  },
+  {
+    dateTime: "2025-11-20 23:31",
+    amount: 1200,
+    currency: "NGN",
+    type: "credit",
+    status: "success",
+  },
+  {
+    dateTime: "2025-11-20 23:31",
+    amount: 3120,
+    currency: "NGN",
+    type: "debit",
+    status: "success",
+  },
+  {
+    dateTime: "2025-11-20 23:31",
+    amount: 5000,
+    currency: "NGN",
+    type: "credit",
+    status: "success",
+  },
+];

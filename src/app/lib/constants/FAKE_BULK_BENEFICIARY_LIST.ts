@@ -1,0 +1,58 @@
+export const FAKE_BULK_BENEFICIARY_LIST = [
+  {
+    id: 1,
+    name: "Adeola Adebayo",
+    number: "08031234567",
+    serviceProvider: "Access Bank",
+    amount: 15000,
+  },
+  {
+    id: 2,
+    name: "Zainab Abubakar",
+    number: "08123456789",
+    serviceProvider: "First Bank",
+    amount: 22000,
+  },
+  {
+    id: 3,
+    name: "Olamide Ogunleye",
+    number: "09098765432",
+    serviceProvider: "GTBank",
+    amount: 10000,
+  },
+  {
+    id: 4,
+    name: "Usman Sani",
+    number: "08087654321",
+    serviceProvider: "UBA",
+    amount: 30000,
+  },
+  {
+    id: 5,
+    name: "Kehinde Ajayi",
+    number: "07012345678",
+    serviceProvider: "Zenith Bank",
+    amount: 18000,
+  },
+  {
+    id: 6,
+    name: "Aisha Musa",
+    number: "08187654321",
+    serviceProvider: "Fidelity Bank",
+    amount: 25000,
+  },
+  {
+    id: 7,
+    name: "Segun Alabi",
+    number: "09012345678",
+    serviceProvider: "Union Bank",
+    amount: 12000,
+  },
+  {
+    id: 8,
+    name: "Bello Ibrahim",
+    number: "08023456789",
+    serviceProvider: "Stanbic IBTC",
+    amount: 27500,
+  },
+];

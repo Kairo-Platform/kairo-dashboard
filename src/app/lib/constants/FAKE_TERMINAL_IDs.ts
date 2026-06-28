@@ -1,0 +1,58 @@
+export const FAKE_TERMINAL_IDS = [
+  {
+    terminalId: "2FFT0082",
+    ptsp: "NIBS",
+    bank: "eTransact Bank",
+    status: "Active",
+    dateAdded: "20 Nov, 2025 | 23:31",
+  },
+  {
+    terminalId: "2FFT0083",
+    ptsp: "Interswitch",
+    bank: "First Bank",
+    status: "Active",
+    dateAdded: "20 Nov, 2025 | 23:31",
+  },
+  {
+    terminalId: "2FFT0084",
+    ptsp: "Interswitch",
+    bank: "Access Bank",
+    status: "Suspended",
+    dateAdded: "20 Nov, 2025 | 23:31",
+  },
+  {
+    terminalId: "2FFT0085",
+    ptsp: "Unified Payments",
+    bank: null,
+    status: "Active",
+    dateAdded: "20 Nov, 2025 | 23:31",
+  },
+  {
+    terminalId: "2FFT0086",
+    ptsp: "NIBS",
+    bank: "Union Bank",
+    status: "Active",
+    dateAdded: "20 Nov, 2025 | 23:31",
+  },
+  {
+    terminalId: "2FFT0087",
+    ptsp: "NIBS",
+    bank: "Kuda Bank",
+    status: "Active",
+    dateAdded: "20 Nov, 2025 | 23:31",
+  },
+  {
+    terminalId: "2FFT0088",
+    ptsp: "Interswitch",
+    bank: "Sterling Bank",
+    status: "Suspended",
+    dateAdded: "20 Nov, 2025 | 23:31",
+  },
+  {
+    terminalId: "2FFT0089",
+    ptsp: "Unified Payments",
+    bank: "Polaris Bank",
+    status: "Active",
+    dateAdded: "20 Nov, 2025 | 23:31",
+  },
+];

@@ -1,0 +1,49 @@
+{
+  "name": "kairo-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@headlessui/react": "^2.2.10",
+    "@hookform/error-message": "^2.0.1",
+    "@iconify/react": "^6.0.2",
+    "@remixicon/react": "^4.9.0",
+    "@types/papaparse": "^5.5.2",
+    "@types/prop-types": "^15.7.15",
+    "@types/react-transition-group": "^4.4.12",
+    "@types/styled-components": "^5.1.36",
+    "chart.js": "^4.5.1",
+    "clsx": "^2.1.1",
+    "color": "^5.0.3",
+    "dayjs": "^1.11.21",
+    "next": "16.2.9",
+    "papaparse": "^5.5.4",
+    "prop-types": "^15.8.1",
+    "qs": "^6.15.3",
+    "react": "19.2.4",
+    "react-datepicker": "^9.1.0",
+    "react-dom": "19.2.4",
+    "react-tiny-popover": "^8.1.6",
+    "react-transition-group": "^4.4.5",
+    "remixicon-react-redux": "^1.0.3",
+    "rsuite": "^6.2.1",
+    "simpler-state": "^1.2.2",
+    "styled-components": "^6.4.3",
+    "underscore.string": "^3.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/qs": "^6.15.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "typescript": "^5"
+  }
+}

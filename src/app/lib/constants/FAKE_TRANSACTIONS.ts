@@ -1,0 +1,58 @@
+export const FAKE_TRANSACTIONS = [
+  {
+    transactionRef: "ZU1625373",
+    transactionType: "Power",
+    amount: "NGN 5,000.00",
+    status: "Pending",
+    dateTime: "20 Nov, 2025 | 23:31",
+  },
+  {
+    transactionRef: "ZU1625373",
+    transactionType: "Bank withdrawal",
+    amount: "NGN 4,500.00",
+    status: "Success",
+    dateTime: "20 Nov, 2025 | 23:31",
+  },
+  {
+    transactionRef: "ZU1625373",
+    transactionType: "Wallet transfer",
+    amount: "NGN 200.00",
+    status: "Unsettled",
+    dateTime: "20 Nov, 2025 | 23:31",
+  },
+  {
+    transactionRef: "ZU1625373",
+    transactionType: "Airtime",
+    amount: "NGN 1,000.00",
+    status: "Failed",
+    dateTime: "20 Nov, 2025 | 23:31",
+  },
+  {
+    transactionRef: "ZU1625373",
+    transactionType: "Data",
+    amount: "NGN 4,500.00",
+    status: "Success",
+    dateTime: "20 Nov, 2025 | 23:31",
+  },
+  {
+    transactionRef: "ZU1625373",
+    transactionType: "Wallet transfer",
+    amount: "NGN 1,200.00",
+    status: "Success",
+    dateTime: "20 Nov, 2025 | 23:31",
+  },
+  {
+    transactionRef: "ZU1625373",
+    transactionType: "Bank transfer",
+    amount: "NGN 3,120.00",
+    status: "Success",
+    dateTime: "20 Nov, 2025 | 23:31",
+  },
+  {
+    transactionRef: "ZU1625373",
+    transactionType: "Bank transfer",
+    amount: "NGN 5,000.00",
+    status: "Success",
+    dateTime: "20 Nov, 2025 | 23:31",
+  },
+];
