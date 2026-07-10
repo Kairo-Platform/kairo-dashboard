@@ -1,0 +1,37 @@
+name: Admin Dashboard — Staging
+
+on:
+  push:
+    branches: [staging]
+    paths:
+      - "apps/kairo-admin-dashboard/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "turbo.json"
+      - "pnpm-workspace.yaml"
+  pull_request:
+    branches: [staging]
+    paths:
+      - "apps/kairo-admin-dashboard/**"
+      - "packages/**"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm turbo lint typecheck build --filter=@kairo/admin-dashboard
+
+      # TODO: add staging deploy step (Docker / platform-specific)

@@ -1,0 +1,14 @@
+{
+  "name": "@kairo/config-eslint",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./next": "./next.mjs",
+    "./library": "./library.mjs"
+  },
+  "devDependencies": {
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9"
+  }
+}

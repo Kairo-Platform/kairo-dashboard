@@ -1,0 +1,7 @@
+export const ACCESS_CONTROL_APPROVAL_ENUM_VALUES = [
+  "MANUAL",
+  "AUTO",
+  "HYBRID",
+] as const;
+
+export default ACCESS_CONTROL_APPROVAL_ENUM_VALUES;

@@ -1,0 +1,23 @@
+{
+  "name": "@kairo/utils",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@kairo/config-eslint": "workspace:*",
+    "@kairo/config-typescript": "workspace:*",
+    "@types/node": "^20",
+    "eslint": "^9",
+    "typescript": "^5.8.3"
+  }
+}

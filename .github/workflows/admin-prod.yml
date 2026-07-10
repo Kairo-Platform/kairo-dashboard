@@ -1,0 +1,32 @@
+name: Admin Dashboard — Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/kairo-admin-dashboard/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "turbo.json"
+      - "pnpm-workspace.yaml"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm turbo lint typecheck build --filter=@kairo/admin-dashboard
+
+      # TODO: add production deploy step

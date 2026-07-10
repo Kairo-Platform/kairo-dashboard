@@ -1,38 +1,55 @@
-# Kairo dashboard
+# Kairo Monorepo
 
-This is the Kairo dashboard application
+Monorepo for Kairo dashboard applications and shared frontend packages.
 
-## Quick start (pnpm)
+## Apps
 
-1. Install Node.js (v20+ recommended).
+| App                                                             | Package                       | Port | Description                   |
+| --------------------------------------------------------------- | ----------------------------- | ---- | ----------------------------- |
+| [kairo-admin-dashboard](./apps/kairo-admin-dashboard)           | `@kairo/admin-dashboard`      | 3000 | Admin operations dashboard    |
+| [kairo-enterprise-dashboard](./apps/kairo-enterprise-dashboard) | `@kairo/enterprise-dashboard` | 3001 | Enterprise customer dashboard (xApi) |
 
-2. Install pnpm globally:
+## Packages
 
-   ```bash
-   npm install -g pnpm
-   ```
+| Package                    | Description                                                          |
+| -------------------------- | -------------------------------------------------------------------- |
+| `@kairo/config-typescript` | Shared TypeScript configs                                            |
+| `@kairo/config-eslint`     | Shared ESLint config                                                 |
+| `@kairo/services`          | HTTP service factory (`generateService`)                             |
+| `@kairo/theme`             | Theme tokens, `KairoTheme`, `StyledRegistry`, global styles          |
+| `@kairo/ui`                | Shared design system components and inputs                           |
+| `@kairo/hooks`             | Shared React hooks                                                   |
+| `@kairo/utils`             | Shared utilities and notifications                                   |
+| `@kairo/auth`              | Cookie/session primitives (app-specific auth flows stay in each app) |
 
-3. Install dependencies:
+## Quick start
 
-   ```bash
-   pnpm install
-   ```
+```bash
+pnpm install
+pnpm dev:admin        # http://localhost:3000
+pnpm dev:enterprise   # http://localhost:3001
+pnpm build            # build all apps
+```
 
-4. Run the development server:
+## Workspace files
 
-   ```bash
-   pnpm dev
-   ```
+Open a focused VS Code workspace:
 
-   Open http://localhost:3000 in your browser.
+- `workspaces/admin.code-workspace`
+- `workspaces/enterprise.code-workspace`
 
-5. Build for production:
+## Architecture principles
 
-   ```bash
-   pnpm build
-   pnpm start
-   ```
+- **App-owned**: routes, BFF (`app/api/*`), domain services, auth flows
+- **Package-owned**: UI primitives, theme, HTTP helpers, cookie utilities
+- **Extract incrementally**: move code to `packages/*` only when shared or stable
 
-## Environment variables
+## Branching & deploy
 
-Create a `.env.local` in the project root to set local environment values. See the require environment variables names in `.env.sample`. The project reads these environment variables in `next.config.ts`:
+- `feature/*` → PR to `staging` → staging deploy
+- `staging` validated → merge to `main` → production deploy
+- GitHub Actions workflows are scoped per app with path filters
+
+## Environment
+
+Each app has its own `.env.sample`. Copy to `.env.local` inside the app directory.

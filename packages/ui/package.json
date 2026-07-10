@@ -1,0 +1,66 @@
+{
+  "name": "@kairo/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./inputs": "./src/inputs/index.ts",
+    "./Modal": "./src/Modal/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kairo/hooks": "workspace:*",
+    "@kairo/theme": "workspace:*",
+    "@kairo/utils": "workspace:*"
+  },
+  "peerDependencies": {
+    "@headlessui/react": "^2.2.10",
+    "@hookform/error-message": "^2.0.1",
+    "@iconify/react": "^6.0.2",
+    "clsx": "^2.1.1",
+    "color": "^5.0.3",
+    "next": ">=15",
+    "prop-types": "^15.8.1",
+    "react": ">=18",
+    "react-datepicker": "^9.1.0",
+    "react-dom": ">=18",
+    "react-tiny-popover": "^8.1.6",
+    "react-transition-group": "^4.4.5",
+    "remixicon-react-redux": "^1.0.3",
+    "rsuite": "^6.2.1",
+    "styled-components": ">=6",
+    "underscore.string": "^3.3.6"
+  },
+  "devDependencies": {
+    "@headlessui/react": "^2.2.10",
+    "@hookform/error-message": "^2.0.1",
+    "@iconify/react": "^6.0.2",
+    "@kairo/config-eslint": "workspace:*",
+    "@kairo/config-typescript": "workspace:*",
+    "@types/node": "^20",
+    "@types/prop-types": "^15.7.15",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/react-transition-group": "^4.4.12",
+    "@types/styled-components": "^5.1.36",
+    "clsx": "^2.1.1",
+    "color": "^5.0.3",
+    "eslint": "^9",
+    "next": "16.2.9",
+    "prop-types": "^15.8.1",
+    "react": "19.2.4",
+    "react-datepicker": "^9.1.0",
+    "react-dom": "19.2.4",
+    "react-tiny-popover": "^8.1.6",
+    "react-transition-group": "^4.4.5",
+    "remixicon-react-redux": "^1.0.3",
+    "rsuite": "^6.2.1",
+    "styled-components": "^6.4.3",
+    "typescript": "^5.8.3",
+    "underscore.string": "^3.3.6"
+  }
+}

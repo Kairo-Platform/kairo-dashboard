@@ -1,0 +1,24 @@
+{
+  "name": "@kairo/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "next": ">=15"
+  },
+  "devDependencies": {
+    "@kairo/config-eslint": "workspace:*",
+    "@kairo/config-typescript": "workspace:*",
+    "@types/node": "^20",
+    "eslint": "^9",
+    "next": "16.2.9",
+    "typescript": "^5.8.3"
+  }
+}

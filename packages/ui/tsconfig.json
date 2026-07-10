@@ -1,0 +1,15 @@
+{
+  "extends": "../../packages/config-typescript/nextjs.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "outDir": "dist"
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.js",
+    "src/**/*.d.ts",
+    "../theme/src/styled.d.ts"
+  ]
+}

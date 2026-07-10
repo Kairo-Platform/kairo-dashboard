@@ -1,0 +1,9 @@
+{
+  "extends": "../../packages/config-typescript/base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "outDir": "dist",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"]
+}

@@ -1,9 +1,0 @@
-export const ACCESS_CONTROL_FUNCTIONS = [
-  "SIGN_UP",
-  "LOGIN",
-  "RESET_PASSWORD",
-  "TIER_UPGRADE",
-  "SIGN_UP_INVITATION",
-];
-
-export default ACCESS_CONTROL_FUNCTIONS;
