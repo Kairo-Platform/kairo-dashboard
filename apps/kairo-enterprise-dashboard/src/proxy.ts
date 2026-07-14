@@ -12,8 +12,8 @@ export function proxy(req: NextRequest) {
     ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
     : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`;
   const connectSrc = isDev
-    ? "connect-src 'self' https://api.usekairo.com ws: wss:"
-    : "connect-src 'self' https://api.usekairo.com";
+    ? "connect-src 'self' https://usekairo.co https://*.usekairo.co https://api.usekairo.com ws: wss: https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com"
+    : "connect-src 'self' https://usekairo.co https://*.usekairo.co https://api.usekairo.com https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com";
 
   const csp = [
     "default-src 'self'",

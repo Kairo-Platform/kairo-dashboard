@@ -30,7 +30,7 @@ function getXApiBasicAuth() {
   };
 }
 
-function resolveXApiBaseUrl() {
+export function resolveXApiBaseUrl() {
   return (
     process.env.KAIRO_X_API_URL ??
     process.env.KAIRO_USER_SERVICE_URL ??
@@ -49,6 +49,29 @@ export async function proxyXApiRequest(
     auth: getXApiBasicAuth(),
     baseUrl: resolveXApiBaseUrl(),
     baseUrlEnvKey: options.baseUrlEnvKey ?? X_API_ENV_KEY,
+  });
+
+  return toNextResponse(result);
+}
+
+/**
+ * Proxies to xApi with `Authorization: Bearer <token>` only (no Basic / x-gat).
+ * Used for endpoints that require a user bearer token (e.g. `/v1/me/:userId`).
+ */
+export async function proxyXApiBearerRequest(
+  bearerToken: string,
+  options: Omit<ProxyServiceOptions, "gat" | "auth" | "headers"> & {
+    headers?: Record<string, string>;
+  },
+) {
+  const result = await proxyServiceRequest({
+    ...options,
+    baseUrl: resolveXApiBaseUrl(),
+    baseUrlEnvKey: options.baseUrlEnvKey ?? X_API_ENV_KEY,
+    headers: {
+      ...options.headers,
+      Authorization: `Bearer ${bearerToken}`,
+    },
   });
 
   return toNextResponse(result);

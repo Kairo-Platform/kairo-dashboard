@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import Image from "next/image";
+import { Icon } from "@iconify/react";
 import { Button, ButtonClass, ButtonSize, Flex } from "@/app/components/ui";
 import { FormInput } from "@/app/components/ui/inputs";
 import { applyAuthPayload } from "@/lib/auth";
@@ -10,13 +12,11 @@ import { xApiAuth } from "@/services/xApi";
 import { URL } from "@/lib/constants/URL";
 import { useGoogleOAuth, useOAuthStatusNotification } from "@/lib/hooks";
 import {
-  type LoginWithEmailAndPasswordFieldErrors,
-  validateLoginWithEmailAndPassword,
+  showErrorNotification,
+  type SignupWithEmailAndPasswordFieldErrors,
+  validateSignupWithEmailAndPassword,
 } from "@kairo/utils";
-import Image from "next/image";
-import { Icon } from "@iconify/react";
 import { parseApiError } from "@/lib/utils";
-import { showErrorNotification } from "@kairo/utils";
 
 const PageContainer = styled.main`
   min-height: 100vh;
@@ -93,22 +93,35 @@ const OrDivider = styled.div`
   }
 `;
 
-export default function EnterpriseLoginPage() {
+export default function EnterpriseSignupPage() {
   const router = useRouter();
+  const [name, setName] = useState("");
+  const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] =
-    useState<LoginWithEmailAndPasswordFieldErrors>({});
+    useState<SignupWithEmailAndPasswordFieldErrors>({});
   const { oauthLoading, oauthError, startGoogleOAuth } = useGoogleOAuth(
-    URL.LOGIN_URL,
+    URL.SIGNUP_URL,
   );
-  useOAuthStatusNotification(URL.LOGIN_URL);
+  useOAuthStatusNotification(URL.SIGNUP_URL);
+
+  const clearFieldError = (field: keyof SignupWithEmailAndPasswordFieldErrors) =>
+    setFieldErrors((current) => ({ ...current, [field]: undefined }));
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault();
 
-    const validation = validateLoginWithEmailAndPassword({ email, password });
+    const validation = validateSignupWithEmailAndPassword({
+      name,
+      orgName,
+      email,
+      password,
+      confirmPassword,
+    });
+
     if (!validation.success) {
       setFieldErrors(validation.errors);
       return;
@@ -118,7 +131,9 @@ export default function EnterpriseLoginPage() {
     setLoading(true);
 
     try {
-      const response = (await xApiAuth.login({
+      const response = (await xApiAuth.signup({
+        name: validation.data.name,
+        orgName: validation.data.orgName,
         email: validation.data.email,
         password: validation.data.password,
       })) as Record<string, any>;
@@ -130,10 +145,15 @@ export default function EnterpriseLoginPage() {
       const authPayload =
         response.authPayload ?? response.body?.data ?? response.data ?? response;
 
-      applyAuthPayload(authPayload.user ?? null, authPayload.gat);
-      router.replace(URL.DASHBOARD_URL);
+      if (authPayload?.gat || authPayload?.user) {
+        applyAuthPayload(authPayload.user ?? null, authPayload.gat);
+        router.replace(URL.DASHBOARD_URL);
+        return;
+      }
+
+      router.replace(URL.LOGIN_URL);
     } catch (error) {
-      showErrorNotification({ message: parseApiError(error, "Sign in failed. Check your credentials.") });
+      showErrorNotification({ message: parseApiError(error, "Sign up failed. Check your details and try again.") });
     } finally {
       setLoading(false);
     }
@@ -157,12 +177,46 @@ export default function EnterpriseLoginPage() {
           gap="0.3rem"
           style={{ marginBottom: "2rem" }}
         >
-          <h1 className="title">Login</h1>
-          <p className="subtitle">Log in to your Kairo dashboard.</p>
+          <h1 className="title">Sign up</h1>
+          <p className="subtitle">Create your Kairo dashboard account.</p>
         </Flex>
 
         <form onSubmit={handleSubmit} noValidate>
           <Flex direction="column" gap="1.5rem">
+            <FormInput
+              label="Name"
+              name="name"
+              type="text"
+              placeholder="Enter your name"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                clearFieldError("name");
+              }}
+              message={
+                fieldErrors.name
+                  ? { type: "error", content: fieldErrors.name }
+                  : undefined
+              }
+            />
+
+            <FormInput
+              label="Organization name"
+              name="orgName"
+              type="text"
+              placeholder="Enter your organization name"
+              value={orgName}
+              onChange={(event) => {
+                setOrgName(event.target.value);
+                clearFieldError("orgName");
+              }}
+              message={
+                fieldErrors.orgName
+                  ? { type: "error", content: fieldErrors.orgName }
+                  : undefined
+              }
+            />
+
             <FormInput
               label="Email"
               name="email"
@@ -171,7 +225,7 @@ export default function EnterpriseLoginPage() {
               value={email}
               onChange={(event) => {
                 setEmail(event.target.value);
-                setFieldErrors((current) => ({ ...current, email: undefined }));
+                clearFieldError("email");
               }}
               message={
                 fieldErrors.email
@@ -183,19 +237,33 @@ export default function EnterpriseLoginPage() {
             <FormInput
               label="Password"
               name="password"
-              placeholder="Enter your password"
               type="password"
+              placeholder="Enter your password"
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value);
-                setFieldErrors((current) => ({
-                  ...current,
-                  password: undefined,
-                }));
+                clearFieldError("password");
               }}
               message={
                 fieldErrors.password
                   ? { type: "error", content: fieldErrors.password }
+                  : undefined
+              }
+            />
+
+            <FormInput
+              label="Confirm password"
+              name="confirmPassword"
+              type="password"
+              placeholder="Confirm your password"
+              value={confirmPassword}
+              onChange={(event) => {
+                setConfirmPassword(event.target.value);
+                clearFieldError("confirmPassword");
+              }}
+              message={
+                fieldErrors.confirmPassword
+                  ? { type: "error", content: fieldErrors.confirmPassword }
                   : undefined
               }
             />
@@ -208,18 +276,18 @@ export default function EnterpriseLoginPage() {
               loading={loading}
               style={{ borderRadius: "0.765rem", marginTop: "1rem" }}
             >
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? "Signing up..." : "Sign up"}
             </Button>
 
             <p className="account-prompt">
-              Don&apos;t have an account?{" "}
+              Already have an account?{" "}
               <Button
                 type="button"
                 classes={[ButtonClass.TEXT_ONLY, ButtonClass.PADDING_0]}
                 disabled={loading || oauthLoading}
-                onClick={() => router.push(URL.SIGNUP_URL)}
+                onClick={() => router.push(URL.LOGIN_URL)}
               >
-                Sign up instead
+                Login with email and password instead
               </Button>
             </p>
 

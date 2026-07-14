@@ -106,13 +106,18 @@ export function generateService(serviceConfig: ServiceConfig = {}) {
         : undefined;
 
     const authHeader = basicAuthHeader(auth.username, auth.password);
+    const hasExplicitAuthorization = Boolean(
+      initialHeaders.Authorization || initialHeaders.authorization,
+    );
 
     const headers: Record<string, string> = {
       ...(gat ? { "x-gat": gat } : {}),
       ...(shortcode ? { shortcode } : {}),
       ...(managerId ? { manager_id: managerId } : {}),
       ...initialHeaders,
-      ...(authHeader ? { Authorization: authHeader } : {}),
+      ...(authHeader && !hasExplicitAuthorization
+        ? { Authorization: authHeader }
+        : {}),
     };
 
     const isFormData = payload instanceof FormData;

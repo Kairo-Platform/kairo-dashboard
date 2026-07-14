@@ -4,3 +4,4 @@ export * from "./getInitials";
 export * from "./isIOS";
 export * from "./notifications";
 export * from "./validation/loginWithEmailAndPasswordSchema";
+export * from "./validation/signupWithEmailAndPasswordSchema";

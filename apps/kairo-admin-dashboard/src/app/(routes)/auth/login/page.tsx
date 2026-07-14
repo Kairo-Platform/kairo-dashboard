@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { Button, ButtonClass, ButtonSize, Flex } from "@/app/components/ui";
@@ -66,7 +66,7 @@ export default function LoginPage() {
     useState<LoginWithEmailAndPasswordFieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault();
     setSubmitError(null);
 

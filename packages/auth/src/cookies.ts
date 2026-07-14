@@ -20,6 +20,7 @@ export const authCookieNames = (prefix: string) => ({
   gat: `${prefix}_gat`,
   userId: `${prefix}_user_id`,
   userType: `${prefix}_user_type`,
+  orgId: `${prefix}_org_id`,
 });
 
 export const defaultCookieOptions = (

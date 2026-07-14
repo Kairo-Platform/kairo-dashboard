@@ -20,12 +20,14 @@ export type AuthSessionData = SessionTokens & {
   gat?: string;
   userId?: string;
   userType?: string;
+  orgId?: string;
 };
 
 export type PublicSession = {
   authenticated: boolean;
   userId?: string;
   userType?: string;
+  orgId?: string;
 };
 
 export function getSessionTokens(
@@ -51,6 +53,7 @@ export function getAuthSession(
     gat: cookieStore.get(names.gat)?.value,
     userId: cookieStore.get(names.userId)?.value,
     userType: cookieStore.get(names.userType)?.value,
+    orgId: cookieStore.get(names.orgId)?.value,
   };
 }
 
@@ -67,6 +70,7 @@ export function getPublicSession(
     authenticated,
     userId: session.userId,
     userType: session.userType,
+    orgId: session.orgId,
   };
 }
 
@@ -82,6 +86,7 @@ export function setAuthSession(
   if (session.gat) cookieStore.set(names.gat, session.gat, base);
   if (session.userId) cookieStore.set(names.userId, session.userId, base);
   if (session.userType) cookieStore.set(names.userType, session.userType, base);
+  if (session.orgId) cookieStore.set(names.orgId, session.orgId, base);
   if (session.accessToken) {
     cookieStore.set(names.accessToken, session.accessToken, base);
   }
@@ -110,6 +115,7 @@ export function clearAuthSession(
   cookieStore.delete(names.gat);
   cookieStore.delete(names.userId);
   cookieStore.delete(names.userType);
+  cookieStore.delete(names.orgId);
 }
 
 export function clearSessionTokens(

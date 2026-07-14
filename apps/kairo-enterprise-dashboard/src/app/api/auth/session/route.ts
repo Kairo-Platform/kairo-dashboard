@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     gat: body.gat,
     userId: body.userId,
     userType: body.userType,
+    orgId: body.orgId,
     accessToken: body.accessToken,
     refreshToken: body.refreshToken,
   });
