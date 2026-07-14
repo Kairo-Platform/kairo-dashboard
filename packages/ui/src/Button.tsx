@@ -76,7 +76,7 @@ const ButtonContainer = styled.div`
   .btn--gradient {
     background: linear-gradient(
       90deg,
-      ${(props) => props.theme.colors.primaryColor} 0%,
+      ${(props) => props.theme.colors.buttonGradientFrom} 0%,
       ${(props) => props.theme.colors.buttonGradientTo} 100%
     );
     border: ${(props) => props.theme.colors.primaryColor};

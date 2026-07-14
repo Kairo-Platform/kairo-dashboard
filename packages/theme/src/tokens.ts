@@ -4,6 +4,7 @@ export const theme = {
   colors: {
     primary: "#FF6B1A",
     buttonGradientTo: "#FF6B1A",
+    buttonGradientFrom: "#FF8C4A",
     bgColor: "#fbfbfb",
     bgColor_01: "#f8f8f8",
     btnHover: "#BF5014",
@@ -41,7 +42,7 @@ export const theme = {
     red_04: "#B60A0A",
     gray_01: "#F5F5F5",
     gray_02: "#F5F5F5",
-    gray_03: "#CBCBCB",
+    gray_03: "#F1F1F1",
     gray_04: "#D1D1D1",
     gray_05: "#F9F9F9",
     gray_06: "#F0F0F0",

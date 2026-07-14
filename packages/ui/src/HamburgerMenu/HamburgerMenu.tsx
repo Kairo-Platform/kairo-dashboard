@@ -23,11 +23,15 @@ const HamburgerMenuContainer = styled.div`
 
     img.menu-icon {
       filter: ${(props) => {
-        if (props.theme.colors.primaryColor.toLowerCase() === "#0d65cc") {
-          return "brightness(0) invert(33%) sepia(93%) saturate(1891%) hue-rotate(203deg) brightness(96%) contrast(92%)";
-        }
-        return "brightness(0) saturate(100%) invert(75%) sepia(58%) saturate(5269%) hue-rotate(165deg) brightness(87%) contrast(88%)";
-      }};
+    const primary = props.theme.colors.primaryColor.toLowerCase();
+    if (primary === "#ff6b1a") {
+      return "brightness(0) saturate(100%) invert(48%) sepia(97%) saturate(2465%) hue-rotate(346deg) brightness(101%) contrast(101%)";
+    }
+    if (primary === "#0d65cc") {
+      return "brightness(0) invert(33%) sepia(93%) saturate(1891%) hue-rotate(203deg) brightness(96%) contrast(92%)";
+    }
+    return "brightness(0) saturate(100%) invert(75%) sepia(58%) saturate(5269%) hue-rotate(165deg) brightness(87%) contrast(88%)";
+  }};
     }
 
     &:hover {
