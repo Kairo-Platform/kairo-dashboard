@@ -1,5 +1,9 @@
 name: Enterprise Dashboard — Production
 
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ENTERPRISE_PROD_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ENTERPRISE_PROD_PROJECT_ID }}
+
 on:
   push:
     branches: [main]
@@ -9,24 +13,35 @@ on:
       - "pnpm-lock.yaml"
       - "turbo.json"
       - "pnpm-workspace.yaml"
+      - ".github/workflows/enterprise-prod.yml"
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm turbo lint typecheck build --filter=@kairo/enterprise-dashboard
 
-      # TODO: add production deploy step
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
