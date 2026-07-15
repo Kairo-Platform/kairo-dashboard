@@ -21,7 +21,7 @@ const DashboardSidebarHeaderContainer = styled.div`
 
   .logo-container {
     .logo {
-      width: 10rem;
+      width: 8rem;
       height: auto;
     }
   }

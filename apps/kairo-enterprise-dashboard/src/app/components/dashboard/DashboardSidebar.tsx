@@ -47,6 +47,9 @@ const DashboardSidebarContainer = styled.div`
     height: calc(100vh - 5.5rem);
     height: calc(100svh - 5.5rem);
     margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 
     & ::-webkit-scrollbar {
       width: 5px;
@@ -191,7 +194,7 @@ const DashboardSidebarContainer = styled.div`
     }
 
     .DashboardSidebar__admin_navLinks {
-      margin-top: 1.5rem;
+      margin-block: 2rem;
 
       .title {
         display: block;
@@ -306,6 +309,27 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       ),
     },
     {
+      text: "Agents",
+      url: URL.AGENTS_URL,
+      icon: (
+        <Icon icon="ri:ai-agent-line" width={16} height={16} />
+      ),
+    },
+    {
+      text: "Users",
+      url: URL.USERS_URL,
+      icon: (
+        <Icon icon="ph:users" width={16} height={16} />
+      ),
+    },
+    {
+      text: "Staff",
+      url: URL.STAFF_URL,
+      icon: (
+        <Icon icon="ph:users-three" width={16} height={16} />
+      ),
+    },
+    {
       text: "Logout",
       url: URL.LOGIN_URL,
       icon: (
@@ -338,7 +362,6 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
 
         {adminMenu.length > 0 && (
           <div className="DashboardSidebar__admin_navLinks">
-            <span className="title">Admin</span>
             <ul>{adminMenu.map(mapSidebarNav)}</ul>
           </div>
         )}
