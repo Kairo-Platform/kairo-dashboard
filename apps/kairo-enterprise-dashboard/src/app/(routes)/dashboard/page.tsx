@@ -104,13 +104,13 @@ const PageContainer = styled.main`
 `;
 
 const conversationTrend = [
-  { label: "Mon", value: 42 },
-  { label: "Tue", value: 58 },
-  { label: "Wed", value: 51 },
-  { label: "Thu", value: 73 },
-  { label: "Fri", value: 66 },
-  { label: "Sat", value: 39 },
-  { label: "Sun", value: 47 },
+  { label: "12am", value: 42 },
+  { label: "4am", value: 58 },
+  { label: "8am", value: 51 },
+  { label: "12pm", value: 73 },
+  { label: "4pm", value: 66 },
+  { label: "8pm", value: 39 },
+  { label: "11pm", value: 47 },
 ];
 
 const resolutionBreakdown = [

@@ -1,9 +1,9 @@
 import { URL } from "@/lib/constants/URL";
 
 export const OAUTH_CALLBACK_STATUS = {
-  SUCCESS: "success",
-  DENIED: "denied",
-  ERROR: "error",
+  SUCCESS: "SUCCESS",
+  DENIED: "DENIED",
+  ERROR: "ERROR",
 } as const;
 
 export type OAuthCallbackStatus =
@@ -41,7 +41,14 @@ export function consumeOAuthReturnTo(fallback = URL.LOGIN_URL): string {
   return fallback;
 }
 
-/** Returns the status if it matches an agreed value; otherwise null. */
+export function getOAuthReturnToUrl(): string {
+  if (typeof window === "undefined") {
+    throw new Error("OAuth returnTo URL is only available in the browser");
+  }
+
+  return `${window.location.origin}${URL.OAUTH_CALLBACK_URL}`;
+}
+
 export function parseOAuthCallbackStatus(
   status: string | null | undefined,
 ): OAuthCallbackStatus | null {
@@ -69,4 +76,12 @@ export function getOAuthStatusMessage(
   }
 
   return OAUTH_STATUS_MESSAGES[parsed];
+}
+
+export function parseOAuthIsNewUser(
+  value: string | null | undefined,
+): boolean | null {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
 }

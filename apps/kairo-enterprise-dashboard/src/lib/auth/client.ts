@@ -129,11 +129,12 @@ export function applyAuthPayload(
   }
 }
 
-/** Persist OAuth handoff (`token`, `userId`, `orgId`) into the session cookies. */
+// Persist OAuth / login session (`token`, `userId`, `orgId`) into cookies.
 export async function applyOAuthSession(params: {
   token: string;
   userId: string;
   orgId?: string | null;
+  isNewUser?: boolean;
 }): Promise<void> {
   await setAuthSession({
     accessToken: params.token,
@@ -142,6 +143,36 @@ export async function applyOAuthSession(params: {
     userId: params.userId,
     orgId: params.orgId ?? undefined,
   });
+}
+
+/**
+ * Applies either the modern `{ token, userId, orgId }` shape or legacy
+ * `{ gat, user }` auth payloads from login/signup responses.
+ */
+export async function applyLoginSession(
+  payload: Record<string, any> | null | undefined,
+): Promise<boolean> {
+  if (!payload) return false;
+
+  const data =
+    payload.authPayload ?? payload.body?.data ?? payload.data ?? payload;
+
+  if (data?.token && data?.userId) {
+    await applyOAuthSession({
+      token: data.token,
+      userId: data.userId,
+      orgId: data.orgId,
+      isNewUser: data.isNewUser,
+    });
+    return true;
+  }
+
+  if (data?.gat || data?.user) {
+    applyAuthPayload(data.user ?? null, data.gat);
+    return true;
+  }
+
+  return false;
 }
 
 export const AuthUtils = {
@@ -154,6 +185,7 @@ export const AuthUtils = {
   getOrgId,
   applyAuthPayload,
   applyOAuthSession,
+  applyLoginSession,
 };
 
 export default AuthUtils;

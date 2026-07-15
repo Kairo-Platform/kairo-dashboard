@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { Button, ButtonClass, ButtonSize, Flex } from "@/app/components/ui";
 import { FormInput } from "@/app/components/ui/inputs";
-import { applyAuthPayload } from "@/lib/auth";
+import { applyLoginSession } from "@/lib/auth";
 import { xApiAuth } from "@/services/xApi";
 import { URL } from "@/lib/constants/URL";
 import { useGoogleOAuth, useOAuthStatusNotification } from "@/lib/hooks";
@@ -127,10 +127,11 @@ export default function EnterpriseLoginPage() {
         throw response;
       }
 
-      const authPayload =
-        response.authPayload ?? response.body?.data ?? response.data ?? response;
+      const applied = await applyLoginSession(response);
+      if (!applied) {
+        throw new Error("Login did not return a session");
+      }
 
-      applyAuthPayload(authPayload.user ?? null, authPayload.gat);
       router.replace(URL.DASHBOARD_URL);
     } catch (error) {
       showErrorNotification({ message: parseApiError(error, "Sign in failed. Check your credentials.") });

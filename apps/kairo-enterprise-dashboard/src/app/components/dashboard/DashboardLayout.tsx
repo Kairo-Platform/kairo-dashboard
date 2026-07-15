@@ -1,23 +1,30 @@
 "use client";
 
-import { FC, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FC,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Icon } from "@iconify/react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import styled from "styled-components";
-// TODO: re-enable when backend auth is ready
-// import { useRouter } from "next/navigation";
-// import { useRef } from "react";
-// import { Loading, LoadingOverlay } from "@kairo/ui";
-// import { showErrorNotification } from "@kairo/utils";
-// import { URL } from "@/lib/constants/URL";
-// import { AuthUtils } from "@/lib/auth";
-// import { getApiData, isApiError } from "@/lib/utils";
-// import { xApiUser } from "@/services/xApi/User";
+import { Loading, LoadingOverlay } from "@kairo/ui";
+import { showErrorNotification } from "@kairo/utils";
+import { URL } from "@/lib/constants/URL";
+import { AuthUtils } from "@/lib/auth";
+import { getApiData, isApiError } from "@/lib/utils";
+import { xApiUser } from "@/services/xApi/User";
 import { DashboardHeader } from "./DashboardHeader";
 import { DashboardSidebar } from "./DashboardSidebar";
 import {
   AuthUser,
   DashboardContext,
+  hasAuthUserProfile,
+  normalizeAuthUser,
 } from "./DashboardContext";
 import { Breadcrumbs, Flex, type BreadcrumbItem } from "@/app/components/ui";
 
@@ -146,15 +153,13 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
   const appName = process.env.APP_NAME ?? "Kairo Dashboard";
   const titleText = typeof pageTitle === "string" ? pageTitle : "Dashboard";
 
-  // TODO: re-enable when backend auth is ready
-  // const router = useRouter();
+  const router = useRouter();
   const pathname = usePathname();
   const [sidebarIsOpen, setSidebarIsOpen] = useState(true);
-  const [authUser] = useState<AuthUser | null>(null);
-  // const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  // const [fetchingAuthUser, setFetchingAuthUser] = useState(true);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [fetchingAuthUser, setFetchingAuthUser] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
-  // const fetchedAuthUser = useRef(false);
+  const fetchedAuthUser = useRef(false);
 
   const toggleSidebar = useCallback(() => {
     setSidebarIsOpen((open) => !open);
@@ -183,63 +188,62 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
     document.title = `${appName} - ${titleText}`;
   }, [appName, titleText]);
 
-  // TODO: re-enable auth gate when backend is ready
-  // const fetchLoggedInUser = useCallback(async () => {
-  //   if (fetchedAuthUser.current) return;
-  //   fetchedAuthUser.current = true;
-  //   setFetchingAuthUser(true);
-  //
-  //   try {
-  //     const response = await xApiUser.me();
-  //     if (isApiError(response)) {
-  //       throw response;
-  //     }
-  //     const data = getApiData<AuthUser>(response);
-  //     if (data) setAuthUser(data);
-  //   } catch (error: unknown) {
-  //     const err = error as { statusCode?: number };
-  //     router.replace(URL.LOGIN_URL);
-  //     if (err.statusCode === 401) {
-  //       showErrorNotification({
-  //         message: "Session expired. Please log in again.",
-  //       });
-  //       void AuthUtils.logout();
-  //     }
-  //   } finally {
-  //     setFetchingAuthUser(false);
-  //   }
-  // }, [router]);
-  //
-  // useEffect(() => {
-  //   void (async () => {
-  //     const loggedIn = await AuthUtils.isLoggedIn();
-  //     if (!loggedIn) {
-  //       setFetchingAuthUser(false);
-  //       router.replace(URL.LOGIN_URL);
-  //       return;
-  //     }
-  //
-  //     if (!authUser?.firstName) {
-  //       await fetchLoggedInUser();
-  //     } else {
-  //       setFetchingAuthUser(false);
-  //     }
-  //   })();
-  // }, [authUser?.firstName, fetchLoggedInUser, router]);
+  const fetchLoggedInUser = useCallback(async () => {
+    if (fetchedAuthUser.current) return;
+    fetchedAuthUser.current = true;
+    setFetchingAuthUser(true);
+
+    try {
+      const response = await xApiUser.me();
+      if (isApiError(response)) {
+        throw response;
+      }
+      const data = getApiData<AuthUser>(response);
+      const user = normalizeAuthUser(data ?? (response as AuthUser));
+      if (user) setAuthUser(user);
+    } catch (error: unknown) {
+      const err = error as { statusCode?: number; status?: number };
+      router.replace(URL.LOGIN_URL);
+      if (err.statusCode === 401 || err.status === 401) {
+        showErrorNotification({
+          message: "Session expired. Please log in again.",
+        });
+        void AuthUtils.logout();
+      }
+    } finally {
+      setFetchingAuthUser(false);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    void (async () => {
+      const loggedIn = await AuthUtils.isLoggedIn();
+      if (!loggedIn) {
+        setFetchingAuthUser(false);
+        router.replace(URL.LOGIN_URL);
+        return;
+      }
+
+      if (!hasAuthUserProfile(authUser)) {
+        await fetchLoggedInUser();
+      } else {
+        setFetchingAuthUser(false);
+      }
+    })();
+  }, [authUser, fetchLoggedInUser, router]);
 
   const contextValue = useMemo(
     () => ({ authUser, darkModeEnabled, toggleDarkMode }),
     [authUser, darkModeEnabled, toggleDarkMode],
   );
 
-  // TODO: re-enable when backend auth is ready
-  // if (fetchingAuthUser && !authUser?.firstName) {
-  //   return (
-  //     <LoadingOverlay>
-  //       <Loading />
-  //     </LoadingOverlay>
-  //   );
-  // }
+  if (fetchingAuthUser && !hasAuthUserProfile(authUser)) {
+    return (
+      <LoadingOverlay>
+        <Loading />
+      </LoadingOverlay>
+    );
+  }
 
   return (
     <DashboardContext.Provider value={contextValue}>

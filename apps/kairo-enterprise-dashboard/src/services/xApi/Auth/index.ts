@@ -3,6 +3,21 @@ import { xApiBff } from "@/lib/bff/client";
 const AUTH_BASE = "auth/access-control-flows";
 const GOOGLE_OAUTH_START_PATH = "/api/auth/oauth/google";
 
+export type OAuthExchangeResponse = {
+  token?: string;
+  userId?: string;
+  orgId?: string;
+  isNewUser?: boolean;
+  statusCode?: number;
+  message?: string;
+  authPayload?: {
+    gat?: string;
+    user?: { id?: string; type?: string; userType?: string };
+  };
+  body?: { data?: OAuthExchangeResponse };
+  data?: OAuthExchangeResponse;
+};
+
 export const xApiAuth = {
   login: (data: Record<string, unknown>) =>
     xApiBff.request("auth/login", {
@@ -22,11 +37,12 @@ export const xApiAuth = {
     }),
 
   /**
-   * Resolves the Google OAuth start URL from the app API route, then redirects.
+   * Resolves the Google OAuth start URL (with returnTo), then redirects.
    * Throws on configuration / network / API errors so callers can manage loading + errors.
    */
-  startGoogleOAuth: async (): Promise<void> => {
-    const response = await fetch(GOOGLE_OAUTH_START_PATH, {
+  startGoogleOAuth: async (returnTo: string): Promise<void> => {
+    const startPath = `${GOOGLE_OAUTH_START_PATH}?returnTo=${encodeURIComponent(returnTo)}`;
+    const response = await fetch(startPath, {
       method: "GET",
       credentials: "include",
       headers: { Accept: "application/json" },
@@ -57,6 +73,13 @@ export const xApiAuth = {
 
     window.location.assign(payload.redirectUrl);
   },
+
+  // Exchange a one-time OAuth `code` for `{ token, userId, orgId, isNewUser }`
+  exchangeOAuthCode: (code: string) =>
+    xApiBff.request<OAuthExchangeResponse>("v1/auth/oauth/exchange", {
+      method: "POST",
+      body: { code },
+    }),
 
   initiateLogin: (data: Record<string, unknown>) =>
     xApiBff.request(`${AUTH_BASE}/initiate`, {

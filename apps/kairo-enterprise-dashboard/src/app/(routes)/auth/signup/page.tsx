@@ -7,12 +7,13 @@ import Image from "next/image";
 import { Icon } from "@iconify/react";
 import { Button, ButtonClass, ButtonSize, Flex } from "@/app/components/ui";
 import { FormInput } from "@/app/components/ui/inputs";
-import { applyAuthPayload } from "@/lib/auth";
+import { applyLoginSession } from "@/lib/auth";
 import { xApiAuth } from "@/services/xApi";
 import { URL } from "@/lib/constants/URL";
 import { useGoogleOAuth, useOAuthStatusNotification } from "@/lib/hooks";
 import {
   showErrorNotification,
+  showSuccessNotification,
   type SignupWithEmailAndPasswordFieldErrors,
   validateSignupWithEmailAndPassword,
 } from "@kairo/utils";
@@ -142,11 +143,15 @@ export default function EnterpriseSignupPage() {
         throw response;
       }
 
-      const authPayload =
-        response.authPayload ?? response.body?.data ?? response.data ?? response;
-
-      if (authPayload?.gat || authPayload?.user) {
-        applyAuthPayload(authPayload.user ?? null, authPayload.gat);
+      const applied = await applyLoginSession(response);
+      if (applied) {
+        const data =
+          response.authPayload ?? response.body?.data ?? response.data ?? response;
+        if (data?.isNewUser) {
+          showSuccessNotification({
+            message: "Welcome to Kairo — your account is ready.",
+          });
+        }
         router.replace(URL.DASHBOARD_URL);
         return;
       }

@@ -10,8 +10,7 @@ function resolveXApiBaseUrl() {
   );
 }
 
-/** Returns the xApi Google OAuth start URL for the client to navigate to. */
-export async function GET() {
+export async function GET(request: Request) {
   const baseUrl = resolveXApiBaseUrl()?.replace(/\/$/, "");
 
   if (!baseUrl) {
@@ -24,7 +23,14 @@ export async function GET() {
     );
   }
 
+  const returnTo = new URL(request.url).searchParams.get("returnTo");
+  const startUrl = new URL(`${baseUrl}/v1/auth/oauth/google/start`);
+
+  if (returnTo) {
+    startUrl.searchParams.set("returnTo", returnTo);
+  }
+
   return NextResponse.json({
-    redirectUrl: `${baseUrl}/v1/auth/oauth/google/start`,
+    redirectUrl: startUrl.toString(),
   });
 }

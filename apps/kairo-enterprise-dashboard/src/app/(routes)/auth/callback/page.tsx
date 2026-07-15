@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "styled-components";
 import Image from "next/image";
@@ -10,8 +10,12 @@ import {
   getOAuthStatusMessage,
   OAUTH_CALLBACK_STATUS,
   parseOAuthCallbackStatus,
+  parseOAuthIsNewUser,
 } from "@/lib/auth";
 import { URL } from "@/lib/constants/URL";
+import { getApiData, isApiError, parseApiError } from "@/lib/utils";
+import { xApiAuth } from "@/services/xApi";
+import { showSuccessNotification } from "@kairo/utils";
 
 const PageContainer = styled.main`
   min-height: 100vh;
@@ -72,17 +76,20 @@ function redirectToAuthWithStatus(
 function OAuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [message, setMessage] = useState("Completing Google sign-in…");
+  const [message, setMessage] = useState("Completing OAuth sign-in…");
   const [isError, setIsError] = useState(false);
+  const didRun = useRef(false);
 
   useEffect(() => {
+    if (didRun.current) return;
+    didRun.current = true;
+
     let cancelled = false;
 
     const finish = async () => {
       const status = parseOAuthCallbackStatus(searchParams.get("status"));
-      const token = searchParams.get("token");
-      const userId = searchParams.get("userId");
-      const orgId = searchParams.get("orgId");
+      const code = searchParams.get("code");
+      const isNewFromQuery = parseOAuthIsNewUser(searchParams.get("new"));
 
       if (
         status === OAUTH_CALLBACK_STATUS.DENIED ||
@@ -97,7 +104,7 @@ function OAuthCallbackContent() {
         return;
       }
 
-      if (status !== OAUTH_CALLBACK_STATUS.SUCCESS || !token || !userId) {
+      if (status !== OAUTH_CALLBACK_STATUS.SUCCESS || !code) {
         const statusMessage = getOAuthStatusMessage(OAUTH_CALLBACK_STATUS.ERROR);
         if (!cancelled) {
           setIsError(true);
@@ -108,13 +115,51 @@ function OAuthCallbackContent() {
       }
 
       try {
+        if (!cancelled) {
+          setMessage("Exchanging sign-in code…");
+        }
+
+        const response = await xApiAuth.exchangeOAuthCode(code);
+
+        if (isApiError(response)) {
+          throw response;
+        }
+
+        const session =
+          getApiData<{
+            token?: string;
+            userId?: string;
+            orgId?: string;
+            isNewUser?: boolean;
+          }>(response) ?? response;
+
+        const token = session?.token;
+        const userId = session?.userId;
+        const orgId = session?.orgId;
+        const isNewUser = session?.isNewUser ?? isNewFromQuery ?? false;
+
+        if (!token || !userId) {
+          throw new Error("OAuth exchange did not return a session");
+        }
+
         await applyOAuthSession({ token, userId, orgId });
+
         if (!cancelled) {
           setMessage(getOAuthStatusMessage(OAUTH_CALLBACK_STATUS.SUCCESS));
+          if (isNewUser) {
+            showSuccessNotification({
+              message: "Welcome to Kairo — your account is ready.",
+            });
+          }
         }
+
+        // Drop code from the URL before navigating away.
         router.replace(URL.DASHBOARD_URL);
-      } catch {
-        const statusMessage = getOAuthStatusMessage(OAUTH_CALLBACK_STATUS.ERROR);
+      } catch (error) {
+        const statusMessage = parseApiError(
+          error,
+          getOAuthStatusMessage(OAUTH_CALLBACK_STATUS.ERROR),
+        );
         if (!cancelled) {
           setIsError(true);
           setMessage(statusMessage);
@@ -132,7 +177,7 @@ function OAuthCallbackContent() {
 
   return (
     <Card>
-      <p className="title">Google sign-in</p>
+      <p className="title">OAuth sign-in</p>
       <p className={`message ${isError ? "error" : ""}`}>{message}</p>
     </Card>
   );
@@ -151,8 +196,8 @@ export default function OAuthCallbackPage() {
       <Suspense
         fallback={
           <Card>
-            <p className="title">Google sign-in</p>
-            <p className="message">Completing Google sign-in…</p>
+            <p className="title">OAuth sign-in</p>
+            <p className="message">Completing OAuth sign-in…</p>
           </Card>
         }
       >

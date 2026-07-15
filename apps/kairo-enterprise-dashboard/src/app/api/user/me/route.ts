@@ -5,15 +5,7 @@ import { proxyXApiBearerRequest } from "@/lib/bff/proxyRoute";
 
 export async function GET() {
   const session = await getServerAuthSession(enterpriseAuthConfig);
-  const userId = session.userId;
   const bearerToken = session.accessToken ?? session.gat;
-
-  if (!userId) {
-    return NextResponse.json(
-      { statusCode: 401, message: "Missing user id in session" },
-      { status: 401 },
-    );
-  }
 
   if (!bearerToken) {
     return NextResponse.json(
@@ -23,7 +15,7 @@ export async function GET() {
   }
 
   return proxyXApiBearerRequest(bearerToken, {
-    path: `v1/me/${userId}`,
+    path: "v1/me",
     method: "GET",
   });
 }

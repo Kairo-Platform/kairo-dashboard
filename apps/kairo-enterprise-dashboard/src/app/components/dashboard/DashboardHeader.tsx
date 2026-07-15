@@ -8,7 +8,7 @@ import { DashboardSidebarHeader } from "./DashboardSidebarHeader";
 import { InitialsAvatar, Flex, ActionMenu } from "@/app/components/ui";
 import { AuthUtils } from "@/lib/auth";
 import { URL } from "@/lib/constants/URL";
-import { useDashboardContext } from "./DashboardContext";
+import { useDashboardContext, getAuthUserDisplayName } from "./DashboardContext";
 
 const DashboardHeaderContainer = styled.header`
   @media (max-width: ${(props) => props.theme.breakpoint.md}) {
@@ -140,10 +140,16 @@ export const DashboardHeader: FC<DashboardHeaderProps> = ({
     [darkModeEnabled, toggleDarkMode],
   );
 
-  const firstName = authUser?.firstName || "";
-  const lastName = authUser?.lastName || "";
+  const displayName = getAuthUserDisplayName(authUser);
   const authUserRoleName =
-    authUser?.role?.name || humanize(authUser?.type || authUser?.userType) || "";
+    humanize(authUser?.role?.name) ||
+    humanize(
+      (Array.isArray(authUser?.organizations) &&
+        authUser.organizations[0]?.role) ||
+      authUser?.type ||
+      authUser?.userType,
+    ) ||
+    "";
   const avatar = authUser?.photo?.url || "";
 
   return (
@@ -170,12 +176,12 @@ export const DashboardHeader: FC<DashboardHeaderProps> = ({
                   className="DashboardHeader__user_info_flex"
                 >
                   <InitialsAvatar
-                    name={`${firstName} ${lastName}`.trim() || "User"}
+                    name={displayName}
                     avatarUrl={avatar}
                   />
                   <div className="DashboardHeader__user-role-wrapper">
                     <p className="DashboardHeader__user--text DashboardHeader__user--name">
-                      {`${firstName} ${lastName}`.trim() || "User"}
+                      {displayName}
                     </p>
                     <p className="DashboardHeader__user--text DashboardHeader__user--role">
                       {authUserRoleName}
