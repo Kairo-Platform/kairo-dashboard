@@ -12,6 +12,7 @@ import {
   TagType,
 } from "@/app/components/ui";
 import { Icon } from "@iconify/react";
+import { DATE_TIME_FORMAT, formatDate } from "@kairo/lib/utils";
 
 export type ConversationStatus =
   | "open"
@@ -35,20 +36,6 @@ const STATUS_TAG: Record<string, (typeof TagType)[keyof typeof TagType]> = {
   escalated: TagType.RED,
   pending: TagType.YELLOW,
   closed: TagType.GREY,
-};
-
-const formatDateTime = (value: string | Date) => {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(date);
 };
 
 const humanize = (value: string) =>
@@ -94,15 +81,7 @@ const DashboardRecentConversationsTableContainer = styled.div`
   }
 
   .SeeAllBtn {
-    background: none;
-    border: none;
-    font-size: 1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0;
-    color: ${(props) => props.theme.colors.text_02};
+    color: ${(props) => props.theme.colors.orange};
 
     &:hover {
       text-decoration: underline;
@@ -167,7 +146,8 @@ export const DashboardRecentConversationsTable = ({
     },
     {
       title: "Date & Time",
-      render: (row: RecentConversation) => formatDateTime(row.dateTime),
+      render: (row: RecentConversation) =>
+        String(formatDate(row.dateTime, DATE_TIME_FORMAT) ?? "—"),
     },
   ];
 
@@ -186,9 +166,9 @@ export const DashboardRecentConversationsTable = ({
         </div>
 
         {onSeeAll && (
-          <button type="button" onClick={onSeeAll} className="SeeAllBtn">
+          <Button type="button" classes={[ButtonClass.TEXT_ONLY]} onClick={onSeeAll} className="SeeAllBtn">
             <span>See all</span>
-          </button>
+          </Button>
         )}
       </Flex>
 

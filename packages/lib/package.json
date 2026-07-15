@@ -1,0 +1,24 @@
+{
+  "name": "@kairo/lib",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./utils": "./src/utils/index.ts"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.21"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@kairo/config-eslint": "workspace:*",
+    "@kairo/config-typescript": "workspace:*",
+    "@types/node": "^20",
+    "eslint": "^9",
+    "typescript": "^5.8.3"
+  }
+}

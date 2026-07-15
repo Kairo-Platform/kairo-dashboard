@@ -15,6 +15,7 @@
     "@iconify/react": "^6.0.2",
     "@kairo/auth": "workspace:*",
     "@kairo/hooks": "workspace:*",
+    "@kairo/lib": "workspace:*",
     "@kairo/services": "workspace:*",
     "@kairo/theme": "workspace:*",
     "@kairo/ui": "workspace:*",

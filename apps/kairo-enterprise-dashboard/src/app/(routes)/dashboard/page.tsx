@@ -9,6 +9,8 @@ import {
   DashboardRecentConversationsTable,
 } from "@/app/components/dashbaord-analytics";
 import { Icon } from "@iconify/react";
+import { useRouter } from "next/navigation";
+import { URL } from "@/lib/constants";
 
 const PageContainer = styled.main`
   display: grid;
@@ -164,6 +166,8 @@ const recentConversations = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
+
   const cards = [
     {
       title: "Total conversations",
@@ -288,7 +292,7 @@ export default function DashboardPage() {
         <section className="RecentConversationsSection">
           <DashboardRecentConversationsTable
             conversations={recentConversations}
-            onSeeAll={() => { }}
+            onSeeAll={() => router.push(URL.DASHBOARD_CONVERSATIONS_URL)}
           />
         </section>
       </PageContainer>
