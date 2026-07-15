@@ -11,6 +11,7 @@ import {
 import { Icon } from "@iconify/react";
 import { useRouter } from "next/navigation";
 import { URL } from "@/lib/constants";
+import { KairoBillingSummaryModal } from "@/app/components/billing";
 
 const PageContainer = styled.main`
   display: grid;
@@ -296,6 +297,8 @@ export default function DashboardPage() {
           />
         </section>
       </PageContainer>
+
+      <KairoBillingSummaryModal />
     </DashboardLayout>
   );
 }
