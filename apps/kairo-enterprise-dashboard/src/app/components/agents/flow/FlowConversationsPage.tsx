@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { ConversationsTable } from "../../conversations";
 import { DashboardAnalyticsCardGrid, DashboardLineChart } from "../../dashbaord-analytics";
 import { styled } from "styled-components";
+import { useRouter } from "next/navigation";
+import { URL } from "@/lib/constants";
 
 const FlowConversationsPageContainer = styled.div`
   main {
@@ -51,6 +53,7 @@ const dummyData = [
 ];
 
 export const FlowConversationsPage = () => {
+  const router = useRouter();
 
   const cards = [
     {
@@ -86,9 +89,9 @@ export const FlowConversationsPage = () => {
               conversations={[
                 {
                   id: "1",
-                  user: "John Doe",
-                  message: "What's my current wallet balance?",
-                  channel: "Email",
+                  user: "Chinedu Okafor",
+                  message: "What is my current balance?",
+                  channel: "Whatsapp",
                   status: "open",
                   createdAt: new Date(),
                 },
@@ -103,6 +106,7 @@ export const FlowConversationsPage = () => {
               ]}
               loading={false}
               onRefresh={() => { }}
+              onViewConversation={id => router.push(URL.AGENTS_FLOW_CONVERSATION_DETAILS_URL.replace(":id", id))}
               page={1}
               limit={10}
               totalCount={10}

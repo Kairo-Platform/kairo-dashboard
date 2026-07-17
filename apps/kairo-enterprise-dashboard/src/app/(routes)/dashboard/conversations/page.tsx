@@ -41,9 +41,9 @@ export default function ConversationsPage() {
           conversations={[
             {
               id: "1",
-              user: "John Doe",
-              message: "What's my current wallet balance?",
-              channel: "Email",
+              user: "Chinedu Okafor",
+              message: "What is my current balance?",
+              channel: "Whatsapp",
               status: "open",
               createdAt: new Date(),
             },
@@ -58,6 +58,7 @@ export default function ConversationsPage() {
           ]}
           loading={false}
           onRefresh={() => { }}
+          onViewConversation={(id) => router.push(URL.DASHBOARD_CONVERSATION_DETAILS_URL.replace(":id", id))}
           page={1}
           limit={10}
           totalCount={10}

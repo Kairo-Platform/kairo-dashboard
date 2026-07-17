@@ -22,6 +22,7 @@ export type ConversationsTableProps = {
   conversations: Conversation[];
   loading?: boolean;
   onRefresh?: () => void;
+  onViewConversation?: (id: string) => void;
   onSeeAll?: () => void;
   page?: number;
   limit?: number;
@@ -39,6 +40,7 @@ const CONVERSATION_STATUS_TAG: Record<string, (typeof TagType)[keyof typeof TagT
 export const ConversationsTable = ({
   conversations,
   loading = false,
+  onViewConversation,
   page,
   limit,
   totalCount,
@@ -97,7 +99,7 @@ export const ConversationsTable = ({
                 pageNumber={page}
                 limitNumber={limit}
                 totalCount={totalCount}
-                onRowClick={() => { }}
+                onRowClick={onViewConversation ? ({ row }: { row: Conversation }) => onViewConversation(row.id) : undefined}
               />
             </Flex>
           ) :

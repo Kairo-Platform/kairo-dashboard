@@ -22,7 +22,7 @@ export const theme = {
     skyBlue: "#B7D8FF",
     linkText: "#666666",
     gold: "#DB9D24",
-    green: "#149856",
+    green: "#00BF06",
     green_01: "#46AE70",
     inputBorder: "#EBEBEB",
     lightBlue: "#B7D8FF",
