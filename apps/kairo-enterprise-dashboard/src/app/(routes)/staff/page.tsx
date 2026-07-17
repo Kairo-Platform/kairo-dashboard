@@ -3,8 +3,6 @@
 import { Suspense } from "react";
 import { StaffTable } from "@/app/components/staff";
 import { DashboardLayout } from "@/app/components/dashboard";
-import { URL } from "@/lib/constants";
-import { useRouter } from "next/navigation";
 
 const dummyStaff = [
   {
@@ -37,23 +35,10 @@ const dummyStaff = [
 ];
 
 export default function StaffPage() {
-  const router = useRouter();
-
-  const breadcrumbs = [
-    {
-      title: "Dashboard",
-      onClick: () => router.push(URL.DASHBOARD_URL),
-    },
-    {
-      title: "Staff",
-    },
-  ];
-
   return (
     <DashboardLayout
       pageTitle="Staff"
       subTitle="Manage all staffs, their activity and performance."
-      breadcrumbs={breadcrumbs}
     >
       <Suspense fallback={null}>
         <StaffTable

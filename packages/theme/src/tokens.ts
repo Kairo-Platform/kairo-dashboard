@@ -59,7 +59,7 @@ export const theme = {
     text_04: "#828282",
     text_05: "#969696",
     text_06: "#B2B2B2",
-    text_07: "#D1D1D1",
+    text_07: "#797979",
     text_08: "#E0E0E0",
     text_09: "#F0F0F0",
     transparent: "transparent",
@@ -118,7 +118,8 @@ export const theme = {
     emptyState: {
       textColor: "#2A2A2A",
       textColor_02: "#6B6B6B",
-      iconBgColor: "#F0F0F0",
+      iconColor: "#FF6B1A",
+      iconBgColor: "#FFF9F6",
     },
   },
   projectListCard: {

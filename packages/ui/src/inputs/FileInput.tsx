@@ -223,7 +223,7 @@ export const FileInput: React.FC<FileInputProps> = ({
             ) : (
               <span className="FileInput__icon">
                 <Icon
-                  icon="material-symbols:upload-rounded"
+                  icon="bytesize:upload"
                   width="20"
                   height="20"
                 />

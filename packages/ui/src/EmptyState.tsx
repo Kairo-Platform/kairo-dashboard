@@ -9,7 +9,8 @@ const EmptyStateElement = styled.div`
   align-items: center;
   justify-content: center;
   text-align: center;
-  width: 20rem;
+  max-width: 22rem;
+  width: 100%;
   min-height: 10rem;
   // background-color: ${(props) => props.theme.colors.ui_01};
   border-radius: 1rem;
@@ -21,6 +22,7 @@ const EmptyStateElement = styled.div`
   .icon {
     margin-bottom: 0.5rem;
     background-color: ${(props) => props.theme.colors.emptyState.iconBgColor};
+    color: ${(props) => props.theme.colors.emptyState.iconColor};
     border-radius: 50%;
     width: 4rem;
     height: 4rem;
@@ -35,8 +37,9 @@ const EmptyStateElement = styled.div`
     color: ${(props) => props.theme.colors.emptyState.textColor};
   }
 
-  div {
+  p {
     font-size: 0.875rem;
+    font-weight: 500;
     color: ${(props) => props.theme.colors.emptyState.textColor_02};
     margin-bottom: 0.5rem;
   }
@@ -67,7 +70,7 @@ export const EmptyState = ({
     <EmptyStateElement {...rest}>
       {icon && <span className="icon">{icon}</span>}
       <h5>{title}</h5>
-      <div>{message}</div>
+      <p>{message}</p>
       {children}
     </EmptyStateElement>
   );

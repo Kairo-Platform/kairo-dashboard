@@ -4,28 +4,13 @@ import { Suspense } from "react";
 import { UsersTable } from "@/app/components/users";
 import { DashboardLayout } from "@/app/components/dashboard";
 import { Button, ButtonClass } from "@/app/components/ui";
-import { URL } from "@/lib/constants";
 import { Icon } from "@iconify/react";
-import { useRouter } from "next/navigation";
 
 export default function UsersPage() {
-  const router = useRouter();
-
-  const breadcrumbs = [
-    {
-      title: "Dashboard",
-      onClick: () => router.push(URL.DASHBOARD_URL),
-    },
-    {
-      title: "Users",
-    },
-  ];
-
   return (
     <DashboardLayout
       pageTitle="Users"
       subTitle="Manage all businesses, their activity and performance."
-      breadcrumbs={breadcrumbs}
       appendElementToHeading={
         <Button
           classes={[ButtonClass.GRADIENT, ButtonClass.WITH_ICON]}
