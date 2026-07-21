@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import Image from "next/image";
 import { Icon } from "@iconify/react";
 import { Button, ButtonClass, ButtonSize, Flex } from "@/app/components/ui";
 import { FormInput } from "@/app/components/ui/inputs";
+import { EmailVerificationModal } from "@/app/components/auth/EmailVerificationModal";
 import { applyLoginSession } from "@/lib/auth";
 import { xApiAuth } from "@/services/xApi";
 import { URL } from "@/lib/constants/URL";
@@ -17,7 +18,7 @@ import {
   type SignupWithEmailAndPasswordFieldErrors,
   validateSignupWithEmailAndPassword,
 } from "@kairo/utils";
-import { parseApiError } from "@/lib/utils";
+import { isApiError, parseApiError } from "@/lib/utils";
 
 const PageContainer = styled.main`
   min-height: 100vh;
@@ -102,6 +103,8 @@ export default function EnterpriseSignupPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
   const [fieldErrors, setFieldErrors] =
     useState<SignupWithEmailAndPasswordFieldErrors>({});
   const { oauthLoading, oauthError, startGoogleOAuth } = useGoogleOAuth(
@@ -111,6 +114,25 @@ export default function EnterpriseSignupPage() {
 
   const clearFieldError = (field: keyof SignupWithEmailAndPasswordFieldErrors) =>
     setFieldErrors((current) => ({ ...current, [field]: undefined }));
+
+  const handleVerified = useCallback(
+    async (response: Record<string, unknown>) => {
+      const applied = await applyLoginSession(response);
+      if (applied) {
+        showSuccessNotification({
+          message: "Welcome to Kairo — your account is ready.",
+        });
+        router.replace(URL.DASHBOARD_URL);
+        return;
+      }
+
+      showSuccessNotification({
+        message: "Email verified. Please log in to continue.",
+      });
+      router.replace(URL.LOGIN_URL);
+    },
+    [router],
+  );
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault();
@@ -137,28 +159,24 @@ export default function EnterpriseSignupPage() {
         orgName: validation.data.orgName,
         email: validation.data.email,
         password: validation.data.password,
-      })) as Record<string, any>;
+      })) as Record<string, unknown>;
 
-      if (response?.statusCode && response.statusCode !== 200) {
+      if (isApiError(response)) {
         throw response;
       }
 
-      const applied = await applyLoginSession(response);
-      if (applied) {
-        const data =
-          response.authPayload ?? response.body?.data ?? response.data ?? response;
-        if (data?.isNewUser) {
-          showSuccessNotification({
-            message: "Welcome to Kairo — your account is ready.",
-          });
-        }
-        router.replace(URL.DASHBOARD_URL);
-        return;
-      }
-
-      router.replace(URL.LOGIN_URL);
+      setPendingVerificationEmail(validation.data.email);
+      setShowVerificationModal(true);
+      showSuccessNotification({
+        message: "Account created. Check your email for a verification code.",
+      });
     } catch (error) {
-      showErrorNotification({ message: parseApiError(error, "Sign up failed. Check your details and try again.") });
+      showErrorNotification({
+        message: parseApiError(
+          error,
+          "Sign up failed. Check your details and try again.",
+        ),
+      });
     } finally {
       setLoading(false);
     }
@@ -315,6 +333,14 @@ export default function EnterpriseSignupPage() {
           </Flex>
         </form>
       </Card>
+
+      {showVerificationModal && pendingVerificationEmail ? (
+        <EmailVerificationModal
+          email={pendingVerificationEmail}
+          onClose={() => setShowVerificationModal(false)}
+          onVerified={handleVerified}
+        />
+      ) : null}
     </PageContainer>
   );
 }

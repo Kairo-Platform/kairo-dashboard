@@ -1,19 +1,19 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "styled-components";
 import Image from "next/image";
+import { Loading } from "@/app/components/ui";
 import {
   applyOAuthSession,
   consumeOAuthReturnTo,
-  getOAuthStatusMessage,
   OAUTH_CALLBACK_STATUS,
   parseOAuthCallbackStatus,
   parseOAuthIsNewUser,
 } from "@/lib/auth";
 import { URL } from "@/lib/constants/URL";
-import { getApiData, isApiError, parseApiError } from "@/lib/utils";
+import { getApiData, isApiError } from "@/lib/utils";
 import { xApiAuth } from "@/services/xApi";
 import { showSuccessNotification } from "@kairo/utils";
 
@@ -41,30 +41,6 @@ const PageContainer = styled.main`
   }
 `;
 
-const Card = styled.div`
-  width: min(100%, 420px);
-  padding: 2rem;
-  border-radius: 12px;
-  background: ${(props) => props.theme.colors.white};
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  text-align: center;
-
-  .title {
-    font-size: 1.5rem;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-  }
-
-  .message {
-    font-size: 0.95rem;
-    color: ${(props) => props.theme.colors.text_02};
-  }
-
-  .error {
-    color: ${(props) => props.theme.colors.buttonRed};
-  }
-`;
-
 function redirectToAuthWithStatus(
   router: ReturnType<typeof useRouter>,
   status: typeof OAUTH_CALLBACK_STATUS.DENIED | typeof OAUTH_CALLBACK_STATUS.ERROR,
@@ -76,8 +52,6 @@ function redirectToAuthWithStatus(
 function OAuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [message, setMessage] = useState("Completing OAuth sign-in…");
-  const [isError, setIsError] = useState(false);
   const didRun = useRef(false);
 
   useEffect(() => {
@@ -95,30 +69,16 @@ function OAuthCallbackContent() {
         status === OAUTH_CALLBACK_STATUS.DENIED ||
         status === OAUTH_CALLBACK_STATUS.ERROR
       ) {
-        const statusMessage = getOAuthStatusMessage(status);
-        if (!cancelled) {
-          setIsError(true);
-          setMessage(statusMessage);
-        }
         redirectToAuthWithStatus(router, status);
         return;
       }
 
       if (status !== OAUTH_CALLBACK_STATUS.SUCCESS || !code) {
-        const statusMessage = getOAuthStatusMessage(OAUTH_CALLBACK_STATUS.ERROR);
-        if (!cancelled) {
-          setIsError(true);
-          setMessage(statusMessage);
-        }
         redirectToAuthWithStatus(router, OAUTH_CALLBACK_STATUS.ERROR);
         return;
       }
 
       try {
-        if (!cancelled) {
-          setMessage("Exchanging sign-in code…");
-        }
-
         const response = await xApiAuth.exchangeOAuthCode(code);
 
         if (isApiError(response)) {
@@ -144,26 +104,15 @@ function OAuthCallbackContent() {
 
         await applyOAuthSession({ token, userId, orgId });
 
-        if (!cancelled) {
-          setMessage(getOAuthStatusMessage(OAUTH_CALLBACK_STATUS.SUCCESS));
-          if (isNewUser) {
-            showSuccessNotification({
-              message: "Welcome to Kairo — your account is ready.",
-            });
-          }
+        if (!cancelled && isNewUser) {
+          showSuccessNotification({
+            message: "Welcome to Kairo! Your account is ready.",
+          });
         }
 
         // Drop code from the URL before navigating away.
         router.replace(URL.DASHBOARD_URL);
-      } catch (error) {
-        const statusMessage = parseApiError(
-          error,
-          getOAuthStatusMessage(OAUTH_CALLBACK_STATUS.ERROR),
-        );
-        if (!cancelled) {
-          setIsError(true);
-          setMessage(statusMessage);
-        }
+      } catch {
         redirectToAuthWithStatus(router, OAUTH_CALLBACK_STATUS.ERROR);
       }
     };
@@ -175,12 +124,7 @@ function OAuthCallbackContent() {
     };
   }, [router, searchParams]);
 
-  return (
-    <Card>
-      <p className="title">OAuth sign-in</p>
-      <p className={`message ${isError ? "error" : ""}`}>{message}</p>
-    </Card>
-  );
+  return <Loading />;
 }
 
 export default function OAuthCallbackPage() {
@@ -193,14 +137,7 @@ export default function OAuthCallbackPage() {
         height={100}
         className="logo"
       />
-      <Suspense
-        fallback={
-          <Card>
-            <p className="title">OAuth sign-in</p>
-            <p className="message">Completing OAuth sign-in…</p>
-          </Card>
-        }
-      >
+      <Suspense fallback={<Loading />}>
         <OAuthCallbackContent />
       </Suspense>
     </PageContainer>

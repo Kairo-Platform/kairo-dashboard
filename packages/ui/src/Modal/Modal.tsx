@@ -121,7 +121,7 @@ const ModalContainer = styled.div<{ $anchored?: boolean; $showOverlay?: boolean 
   }
 
   .modal__title {
-    font-weight: bold;
+    font-weight: semibold;
     font-size: 24px;
     line-height: 25px;
     letter-spacing: 0.25px;

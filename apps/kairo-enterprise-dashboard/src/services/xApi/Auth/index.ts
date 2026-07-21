@@ -20,7 +20,7 @@ export type OAuthExchangeResponse = {
 
 export const xApiAuth = {
   login: (data: Record<string, unknown>) =>
-    xApiBff.request("auth/login", {
+    xApiBff.request("v1/auth/login", {
       method: "POST",
       body: data,
     }),
@@ -32,6 +32,18 @@ export const xApiAuth = {
     password: string;
   }) =>
     xApiBff.request("v1/auth/signup", {
+      method: "POST",
+      body: data,
+    }),
+
+  verifyEmail: (data: { email: string; code: string }) =>
+    xApiBff.request("v1/auth/verify-email", {
+      method: "POST",
+      body: data,
+    }),
+
+  resendEmailVerification: (data: { email: string }) =>
+    xApiBff.request("v1/auth/resend-verification", {
       method: "POST",
       body: data,
     }),
