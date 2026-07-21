@@ -19,6 +19,7 @@ import {
   validateSignupWithEmailAndPassword,
 } from "@kairo/utils";
 import { isApiError, parseApiError } from "@/lib/utils";
+import { useDarkMode } from "@/app/providers/DarkModeProvider";
 
 const PageContainer = styled.main`
   min-height: 100vh;
@@ -26,6 +27,7 @@ const PageContainer = styled.main`
   place-items: center;
   padding: 2rem;
   position: relative;
+  background-color: ${(props) => props.theme.colors.bgColor};
 
   .logo {
     position: absolute;
@@ -49,12 +51,14 @@ const Card = styled.div`
   width: min(100%, 420px);
   padding: 2rem;
   border-radius: 12px;
-  background: ${(props) => props.theme.colors.white};
+  background: ${(props) => props.theme.colors.ui_07};
+  border: 1px solid ${(props) => props.theme.colors.dividerColor};
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 
   .title {
     font-size: 2rem;
     font-weight: 500;
+    color: ${(props) => props.theme.colors.text_01};
   }
 
   .subtitle {
@@ -97,6 +101,7 @@ const OrDivider = styled.div`
 
 export default function EnterpriseSignupPage() {
   const router = useRouter();
+  const { darkModeEnabled } = useDarkMode();
   const [name, setName] = useState("");
   const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
@@ -185,7 +190,11 @@ export default function EnterpriseSignupPage() {
   return (
     <PageContainer>
       <Image
-        src="/kairo-assets/kairo-logo.svg"
+        src={
+          darkModeEnabled
+            ? "/kairo-assets/kairo-logo-white.svg"
+            : "/kairo-assets/kairo-logo.svg"
+        }
         alt="Kairo"
         width={100}
         height={100}
