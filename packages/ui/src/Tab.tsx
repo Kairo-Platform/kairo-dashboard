@@ -6,30 +6,34 @@ import clsx from "clsx";
 
 const TabContainer = styled.li`
   display: flex;
-  margin-bottom: -2px;
-  /* transition: 0.5s; */
+  margin-bottom: -1.5px;
 
   &:not(:last-child) {
-    margin-right: 1.5rem;
+    margin-right: 1rem;
   }
 
   button {
     appearance: none;
     width: 100%;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: ${(props) => props.theme.colors.tabListColor};
-    letter-spacing: 0.25px;
+    padding: 0.375rem 1rem 0.625rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    line-height: 1.3125rem;
+    color: ${(props) => props.theme.colors.text_02};
+    letter-spacing: -0.3px;
     background-color: transparent;
     border: 0;
+    border-bottom: 1px solid transparent;
     cursor: pointer;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
   }
 
   &.active {
     button {
-      color: ${(props) => props.theme.colors.text_01};
-      text-shadow: 0.5px 0 0 ${(props) => props.theme.colors.gray_01};
-      border-bottom: 2px solid ${(props) => props.theme.colors.text_01};
+      color: ${(props) => props.theme.colors.orange};
+      border-bottom-color: ${(props) => props.theme.colors.orange};
     }
   }
 

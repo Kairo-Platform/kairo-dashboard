@@ -40,20 +40,35 @@ const ConnectInfrastructureContainer = styled.div`
       align-items: center;
       justify-content: center;
       padding: 0.5rem;
-      background-color: ${(props) => `${props.theme.colors.orange}15`};
+      background-color: ${(props) => props.theme.colors.gray_02};
       color: ${(props) => props.theme.colors.orange};
       border-radius: 0.5rem;
     }
 
     &__description {
-      font-size: 0.875rem;
-      color: ${(props) => props.theme.colors.text_04};
+      font-size: 0.8125rem;
+      font-weight: 500;
+      line-height: 1.25rem;
+      letter-spacing: -0.008125rem;
+      color: ${(props) => props.theme.colors.text_02};
     }
-  }
 
-  .infrastructureCard.is-connected {
-    border-color: ${(props) => props.theme.colors.green_01};
-    background-color: ${(props) => `${props.theme.colors.green_01}10`};
+    &__connected {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3125rem;
+      height: 1.875rem;
+      padding: 0 0.75rem 0 0.375rem;
+      border-radius: 2.5rem;
+      border: 1px solid #ddf5da;
+      background-color: #f4fcf3;
+      color: ${(props) => props.theme.colors.green};
+      font-size: 0.8125rem;
+      font-weight: 500;
+      line-height: 1.125rem;
+      letter-spacing: -0.008125rem;
+      white-space: nowrap;
+    }
   }
 `;
 
@@ -194,11 +209,8 @@ export const ConnectInfrastructure = ({
           {localInfrastructures.map((item) => {
             const isConnected = item.isConnected;
             return (
-              <div
-                key={item.id}
-                className={`infrastructureCard${isConnected ? " is-connected" : ""}`}
-              >
-                <Flex gap="0.5rem" align="center">
+              <div key={item.id} className="infrastructureCard">
+                <Flex gap="0.75rem" align="center">
                   <span className="infrastructureCard__icon">
                     <Icon icon={INFRASTRUCTURE_ICON} width={24} height={24} />
                   </span>
@@ -212,7 +224,16 @@ export const ConnectInfrastructure = ({
                   </div>
                 </Flex>
 
-                {!isConnected && (
+                {isConnected ? (
+                  <span className="infrastructureCard__connected">
+                    <Icon
+                      icon="fluent:checkmark-circle-32-regular"
+                      width={16}
+                      height={16}
+                    />
+                    Connected
+                  </span>
+                ) : (
                   <Button
                     classes={[ButtonClass.OUTLINED, ButtonClass.WITH_ICON]}
                     style={{ height: "2.5rem" }}

@@ -3,10 +3,9 @@
 import { Suspense } from "react";
 import { ConversationsTable } from "@/app/components/conversations";
 import { DashboardLayout } from "@/app/components/dashboard";
-import { Button, ButtonClass } from "@/app/components/ui";
 import { URL } from "@/lib/constants";
-import { Icon } from "@iconify/react";
 import { useRouter } from "next/navigation";
+import { AskKairoAI } from "@/app/components/ask-kairo";
 
 export default function ConversationsPage() {
   const router = useRouter();
@@ -25,16 +24,7 @@ export default function ConversationsPage() {
     <DashboardLayout
       pageTitle="Conversations"
       breadcrumbs={breadcrumbs}
-      appendElementToHeading={
-        <Button
-          classes={[ButtonClass.GRADIENT, ButtonClass.WITH_ICON]}
-          style={{ height: "2.5rem" }}
-          onClick={() => { }}
-        >
-          <Icon icon="mingcute:ai-fill" width={20} height={20} />
-          Ask AI
-        </Button>
-      }
+      appendElementToHeading={<AskKairoAI />}
     >
       <Suspense fallback={null}>
         <ConversationsTable

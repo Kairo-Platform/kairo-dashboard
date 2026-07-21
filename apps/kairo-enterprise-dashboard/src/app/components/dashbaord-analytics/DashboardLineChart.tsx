@@ -3,6 +3,7 @@
 import Link from "next/link";
 import React, { isValidElement } from "react";
 import styled, { useTheme } from "styled-components";
+import { Icon } from "@iconify/react";
 import { Flex } from "@/app/components/ui";
 import { LineChart } from "@/lib/utils";
 
@@ -14,7 +15,9 @@ type ChartValue = {
 
 interface DashboardLineChartProps {
   title?: string | React.ReactNode;
+  titleIcon?: string;
   subTitle?: string | React.ReactNode;
+  subTitleAmount?: string | number;
   chartValues?: ChartValue[];
   link?: string;
   chartWidth?: string | number;
@@ -43,16 +46,47 @@ const DashboardLineChartContainer = styled.div`
   }
 
   .title {
-    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
     font-weight: 500;
-    color: ${(props) => props.theme.colors.text_02};
+    line-height: 1.75rem;
+    letter-spacing: -0.03375rem;
+    color: ${(props) => props.theme.colors.tabListColor};
     width: 100%;
   }
 
+  .title_icon {
+    display: inline-flex;
+    color: ${(props) => props.theme.colors.orange};
+    flex-shrink: 0;
+  }
+
   .sub_title {
-    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.375rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
     color: ${(props) => props.theme.colors.text_02};
-    margin: 0.25rem 0 0.75rem 0;
+    margin: 0.5rem 0 0.75rem 0;
+  }
+
+  .sub_title__amount {
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 2rem;
+    letter-spacing: -0.045rem;
+    color: #121212;
+  }
+
+  .sub_title__label {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    line-height: 1.3125rem;
+    letter-spacing: -0.01875rem;
+    color: ${(props) => props.theme.colors.text_02};
   }
 
   .view_all_link {
@@ -90,7 +124,9 @@ const DashboardLineChartContainer = styled.div`
 
 export const DashboardLineChart = ({
   title = "Chart Title",
+  titleIcon = "mdi:message",
   subTitle,
+  subTitleAmount,
   chartValues = [],
   link,
   chartWidth = "100%",
@@ -109,7 +145,16 @@ export const DashboardLineChart = ({
 
   const renderTitle = (): React.ReactNode => {
     if (typeof title === "string") {
-      return <h4 className="title">{title}</h4>;
+      return (
+        <h4 className="title">
+          {titleIcon ? (
+            <span className="title_icon">
+              <Icon icon={titleIcon} width={20} height={20} />
+            </span>
+          ) : null}
+          {title}
+        </h4>
+      );
     }
     if (isValidElement(title)) {
       return <div className="title">{title}</div>;
@@ -118,10 +163,19 @@ export const DashboardLineChart = ({
   };
 
   const renderSubTitle = (): React.ReactNode => {
-    if (!subTitle) return null;
-    if (typeof subTitle === "string") {
-      return <p className="sub_title">{subTitle}</p>;
+    if (subTitleAmount != null || typeof subTitle === "string") {
+      return (
+        <p className="sub_title">
+          {subTitleAmount != null && (
+            <span className="sub_title__amount">{subTitleAmount}</span>
+          )}
+          <span className="sub_title__label">
+            {typeof subTitle === "string" ? subTitle : "today"}
+          </span>
+        </p>
+      );
     }
+    if (!subTitle) return null;
     if (isValidElement(subTitle)) {
       return <div className="sub_title">{subTitle}</div>;
     }

@@ -61,17 +61,26 @@ const DashboardRecentConversationsTableContainer = styled.div`
   }
 
   .MessageColumn {
+    display: inline-block;
     max-width: 18rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0rem 0.75rem 0.75rem 0.75rem;
+    background-color: ${(props) => props.theme.colors.gray_02};
+    color: ${(props) => props.theme.colors.text_01};
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: block;
+    vertical-align: middle;
   }
 
   .TableTitle {
     h2 {
       margin: 0;
       font-size: 1rem;
+      font-weight: 500;
     }
     p {
       margin: 0;

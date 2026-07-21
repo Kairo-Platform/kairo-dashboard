@@ -15,6 +15,10 @@ export const URL = {
   AGENTS_INSIGHTS_URL: "/agents/insights",
   AGENTS_FLOW_URL: "/agents/flow",
   AGENTS_FLOW_CONVERSATION_DETAILS_URL: "/agents/flow/conversations/:id",
+  AGENTS_FLOW_SETTINGS_URL: "/agents/flow/settings",
+  AGENTS_FLOW_GENERAL_SETTINGS_URL: "/agents/flow/settings/general-settings",
+  AGENTS_FLOW_CONVERSATIONS_SETTINGS_URL:
+    "/agents/flow/settings/conversations-settings",
   USERS_URL: "/users",
   STAFF_URL: "/staff",
   PRICING_URL: "/pricing",

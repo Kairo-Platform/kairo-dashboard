@@ -19,10 +19,49 @@ const DashboardSidebarContainer = styled.div`
   height: 100vh;
   height: 100svh;
   background: ${(props) => props.theme.colors.white};
-  box-shadow: 0px 4px 4px 4px rgba(0, 0, 0, 0.1);
-  border-radius: 0px 15px 15px 0px;
+  border-right: 1px solid ${(props) => props.theme.colors.dividerColor};
   z-index: 3;
   padding-inline: 1rem;
+  transition: max-width 0.25s ease, padding-inline 0.25s ease;
+
+  &.isCollapsed {
+    max-width: 4.5rem;
+    padding-inline: 0.5rem;
+
+    .DashboardSidebar__nav {
+      ul {
+        li {
+          & summary,
+          & > .DashboardSidebar__nav__link {
+            justify-content: center;
+            padding: 0.5rem;
+            gap: 0;
+
+            & > span:first-child {
+              gap: 0;
+              justify-content: center;
+            }
+          }
+
+          .DashboardSidebar__navLabel {
+            display: none;
+          }
+
+          .ArrowDropDownIcon {
+            display: none;
+          }
+
+          .DashboardSideBar__subLink_ul {
+            display: none;
+          }
+        }
+      }
+
+      .DashboardSidebar__admin_navLinks .title {
+        display: none;
+      }
+    }
+  }
 
   @media (max-width: ${(props) => props.theme.breakpoint.md}) {
     display: none;
@@ -33,6 +72,11 @@ const DashboardSidebarContainer = styled.div`
 
     &.isOpen {
       display: initial;
+    }
+
+    &.isCollapsed {
+      max-width: 100%;
+      padding-inline: 0;
     }
 
     .DashboardSidebar__nav {
@@ -117,8 +161,8 @@ const DashboardSidebarContainer = styled.div`
           & summary,
           & > .DashboardSidebar__nav__link {
             background-color: ${(props) => props.theme.colors.primaryColor}10;
-            color: ${(props) => props.theme.colors.black};
-            font-weight: bold;
+            color: ${(props) => props.theme.colors.text_08};
+            font-weight: semibold;
 
             svg {
               color: ${(props) => props.theme.colors.primaryColor};
@@ -216,6 +260,8 @@ const DashboardSidebarContainer = styled.div`
 type DashboardSidebarProps = {
   isOpen: boolean;
   toggleSidebar: () => void;
+  isCollapsed?: boolean;
+  toggleCollapse?: () => void;
 };
 
 type NavItem = {
@@ -231,6 +277,8 @@ type NavItem = {
 export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   isOpen,
   toggleSidebar,
+  isCollapsed = false,
+  toggleCollapse,
 }) => {
   const pathname = usePathname();
 
@@ -241,14 +289,14 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       Boolean(pathname?.startsWith(nav.url)) ||
       subLinks.some((subnav) => pathname?.startsWith(subnav.url));
 
-    if (subLinks.length) {
+    if (subLinks.length && !isCollapsed) {
       return (
         <li key={index} className={isActiveNav ? "isActiveNav" : undefined}>
           <details open={isActiveNav}>
             <summary>
               <span>
                 {nav.icon}
-                <span>{nav.text}</span>
+                <span className="DashboardSidebar__navLabel">{nav.text}</span>
               </span>
               <Icon
                 icon="iconamoon:arrow-down-2"
@@ -290,10 +338,15 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
         className={isActiveNav ? "isActiveNav" : undefined}
         onClick={nav.onClick}
       >
-        <Link href={nav.url} className="DashboardSidebar__nav__link">
+        <Link
+          href={nav.url}
+          className="DashboardSidebar__nav__link"
+          title={isCollapsed ? nav.text : undefined}
+          aria-label={isCollapsed ? nav.text : undefined}
+        >
           <span>
             {nav.icon}
-            <span>{nav.text}</span>
+            <span className="DashboardSidebar__navLabel">{nav.text}</span>
           </span>
         </Link>
       </li>
@@ -311,23 +364,17 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
     {
       text: "Agents",
       url: URL.AGENTS_URL,
-      icon: (
-        <Icon icon="ri:ai-agent-line" width={16} height={16} />
-      ),
+      icon: <Icon icon="ri:ai-agent-line" width={16} height={16} />,
     },
     {
       text: "Users",
       url: URL.USERS_URL,
-      icon: (
-        <Icon icon="ph:users" width={16} height={16} />
-      ),
+      icon: <Icon icon="ph:users" width={16} height={16} />,
     },
     {
       text: "Staff",
       url: URL.STAFF_URL,
-      icon: (
-        <Icon icon="ph:users-three" width={16} height={16} />
-      ),
+      icon: <Icon icon="ph:users-three" width={16} height={16} />,
     },
     {
       text: "Logout",
@@ -350,11 +397,17 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   const adminMenu = menu.filter((item) => item.adminGroup);
 
   return (
-    <DashboardSidebarContainer className={isOpen ? "isOpen" : undefined}>
+    <DashboardSidebarContainer
+      className={[isOpen ? "isOpen" : "", isCollapsed ? "isCollapsed" : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <DashboardSidebarHeader
         isOpen={isOpen}
         toggleSidebar={toggleSidebar}
         showOnDesktop
+        isCollapsed={isCollapsed}
+        toggleCollapse={toggleCollapse}
       />
 
       <nav className="DashboardSidebar__nav">

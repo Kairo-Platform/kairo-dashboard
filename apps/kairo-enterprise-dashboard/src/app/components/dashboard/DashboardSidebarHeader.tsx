@@ -2,8 +2,9 @@
 
 import { type FC } from "react";
 import styled from "styled-components";
-import { Flex, HamburgerMenu } from "@/app/components/ui";
+import { Button, ButtonClass, Flex, HamburgerMenu } from "@/app/components/ui";
 import { useDashboardContext } from "./DashboardContext";
+import { Icon } from "@iconify/react";
 
 const DashboardSidebarHeaderContainer = styled.div`
   display: flex;
@@ -18,11 +19,33 @@ const DashboardSidebarHeaderContainer = styled.div`
   color: ${(props) => props.theme.colors.text_06};
   padding: 8px 18px;
   background-color: ${(props) => props.theme.colors.white};
+  position: relative;
 
   .logo-container {
     .logo {
-      width: 8rem;
+      width: 5rem;
       height: auto;
+    }
+  }
+
+  .DashboardSidebarHeader__collapseButton {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  &.isCollapsed {
+    justify-content: center;
+    padding: 8px;
+
+    .logo-container {
+      display: none;
+    }
+
+    .DashboardSidebarHeader__collapseButton {
+      position: static;
+      transform: none;
     }
   }
 
@@ -33,8 +56,17 @@ const DashboardSidebarHeaderContainer = styled.div`
 
     .logo-container {
       .logo {
-        width: 7rem;
+        width: 4rem;
         height: auto;
+      }
+    }
+
+    &.isCollapsed {
+      justify-content: space-between;
+      padding: 8px 32px;
+
+      .logo-container {
+        display: block;
       }
     }
   }
@@ -52,18 +84,23 @@ type DashboardSidebarHeaderProps = {
   isOpen: boolean;
   toggleSidebar: () => void;
   showOnDesktop?: boolean;
+  isCollapsed?: boolean;
+  toggleCollapse?: () => void;
 };
 
 export const DashboardSidebarHeader: FC<DashboardSidebarHeaderProps> = ({
   isOpen,
   toggleSidebar,
   showOnDesktop = false,
+  isCollapsed = false,
+  toggleCollapse,
 }) => {
   const { darkModeEnabled } = useDashboardContext();
 
   return (
     <DashboardSidebarHeaderContainer
-      className={`DashboardSidebarHeader${showOnDesktop ? " showOnDesktop" : ""}`}
+      className={`DashboardSidebarHeader${showOnDesktop ? " showOnDesktop" : ""}${isCollapsed ? " isCollapsed" : ""
+        }`}
     >
       <div className="logo-container">
         <img
@@ -76,9 +113,29 @@ export const DashboardSidebarHeader: FC<DashboardSidebarHeaderProps> = ({
           className="logo"
         />
       </div>
-      <Flex align="center" gap="1.5rem">
-        <HamburgerMenu isOpen={isOpen} onClick={toggleSidebar} />
-      </Flex>
+
+      {showOnDesktop && (
+        <Button
+          type="button"
+          classes={[ButtonClass.ICON_ONLY]}
+          className="DashboardSidebarHeader__collapseButton"
+          onClick={toggleCollapse}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!isCollapsed}
+        >
+          <Icon
+            icon="fluent:window-column-one-fourth-left-20-regular"
+            width={24}
+            height={24}
+          />
+        </Button>
+      )}
+
+      {!showOnDesktop && (
+        <Flex align="center" gap="1.5rem">
+          <HamburgerMenu isOpen={isOpen} onClick={toggleSidebar} />
+        </Flex>
+      )}
     </DashboardSidebarHeaderContainer>
   );
 };

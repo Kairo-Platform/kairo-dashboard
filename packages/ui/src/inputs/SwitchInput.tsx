@@ -61,8 +61,8 @@ const SwitchContainer = styled.div`
   }
 
   input[type="checkbox"]:checked + .input--styled {
-    background-color: ${(props) => props.theme.colors.primaryColor}10;
-    border-color: ${(props) => props.theme.colors.blue_02};
+    background-color: ${(props) => props.theme.colors.orange};
+    border-color: ${(props) => props.theme.colors.orange};
   }
 
   .icon-switch {
@@ -80,11 +80,11 @@ const SwitchContainer = styled.div`
 
   input[type="checkbox"]:checked + .input--styled > .icon-switch {
     transform: translateX(var(--switch-checked-translate));
-    background-color: ${(props) => props.theme.colors.blue};
+    background-color: ${(props) => props.theme.colors.white};
     transition: all 0.3s ease-out;
 
     &:hover {
-      background-color: ${(props) => props.theme.colors.blue_01};
+      background-color: ${(props) => props.theme.colors.orangeDark};
     }
   }
 

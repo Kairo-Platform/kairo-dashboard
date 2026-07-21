@@ -50,7 +50,7 @@ const TableOverviewContainer = styled.div`
         background-color: ${(props) => props.theme.colors.gray_02};
 
         th {
-          font-weight: bold;
+          font-weight: 500;
           line-height: 3rem;
           color: ${(props) => props.theme.colors.text_01};
           border-bottom: 1px solid ${(props) => props.theme.colors.gray_03};
@@ -84,7 +84,7 @@ const TableOverviewContainer = styled.div`
 
       td {
         border-bottom: 1px solid ${(props) => props.theme.colors.gray_03};
-        padding: 10px;
+        padding: 1.25rem 0.75rem;
         white-space: nowrap;
 
         &:first-child {

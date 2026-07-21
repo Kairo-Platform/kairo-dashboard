@@ -3,6 +3,7 @@
 import { FlowConversationsPage } from "@/app/components/agents/flow";
 import ConnectChannels from "@/app/components/agents/flow/ConnectChannels";
 import ConnectInfrastructure from "@/app/components/agents/flow/ConnectInfrastructure";
+import { AskKairoAI } from "@/app/components/ask-kairo";
 import DashboardLayout from "@/app/components/dashboard/DashboardLayout";
 import { URL } from "@/lib/constants";
 import { Icon } from "@iconify/react";
@@ -69,18 +70,11 @@ export default function FlowPage() {
       subTitle="Streamline your payment processes from start to finish, effortlessly."
       breadcrumbs={breadcrumbs}
       appendElementToHeading={
-        !flowSetupCompleted ? (
-          <Button
-            classes={[ButtonClass.GRADIENT, ButtonClass.ICON_ONLY]}
-            style={{ padding: "0.5rem" }}
-            onClick={() => { }}
-          >
-            <Icon icon="mingcute:ai-fill" style={{ color: theme.colors.white }} width={20} height={20} />
-          </Button>
-        ) : (
+        flowSetupCompleted && (
           <Flex align="center" gap="1rem">
             <Button
               classes={[ButtonClass.OUTLINED, ButtonClass.WITH_ICON]}
+              onClick={() => router.push(URL.AGENTS_FLOW_SETTINGS_URL)}
             >
               <Icon icon="solar:settings-line-duotone" width={16} height={16} />
               Settings
@@ -108,6 +102,7 @@ export default function FlowPage() {
               ]}
               positions={["bottom"]}
             />
+            <AskKairoAI iconOnly />
           </Flex>
         )
       }

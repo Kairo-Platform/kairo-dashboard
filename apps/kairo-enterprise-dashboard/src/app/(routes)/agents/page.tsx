@@ -1,11 +1,12 @@
 "use client";
 
 import { DashboardLayout } from "@/app/components/dashboard";
-import { Button, ButtonClass, Flex, Tag, TagType } from "@kairo/ui";
+import { Flex, Tag, TagType } from "@kairo/ui";
 import { Icon } from "@iconify/react";
 import { styled } from "styled-components";
 import Link from "next/link";
 import { URL } from "@/lib/constants";
+import { AskKairoAI } from "@/app/components/ask-kairo";
 
 const AgentsPageContainer = styled.div`
   display: grid;
@@ -93,16 +94,7 @@ export default function AgentsPage() {
     <DashboardLayout
       pageTitle="Agents"
       subTitle="Manage all agents, their activity and performance."
-      appendElementToHeading={
-        <Button
-          classes={[ButtonClass.GRADIENT, ButtonClass.WITH_ICON]}
-          style={{ height: "2.5rem" }}
-          onClick={() => { }}
-        >
-          <Icon icon="mingcute:ai-fill" width={20} height={20} />
-          Ask AI
-        </Button>
-      }
+      appendElementToHeading={<AskKairoAI />}
     >
       <AgentsPageContainer>
         {agents.map((agent) => (

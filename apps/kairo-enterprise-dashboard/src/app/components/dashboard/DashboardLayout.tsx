@@ -29,6 +29,7 @@ import {
 import { Breadcrumbs, Flex, type BreadcrumbItem } from "@/app/components/ui";
 
 const DARK_MODE_KEY = "kairo-enterprise-dark-mode";
+const SIDEBAR_COLLAPSED_KEY = "kairo-enterprise-sidebar-collapsed";
 
 const DashboardLayoutElement = styled.div`
   width: 100%;
@@ -38,9 +39,18 @@ const DashboardLayoutElement = styled.div`
   .DashboardLayout__wrapper {
     width: 100%;
     padding-left: 15rem;
+    transition: padding-left 0.25s ease;
+
+    &.isSidebarCollapsed {
+      padding-left: 4.5rem;
+    }
 
     @media (max-width: ${(props) => props.theme.breakpoint.md}) {
       padding-left: 0;
+
+      &.isSidebarCollapsed {
+        padding-left: 0;
+      }
     }
   }
 
@@ -92,10 +102,10 @@ const DashboardLayoutElement = styled.div`
 
   .DashboardLayout__pageHeading--title {
     color: ${(props) => props.theme.colors.text_01};
-    font-size: 22px;
-    font-weight: bold;
-    line-height: 24px;
-    letter-spacing: 0.44px;
+    font-size: 28px;
+    font-weight: medium;
+    line-height: 36px;
+    letter-spacing: -3%;
   }
 
   .DashboardLayout__pageHeading--subTitle {
@@ -156,6 +166,7 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarIsOpen, setSidebarIsOpen] = useState(true);
+  const [sidebarIsCollapsed, setSidebarIsCollapsed] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [fetchingAuthUser, setFetchingAuthUser] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
@@ -163,6 +174,16 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
 
   const toggleSidebar = useCallback(() => {
     setSidebarIsOpen((open) => !open);
+  }, []);
+
+  const toggleSidebarCollapse = useCallback(() => {
+    setSidebarIsCollapsed((collapsed) => {
+      const next = !collapsed;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+      }
+      return next;
+    });
   }, []);
 
   const toggleDarkMode = useCallback(() => {
@@ -182,6 +203,9 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
   useEffect(() => {
     if (typeof window === "undefined") return;
     setDarkModeEnabled(window.localStorage.getItem(DARK_MODE_KEY) === "true");
+    setSidebarIsCollapsed(
+      window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true",
+    );
   }, []);
 
   useEffect(() => {
@@ -248,8 +272,15 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
   return (
     <DashboardContext.Provider value={contextValue}>
       <DashboardLayoutElement>
-        <DashboardSidebar isOpen={sidebarIsOpen} toggleSidebar={toggleSidebar} />
-        <div className="DashboardLayout__wrapper">
+        <DashboardSidebar
+          isOpen={sidebarIsOpen}
+          toggleSidebar={toggleSidebar}
+          isCollapsed={sidebarIsCollapsed}
+          toggleCollapse={toggleSidebarCollapse}
+        />
+        <div
+          className={`DashboardLayout__wrapper${sidebarIsCollapsed ? " isSidebarCollapsed" : ""}`}
+        >
           <Flex
             justify="space-between"
             gap="4rem"
@@ -272,7 +303,7 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
           <div className="DashboardLayout__content-wrapper">
             <div className="DashboardLayout__pageHeading">
               <Flex justify="space-between" wrap="wrap" align="center">
-                <Flex direction="column" gap="1rem">
+                <Flex direction="column" gap="0.5rem">
                   <div className="DashboardLayout__titleRow">
                     <h2 className="DashboardLayout__pageHeading--title">
                       {typeof pageTitle === "string"

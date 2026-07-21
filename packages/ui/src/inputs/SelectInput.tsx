@@ -106,7 +106,7 @@ const SelectWrapper = styled.div`
   }
 
   .option.selected {
-    background: ${(props) => props.theme.colors.primaryColor}22;
+    background: ${(props) => props.theme.colors.gray_02};
   }
 
   .message {

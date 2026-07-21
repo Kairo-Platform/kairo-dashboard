@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo, FC } from "react";
+import { useEffect, useRef, useMemo, FC, ReactNode } from "react";
 import {
   Chart as ChartJS,
   ArcElement,
@@ -42,6 +42,7 @@ interface DoughnutChartProps {
   showPercentageLabels?: boolean;
   percentagePlacement?: "arc" | "legend" | "both" | "none";
   percentageLabelStyle?: PercentageLabelStyle;
+  centerContent?: ReactNode;
 }
 
 export const DoughnutChart: FC<DoughnutChartProps> = ({
@@ -65,6 +66,7 @@ export const DoughnutChart: FC<DoughnutChartProps> = ({
     padding: 4,
     borderRadius: 8,
   },
+  centerContent,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<null | ChartJS | null>(null);
@@ -276,10 +278,30 @@ export const DoughnutChart: FC<DoughnutChartProps> = ({
       {title && showTitle && (
         <h4 style={{ textAlign: "center", marginBottom: "0.5rem" }}>{title}</h4>
       )}
+      {centerContent != null && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+            textAlign: "center",
+            zIndex: 0,
+          }}
+        >
+          {typeof centerContent === "string" ? (
+            <span>{centerContent}</span>
+          ) : (
+            centerContent
+          )}
+        </div>
+      )}
       <canvas
         ref={canvasRef}
         aria-label={title ? title : "Doughnut chart"}
-        style={{ width: "100%", height: "100%" }}
+        style={{ width: "100%", height: "100%", position: "relative", zIndex: 1 }}
       >
         <p>{title ? title : "Doughnut chart placeholder"}</p>
       </canvas>

@@ -1,7 +1,6 @@
 "use client";
 
 import styled from "styled-components";
-import { Button, ButtonClass, Flex } from "@/app/components/ui";
 import { DashboardLayout } from "@/app/components/dashboard";
 import {
   DashboardAnalyticsCardGrid,
@@ -9,7 +8,7 @@ import {
   DashboardLineChart,
   DashboardRecentConversationsTable,
 } from "@/app/components/dashbaord-analytics";
-import { Icon } from "@iconify/react";
+import { AskKairoAI } from "@/app/components/ask-kairo";
 import { useRouter } from "next/navigation";
 import { URL } from "@/lib/constants";
 import { KairoBillingSummaryModal } from "@/app/components/billing";
@@ -56,23 +55,46 @@ const PageContainer = styled.main`
     grid-column: 1 / -1;
     min-width: 0;
   }
+
+  .DoughnutCenterIntent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.125rem;
+    pointer-events: none;
+  }
+
+  .DoughnutCenterIntent__value {
+    font-size: 2.5rem;
+    font-weight: 600;
+    line-height: 3rem;
+    color: ${(props) => props.theme.colors.text_08};
+  }
+
+  .DoughnutCenterIntent__label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+    color: ${(props) => props.theme.colors.text_02};
+  }
 `;
 
 const conversationTrend = [
-  { label: "12am", value: 42 },
-  { label: "4am", value: 58 },
-  { label: "8am", value: 51 },
-  { label: "12pm", value: 73 },
-  { label: "4pm", value: 66 },
-  { label: "8pm", value: 39 },
-  { label: "11pm", value: 47 },
+  { label: "12:00", value: 42 },
+  { label: "2:00", value: 58 },
+  { label: "4:00", value: 51 },
+  { label: "6:00", value: 73 },
+  { label: "8:00", value: 66 },
+  { label: "10:00", value: 80 },
+  { label: "12:00", value: 47 },
 ];
 
 const resolutionBreakdown = [
-  { label: "Support", value: 62, color: "#FF6B1A" },
-  { label: "Fraud", value: 18, color: "#FF8C4A" },
-  { label: "Reconcile", value: 12, color: "#BF5014" },
-  { label: "Risk", value: 8, color: "#FFC5A4" },
+  { label: "Support", value: 38, color: "#804625" },
+  { label: "Fraud", value: 24, color: "#BF6938" },
+  { label: "Reconcile", value: 22, color: "#FF8C4A" },
+  { label: "Risk", value: 16, color: "#FFC5A4" },
 ];
 
 const recentConversations = [
@@ -80,7 +102,7 @@ const recentConversations = [
     id: "1",
     user: "Ada Okonkwo",
     message: "What's my current wallet balance?",
-    channel: "WhatsApp",
+    channel: "Whatsapp",
     status: "open",
     dateTime: "2026-07-14T09:15:00",
   },
@@ -88,7 +110,7 @@ const recentConversations = [
     id: "2",
     user: "James Ade",
     message: "My transaction failed but I was debited.",
-    channel: "WhatsApp",
+    channel: "Whatsapp",
     status: "escalated",
     dateTime: "2026-07-14T08:42:00",
   },
@@ -96,7 +118,7 @@ const recentConversations = [
     id: "3",
     user: "Chioma Bello",
     message: "What is going on? I haven't received my transfer yet.",
-    channel: "WhatsApp",
+    channel: "Whatsapp",
     status: "resolved",
     dateTime: "2026-07-13T17:05:00",
   },
@@ -104,7 +126,7 @@ const recentConversations = [
     id: "4",
     user: "Michael Uche",
     message: "Where can I find my latest statement?",
-    channel: "WhatsApp",
+    channel: "Whatsapp",
     status: "pending",
     dateTime: "2026-07-13T14:21:00",
   },
@@ -112,7 +134,7 @@ const recentConversations = [
     id: "5",
     user: "Sarah Danladi",
     message: "Send ₦20,000 to my GTB account",
-    channel: "WhatsApp",
+    channel: "Whatsapp",
     status: "closed",
     dateTime: "2026-07-12T11:48:00",
   },
@@ -124,51 +146,29 @@ export default function DashboardPage() {
   const cards = [
     {
       title: "Total conversations",
-      value: 100,
-      icon: "iconoir:message",
-      percentage: 10,
+      value: 0,
+      icon: "iconoir:message-solid",
+      percentage: 0,
+      featured: true,
     },
     {
       title: "Active users",
-      value: 10,
+      value: 0,
       icon: "iconoir:user",
-      percentage: 10,
-    },
-    {
-      title: "Resolution rates",
-      value: 300,
-      icon: "system-uicons:heart-rate",
-      percentage: -4,
-    },
-    {
-      title: "Human escalation rates",
-      value: 5,
-      icon: "system-uicons:heart-rate",
-      percentage: -2,
-    },
-    {
-      title: "Average response time",
-      value: 10,
-      icon: "mingcute:time-line",
-      percentage: 10,
-    },
-    {
-      title: "Active agents",
-      value: 10,
-      icon: "system-uicons:heart-rate",
-      percentage: 10,
-    },
-    {
-      title: "Field intent rate",
-      value: 10,
-      icon: "system-uicons:heart-rate",
-      percentage: -6,
+      percentage: 0,
     },
     {
       title: "AI overall health score",
-      value: 90,
+      value: 0,
+      valueSuffix: "/100",
+      icon: "mingcute:ai-fill",
+      percentage: 0,
+    },
+    {
+      title: "Human escalation rates",
+      value: 0,
       icon: "system-uicons:heart-rate",
-      percentage: 10,
+      percentage: 0,
     },
   ];
 
@@ -176,16 +176,7 @@ export default function DashboardPage() {
     <DashboardLayout
       pageTitle="Dashboard"
       subTitle="Monitor operations, agents, alerts, and insights in real time."
-      appendElementToHeading={
-        <Button
-          classes={[ButtonClass.GRADIENT, ButtonClass.WITH_ICON]}
-          style={{ height: "2.5rem" }}
-          onClick={() => { }}
-        >
-          <Icon icon="mingcute:ai-fill" width={20} height={20} />
-          Ask AI
-        </Button>
-      }
+      appendElementToHeading={<AskKairoAI iconOnly />}
     >
       <PageContainer>
         <section className="CardsSection">
@@ -195,9 +186,11 @@ export default function DashboardPage() {
         <section className="LineChartsSection">
           <DashboardLineChart
             title="Conversation volume"
-            subTitle="Today"
+            titleIcon="mdi:message"
+            subTitle="today"
+            subTitleAmount="120,006"
             chartValues={conversationTrend}
-            chartHeight={260}
+            chartHeight={300}
           />
         </section>
 
@@ -205,8 +198,16 @@ export default function DashboardPage() {
           <DashboardDoughnutChart
             title="Intent breakdown"
             chartValues={resolutionBreakdown}
-            chartWidth={260}
-            chartHeight={260}
+            chartWidth={230}
+            chartHeight={230}
+            cutout="68%"
+            useCustomLegend
+            centerContent={
+              <div className="DoughnutCenterIntent">
+                <span className="DoughnutCenterIntent__value">84%</span>
+                <span className="DoughnutCenterIntent__label">Intent</span>
+              </div>
+            }
           />
         </section>
 

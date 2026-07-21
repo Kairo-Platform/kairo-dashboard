@@ -27,9 +27,10 @@ const TabsContainer = styled.div`
     list-style: none;
     margin: 0;
     padding: 0;
-    border-bottom: 2px solid ${(props) => props.theme.colors.tabListBorder};
+    border-bottom: 1.5px solid ${(props) => props.theme.colors.gray_02};
     white-space: nowrap;
     flex-wrap: wrap;
+    gap: 0;
   }
 
   .tabs[data-align="left"] > .tab-list {
@@ -48,7 +49,7 @@ const TabsContainer = styled.div`
   .tab-content {
     display: block;
     width: 100%;
-    margin: 1rem 0;
+    margin: 1.5rem 0 0;
   }
 
   .tabs--button {

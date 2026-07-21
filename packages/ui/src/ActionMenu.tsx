@@ -43,6 +43,14 @@ const ActionMenuListContainer = styled.div`
         cursor: pointer;
       }
 
+      &.delete-action {
+        color: ${(props) => props.theme.colors.red_01};
+
+        span {
+          color: ${(props) => props.theme.colors.red_01};
+        }
+      }
+
       span {
         width: 100%;
         display: block;

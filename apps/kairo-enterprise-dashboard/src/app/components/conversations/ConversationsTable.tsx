@@ -7,7 +7,23 @@ import { ConversationsTableFilters } from "./ConversationsTableFilters";
 import { Icon } from "@iconify/react";
 import humanize from "underscore.string/humanize";
 
-export const ConversationsTableContainer = styled.div``;
+export const ConversationsTableContainer = styled.div`
+  .MessageBubble {
+    display: inline-block;
+    max-width: 18rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0rem 0.75rem 0.75rem 0.75rem;
+    background-color: ${(props) => props.theme.colors.gray_02};
+    color: ${(props) => props.theme.colors.text_01};
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+  }
+`;
 
 export type Conversation = {
   id: string;
@@ -52,7 +68,11 @@ export const ConversationsTable = ({
     },
     {
       title: "Message",
-      render: (row: Conversation) => row.message ?? "N/A",
+      render: (row: Conversation) => (
+        <span className="MessageBubble" title={row.message}>
+          {row.message ?? "N/A"}
+        </span>
+      ),
     },
     {
       title: "Channel",

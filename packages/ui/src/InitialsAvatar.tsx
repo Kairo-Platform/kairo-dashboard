@@ -28,6 +28,7 @@ const InitialsAvatarContainer = styled.div`
     width: 100%;
     height: 100%;
     object-fit: cover;
+    padding: 0.25rem;
     border-radius: inherit;
   }
 `;

@@ -6,14 +6,15 @@ import styled from "styled-components";
 import clsx from "clsx";
 import closeIcon from "./icons/close.svg";
 
-const ModalContainer = styled.div`
+const ModalContainer = styled.div<{ $anchored?: boolean; $showOverlay?: boolean }>`
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   z-index: 4;
-  padding: 1rem;
+  padding: ${(props) => (props.$anchored ? "0" : "1rem")};
+  pointer-events: ${(props) => (props.$anchored ? "none" : "auto")};
 
   @keyframes fadeIn {
     0% {
@@ -36,22 +37,36 @@ const ModalContainer = styled.div`
     transform: translateX(-50%);
     box-shadow: 0px 10px 10px rgba(0, 0, 0, 0.07);
     background-color: ${(props) => props.theme.colors.white};
-    // border: 1px solid ${(props) => props.theme.colors.modalBorder};
     border-radius: 24px;
     animation-name: fadeIn;
     animation-duration: 0.3s;
     z-index: 4;
     max-height: calc(100dvh - 18%);
+    pointer-events: auto;
+  }
+
+  .modal--anchored {
+    left: auto;
+    top: auto;
+    transform: none;
+    max-width: min(39.25rem, calc(100vw - 2rem));
+    max-height: none;
+    box-shadow: 0px 4px 24.8px rgba(38, 16, 4, 0.06);
+    border: 1px solid ${(props) => props.theme.colors.gray_02};
   }
 
   @media (max-width: ${(props) => props.theme.breakpoint.md}) {
-    .modal {
+    .modal:not(.modal--anchored) {
       top: 2rem;
       left: 50%;
       transform: translateX(-50%);
       width: calc(100% - 2rem);
       max-height: calc(100vh - 3rem);
       max-height: calc(100svh - 3rem);
+    }
+
+    .modal--anchored {
+      max-width: calc(100vw - 2rem);
     }
   }
 
@@ -62,15 +77,13 @@ const ModalContainer = styled.div`
     width: 100%;
     height: 100%;
     background-color: black;
-    opacity: 0.35;
+    opacity: ${(props) => (props.$showOverlay ? 0.35 : 0)};
     cursor: pointer;
     appearance: none;
     outline: none;
     border: 0;
     z-index: -1;
-    /* &:focus {
-      opacity: 0.45;
-    } */
+    pointer-events: auto;
   }
 
   .modal__header {
@@ -164,6 +177,14 @@ export const ModalSize = {
   SMALL: "small",
 };
 
+export type ModalAnchorPlacement =
+  | "bottom"
+  | "bottom-start"
+  | "bottom-end"
+  | "top"
+  | "top-start"
+  | "top-end";
+
 export type ModalProps = {
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -176,6 +197,75 @@ export type ModalProps = {
   style?: React.CSSProperties;
   useDefaultTitleLayout?: boolean;
   useDefaultCloseButton?: boolean;
+  /** When set, positions the modal relative to this element instead of centering. */
+  anchorRef?: React.RefObject<HTMLElement | null>;
+  /** Preferred placement relative to the anchor. Defaults to `bottom-end`. */
+  anchorPlacement?: ModalAnchorPlacement;
+  /** Gap between the anchor and the modal in pixels. Defaults to `8`. */
+  anchorOffset?: number;
+  /** Whether to show the dimmed backdrop. Defaults to `true`. */
+  showOverlay?: boolean;
+};
+
+type AnchoredPosition = {
+  top: number;
+  left: number;
+  maxHeight: number;
+  width: number;
+};
+
+const VIEWPORT_MARGIN = 16;
+
+const getAnchoredPosition = (
+  anchorRect: DOMRect,
+  modalRect: { width: number; height: number },
+  placement: ModalAnchorPlacement,
+  offset: number
+): AnchoredPosition => {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const availableWidth = Math.max(
+    240,
+    viewportWidth - VIEWPORT_MARGIN * 2
+  );
+  const width = Math.min(modalRect.width || availableWidth, availableWidth);
+
+  const prefersBottom = placement.startsWith("bottom");
+  const prefersEnd = placement.endsWith("end");
+  const prefersStart = placement.endsWith("start");
+
+  let top = prefersBottom
+    ? anchorRect.bottom + offset
+    : anchorRect.top - modalRect.height - offset;
+
+  let left = prefersEnd
+    ? anchorRect.right - width
+    : prefersStart
+      ? anchorRect.left
+      : anchorRect.left + (anchorRect.width - width) / 2;
+
+  left = Math.max(
+    VIEWPORT_MARGIN,
+    Math.min(left, viewportWidth - width - VIEWPORT_MARGIN)
+  );
+
+  const spaceBelow = viewportHeight - (anchorRect.bottom + offset) - VIEWPORT_MARGIN;
+  const spaceAbove = anchorRect.top - offset - VIEWPORT_MARGIN;
+
+  if (prefersBottom && spaceBelow < 200 && spaceAbove > spaceBelow) {
+    top = Math.max(VIEWPORT_MARGIN, anchorRect.top - Math.min(modalRect.height, spaceAbove) - offset);
+  } else if (!prefersBottom && spaceAbove < 200 && spaceBelow > spaceAbove) {
+    top = anchorRect.bottom + offset;
+  }
+
+  top = Math.max(VIEWPORT_MARGIN, top);
+
+  const maxHeight = Math.max(
+    240,
+    viewportHeight - top - VIEWPORT_MARGIN
+  );
+
+  return { top, left, maxHeight, width };
 };
 
 export const Modal: React.FC<ModalProps> = ({
@@ -190,7 +280,15 @@ export const Modal: React.FC<ModalProps> = ({
   style,
   useDefaultTitleLayout = true,
   useDefaultCloseButton = true,
+  anchorRef,
+  anchorPlacement = "bottom-end",
+  anchorOffset = 8,
+  showOverlay = true,
 }) => {
+  const modalRef = React.useRef<HTMLDivElement>(null);
+  const [anchoredStyle, setAnchoredStyle] = React.useState<React.CSSProperties | null>(null);
+  const isAnchored = Boolean(anchorRef);
+
   Heading = title
     ? () => (
         <div
@@ -202,23 +300,83 @@ export const Modal: React.FC<ModalProps> = ({
       )
     : Heading;
 
+  const updateAnchoredPosition = React.useCallback(() => {
+    const anchorEl = anchorRef?.current;
+    const modalEl = modalRef.current;
+    if (!anchorEl || !modalEl) return;
+
+    const anchorRect = anchorEl.getBoundingClientRect();
+    const modalRect = modalEl.getBoundingClientRect();
+    const preferredWidth =
+      typeof style?.maxWidth === "number"
+        ? style.maxWidth
+        : typeof style?.width === "number"
+          ? style.width
+          : modalRect.width || 628;
+
+    const next = getAnchoredPosition(
+      anchorRect,
+      {
+        width: preferredWidth,
+        height: modalRect.height || 480,
+      },
+      anchorPlacement,
+      anchorOffset
+    );
+
+    setAnchoredStyle({
+      top: next.top,
+      left: next.left,
+      width: next.width,
+      height: next.maxHeight,
+      maxHeight: next.maxHeight,
+      maxWidth: next.width,
+    });
+  }, [anchorOffset, anchorPlacement, anchorRef, style?.maxWidth, style?.width]);
+
   React.useEffect(() => {
+    if (isAnchored) return;
     document.body.style.overflow = "hidden";
 
     return () => {
       document.body.style.overflow = "overlay";
     };
-  }, []);
+  }, [isAnchored]);
+
+  React.useLayoutEffect(() => {
+    if (!isAnchored) {
+      setAnchoredStyle(null);
+      return;
+    }
+
+    updateAnchoredPosition();
+    const frame = window.requestAnimationFrame(() => updateAnchoredPosition());
+
+    const handleReposition = () => updateAnchoredPosition();
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [isAnchored, updateAnchoredPosition]);
 
   return (
-    <ModalContainer>
+    <ModalContainer $anchored={isAnchored} $showOverlay={showOverlay}>
       <div
+        ref={modalRef}
         className={clsx("modal", {
           "modal--large": size === ModalSize.LARGE,
           "modal--medium": size === ModalSize.MEDIUM,
           "modal--small": size === ModalSize.SMALL,
+          "modal--anchored": isAnchored,
         })}
-        style={style}
+        style={{
+          ...style,
+          ...(anchoredStyle ?? {}),
+        }}
       >
         {useDefaultTitleLayout ? (
           <header
