@@ -6,6 +6,7 @@ import Theme from "./styles/Theme";
 import "./globals.css";
 import "./styles/notifications.css";
 import { LoadingWrapper } from "./components/LoadingWrapper";
+import { DarkModeProvider } from "./providers/DarkModeProvider";
 import { headers } from "next/headers";
 import { StyledRegistry } from "@kairo/theme";
 
@@ -60,9 +61,11 @@ export default async function RootLayout({
           </Script>
         )}
         <StyledRegistry nonce={nonce}>
-          <Theme>
-            <LoadingWrapper>{children}</LoadingWrapper>
-          </Theme>
+          <DarkModeProvider>
+            <Theme>
+              <LoadingWrapper>{children}</LoadingWrapper>
+            </Theme>
+          </DarkModeProvider>
         </StyledRegistry>
       </body>
     </html>

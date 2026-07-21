@@ -7,7 +7,7 @@ const PhotoUploadContainer = styled.div`
   gap: 10px;
   align-items: center;
   justify-content: center;
-  background: ${(props) => props.theme.colors.white};
+  background: ${(props) => props.theme.colors.ui_07};
   border: 1px solid ${(props) => props.theme.colors.inputBorder};
   border-radius: 5px;
   padding: 10px;

@@ -5,7 +5,7 @@ import styled from "styled-components";
 const SingleOtpInputContainer = styled.span<{ fullWidth?: boolean }>`
   flex: ${(props) => (props.fullWidth ? "1 1 0" : "unset")};
   input {
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     border: 1px solid ${(props) => props.theme.colors.inputBorder};
     border-radius: 8px;
     width: ${(props) => (props.fullWidth ? "100%" : "50px")};

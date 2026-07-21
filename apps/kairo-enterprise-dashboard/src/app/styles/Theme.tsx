@@ -2,6 +2,7 @@
 
 import { type FC, type PropsWithChildren } from "react";
 import { KairoTheme } from "@kairo/theme";
+import { useDarkMode } from "@/app/providers/DarkModeProvider";
 
 export {
   darkTheme,
@@ -11,7 +12,11 @@ export {
 } from "@kairo/theme";
 
 const Theme: FC<PropsWithChildren> = ({ children }) => {
-  return <KairoTheme>{children}</KairoTheme>;
+  const { darkModeEnabled } = useDarkMode();
+
+  return (
+    <KairoTheme darkModeEnabled={darkModeEnabled}>{children}</KairoTheme>
+  );
 };
 
 export default Theme;

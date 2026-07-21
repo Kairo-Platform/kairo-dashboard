@@ -18,7 +18,7 @@ const DashboardSidebarContainer = styled.div`
   max-width: 15rem;
   height: 100vh;
   height: 100svh;
-  background: ${(props) => props.theme.colors.white};
+  background: ${(props) => props.theme.colors.ui_07};
   border-right: 1px solid ${(props) => props.theme.colors.dividerColor};
   z-index: 3;
   padding-inline: 1rem;

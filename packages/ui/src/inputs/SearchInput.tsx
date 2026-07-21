@@ -13,7 +13,7 @@ const SearchInputContainer = styled.div`
   transition: all 0.3s ease-out;
 
   .SearchInput__control {
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     border: 1px solid ${(props) => props.theme.colors.inputBorder};
     border-radius: 1.5rem;
     padding: 13px;
@@ -62,7 +62,7 @@ const SearchInputContainer = styled.div`
     /* transition: 0.5s; */
 
     &:hover {
-      background-color: rgba(0, 0, 0, 0.055);
+      background-color: ${(props) => props.theme.colors.gray_02};
     }
   }
 

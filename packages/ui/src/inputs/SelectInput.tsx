@@ -58,7 +58,7 @@ const SelectWrapper = styled.div`
 
   .listbox-btn {
     width: 100%;
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     font-size: 1rem;
     border: 0;
     border-radius: 8px;
@@ -87,7 +87,7 @@ const SelectWrapper = styled.div`
     position: absolute;
     width: 100%;
     margin-top: 0.5rem;
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     border: 1px solid ${(props) => props.theme.colors.gray_02};
     border-radius: 1rem;
     max-height: 10rem;
@@ -157,7 +157,7 @@ const SelectWrapper = styled.div`
     padding: 0.25rem 0.25rem 0.5rem;
     position: sticky;
     top: 0;
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     z-index: 1;
   }
 
@@ -169,7 +169,7 @@ const SelectWrapper = styled.div`
     font-size: 0.875rem;
     outline: none;
     color: ${(props) => props.theme.colors.text_02};
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     box-sizing: border-box;
 
     &::placeholder {

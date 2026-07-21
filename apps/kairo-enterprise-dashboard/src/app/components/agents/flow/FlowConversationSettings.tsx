@@ -427,7 +427,7 @@ const FlowConversationSettingsContainer = styled.div`
     border: 1px solid ${({ theme }) => theme.colors.gray_02};
     border-radius: 0.75rem;
     overflow: hidden;
-    background-color: ${({ theme }) => theme.colors.white};
+    background-color: ${({ theme }) => theme.colors.ui_07};
   }
 
   .FlowConversationSettings__modalEnable {
@@ -503,7 +503,7 @@ const FlowConversationSettingsContainer = styled.div`
     border: 1px solid ${({ theme }) => theme.colors.gray_02};
     border-radius: 1rem;
     padding: 1.125rem 1rem;
-    background-color: ${({ theme }) => theme.colors.white};
+    background-color: ${({ theme }) => theme.colors.ui_07};
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -575,7 +575,7 @@ const FlowConversationSettingsContainer = styled.div`
     padding: 0 0.625rem;
     border: 1.5px solid ${({ theme }) => theme.colors.gray_02};
     border-radius: 2.25rem;
-    background: ${({ theme }) => theme.colors.white};
+    background: ${({ theme }) => theme.colors.ui_07};
     font-size: 0.8125rem;
     font-weight: 500;
     color: ${({ theme }) => theme.colors.text_01};
@@ -612,7 +612,7 @@ const FlowConversationSettingsContainer = styled.div`
     border: 1px solid ${({ theme }) => theme.colors.gray_02};
     border-radius: 1rem;
     padding: 1rem;
-    background-color: ${({ theme }) => theme.colors.white};
+    background-color: ${({ theme }) => theme.colors.ui_07};
 
     &-header {
       display: flex;
@@ -675,7 +675,7 @@ const FlowConversationSettingsContainer = styled.div`
     border: 1px solid ${({ theme }) => theme.colors.gray_02};
     border-radius: 0.75rem;
     overflow: hidden;
-    background: ${({ theme }) => theme.colors.white};
+    background: ${({ theme }) => theme.colors.ui_07};
 
     @media (max-width: ${({ theme }) => theme.breakpoint.md}) {
       grid-template-columns: 1fr;
@@ -867,7 +867,7 @@ const FlowConversationSettingsContainer = styled.div`
   }
 
   .FlowConversationSettings__phone {
-    background: #efeff4;
+    background: ${({ theme }) => theme.colors.gray_01};
     border-radius: 1.5rem;
     overflow: hidden;
     box-shadow: 0 4px 49.6px -27px rgba(38, 16, 4, 0.06);
@@ -882,14 +882,14 @@ const FlowConversationSettingsContainer = styled.div`
     padding: 0.75rem 1rem 0.5rem;
     font-size: 0.9375rem;
     font-weight: 600;
-    color: #171717;
+    color: ${({ theme }) => theme.colors.text_01};
   }
 
   .FlowConversationSettings__phoneStatusIcons {
     display: flex;
     align-items: center;
     gap: 0.375rem;
-    color: #171717;
+    color: ${({ theme }) => theme.colors.text_01};
   }
 
   .FlowConversationSettings__phoneHeader {
@@ -897,8 +897,8 @@ const FlowConversationSettingsContainer = styled.div`
     align-items: center;
     justify-content: space-between;
     padding: 0.625rem 0.875rem 0.875rem;
-    background: #f6f6f6;
-    box-shadow: 0 0.33px 0 0 #a6a6aa;
+    background: ${({ theme }) => theme.colors.gray_02};
+    box-shadow: 0 0.33px 0 0 ${({ theme }) => theme.colors.gray_03};
   }
 
   .FlowConversationSettings__phoneContact {
@@ -921,13 +921,13 @@ const FlowConversationSettingsContainer = styled.div`
   .FlowConversationSettings__phoneName {
     font-size: 1rem;
     font-weight: 600;
-    color: #000;
+    color: ${({ theme }) => theme.colors.text_01};
     line-height: 1.2;
   }
 
   .FlowConversationSettings__phoneSubtext {
     font-size: 0.75rem;
-    color: #8e8e93;
+    color: ${({ theme }) => theme.colors.text_02};
     line-height: 1rem;
   }
 
@@ -935,21 +935,13 @@ const FlowConversationSettingsContainer = styled.div`
     display: flex;
     align-items: center;
     gap: 1rem;
-    color: #007aff;
+    color: ${({ theme }) => theme.colors.blue};
   }
 
   .FlowConversationSettings__phoneBody {
     min-height: 25rem;
     padding: 1rem 0.875rem 1.5rem;
-    background:
-      linear-gradient(rgba(255, 255, 255, 0.64), rgba(255, 255, 255, 0.64)),
-      repeating-linear-gradient(
-        45deg,
-        rgba(0, 0, 0, 0.02) 0,
-        rgba(0, 0, 0, 0.02) 2px,
-        transparent 2px,
-        transparent 8px
-      );
+    background-color: ${({ theme }) => theme.colors.gray_05};
   }
 
   .FlowConversationSettings__phoneDate {
@@ -957,13 +949,11 @@ const FlowConversationSettingsContainer = styled.div`
     margin: 0 auto 1rem;
     padding: 0.25rem 0.75rem;
     border-radius: 0.5rem;
-    background: #fafafa;
-    box-shadow:
-      0 0.4px 0 0 rgba(98, 98, 98, 0.2),
-      0 -0.4px 0 0 #eeeef4;
+    background: ${({ theme }) => theme.colors.gray_02};
+    box-shadow: 0 0.4px 0 0 ${({ theme }) => theme.colors.gray_03};
     font-size: 0.75rem;
     font-weight: 600;
-    color: #3c3c43;
+    color: ${({ theme }) => theme.colors.text_02};
   }
 
   .FlowConversationSettings__phoneBubble {
@@ -971,19 +961,19 @@ const FlowConversationSettingsContainer = styled.div`
     margin-right: auto;
     padding: 0.625rem 0.75rem;
     border-radius: 0.75rem;
-    background: #ffffff;
+    background: ${({ theme }) => theme.colors.ui_07};
     font-size: 0.9375rem;
     line-height: 1.35;
-    color: #000000;
+    color: ${({ theme }) => theme.colors.text_01};
     white-space: pre-wrap;
     word-break: break-word;
-    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 1px ${({ theme }) => theme.colors.gray_03};
   }
 
   .FlowConversationSettings__phoneBubbleMeta {
     margin-top: 0.25rem;
     font-size: 0.6875rem;
-    color: rgba(0, 0, 0, 0.35);
+    color: ${({ theme }) => theme.colors.text_03};
     text-align: left;
   }
 
@@ -992,16 +982,16 @@ const FlowConversationSettingsContainer = styled.div`
     align-items: center;
     gap: 0.75rem;
     padding: 0.875rem;
-    background: #f6f6f6;
-    box-shadow: 0 -0.33px 0 0 #a6a6aa;
+    background: ${({ theme }) => theme.colors.gray_02};
+    box-shadow: 0 -0.33px 0 0 ${({ theme }) => theme.colors.gray_03};
   }
 
   .FlowConversationSettings__phoneInput {
     flex: 1;
     height: 2rem;
-    border: 0.5px solid #8e8e93;
+    border: 0.5px solid ${({ theme }) => theme.colors.gray_04};
     border-radius: 1rem;
-    background: #fff;
+    background: ${({ theme }) => theme.colors.ui_07};
     opacity: 0.45;
   }
 
@@ -1015,7 +1005,7 @@ const FlowConversationSettingsContainer = styled.div`
       width: 8.375rem;
       height: 0.3125rem;
       border-radius: 6.25rem;
-      background: #060606;
+      background: ${({ theme }) => theme.colors.text_01};
     }
   }
 `;

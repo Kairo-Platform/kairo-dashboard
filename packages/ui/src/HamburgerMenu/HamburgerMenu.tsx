@@ -1,10 +1,8 @@
 "use client";
 
 import clsx from "clsx";
-import styled from "styled-components";
-import closeIcon from "./icons/close.svg";
-import menuIcon from "./icons/menu.svg";
-import Image from "next/image";
+import { Icon } from "@iconify/react";
+import styled, { useTheme } from "styled-components";
 
 const HamburgerMenuContainer = styled.div`
   display: none;
@@ -16,23 +14,13 @@ const HamburgerMenuContainer = styled.div`
   button {
     display: flex;
     align-items: center;
+    justify-content: center;
     min-height: 32px;
+    min-width: 32px;
     background-color: ${(props) => props.theme.colors.transparent};
     border: none;
     position: relative;
-
-    img.menu-icon {
-      filter: ${(props) => {
-    const primary = props.theme.colors.primaryColor.toLowerCase();
-    if (primary === "#ff6b1a") {
-      return "brightness(0) saturate(100%) invert(48%) sepia(97%) saturate(2465%) hue-rotate(346deg) brightness(101%) contrast(101%)";
-    }
-    if (primary === "#0d65cc") {
-      return "brightness(0) invert(33%) sepia(93%) saturate(1891%) hue-rotate(203deg) brightness(96%) contrast(92%)";
-    }
-    return "brightness(0) saturate(100%) invert(75%) sepia(58%) saturate(5269%) hue-rotate(165deg) brightness(87%) contrast(88%)";
-  }};
-    }
+    color: ${(props) => props.theme.colors.primaryColor};
 
     &:hover {
       cursor: pointer;
@@ -52,29 +40,40 @@ type HamburgerMenuProps = {
 
 export const HamburgerMenu = ({
   onClick,
-  isOpen,
+  isOpen = false,
   alwaysVisible = false,
 }: HamburgerMenuProps) => {
+  const theme = useTheme();
+  const showCloseIcon = isOpen;
+  const iconColor = theme.colors.primaryColor;
+
   return (
     <HamburgerMenuContainer
       className={clsx("hamburger-menu", { "always-visible": alwaysVisible })}
     >
-      <button type="button" onClick={onClick}>
-        {isOpen === true ? (
-          <Image
-            className="menu-icon"
-            src={closeIcon}
+      <button
+        type="button"
+        onClick={onClick}
+        aria-expanded={showCloseIcon}
+        aria-label={showCloseIcon ? "Close menu" : "Open menu"}
+      >
+        {showCloseIcon ? (
+          <Icon
+            key="close"
+            icon="material-symbols:close-rounded"
             width={28}
             height={28}
-            alt="X"
+            color={iconColor}
+            aria-hidden
           />
         ) : (
-          <Image
-            className="menu-icon"
-            src={menuIcon}
+          <Icon
+            key="menu"
+            icon="material-symbols:menu-rounded"
             width={32}
             height={32}
-            alt="open"
+            color={iconColor}
+            aria-hidden
           />
         )}
       </button>

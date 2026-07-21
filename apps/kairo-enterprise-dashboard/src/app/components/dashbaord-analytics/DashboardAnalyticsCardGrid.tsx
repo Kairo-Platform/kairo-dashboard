@@ -28,7 +28,7 @@ const AnalyticsCardGridContainer = styled.div`
     padding: 1.875rem 1.5rem 1rem;
     border-radius: 1.25rem;
     border: 1.5px solid ${(props) => props.theme.colors.gray_03};
-    background-color: ${(props) => props.theme.colors.white};
+    background-color: ${(props) => props.theme.colors.ui_07};
     height: 100%;
     width: 100%;
     min-width: 0;

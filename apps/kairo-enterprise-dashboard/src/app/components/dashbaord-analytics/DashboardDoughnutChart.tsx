@@ -39,6 +39,7 @@ const DashboardDoughnutChartContainer = styled.div`
   .chart_card {
     border-radius: 1.5rem;
     border: 1.5px solid ${(props) => props.theme.colors.gray_03};
+    background-color: ${(props) => props.theme.colors.ui_07};
     padding: 1.75rem 1.875rem 2.5rem;
     width: 100%;
     height: 100%;

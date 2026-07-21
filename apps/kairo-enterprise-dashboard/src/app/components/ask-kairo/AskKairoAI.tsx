@@ -11,9 +11,24 @@ type ChatMessage = {
   content: string;
 };
 
-const AskKairoAIContainer = styled.div`
+const AskKairoAIContainer = styled.div<{ $sticky?: boolean }>`
   display: inline-flex;
   position: relative;
+  z-index: 5;
+
+  ${({ $sticky, theme }) =>
+    $sticky &&
+    `
+    position: fixed;
+    top: 6.25rem;
+    right: 3rem;
+
+    @media (max-width: ${theme.breakpoint.md}) {
+      top: auto;
+      bottom: 1.5rem;
+      right: 1.5rem;
+    }
+  `}
 
   .AskKairoAI__iconButton {
     width: 2.5rem;
@@ -71,7 +86,7 @@ const AskKairoAIContainer = styled.div`
     font-weight: 500;
     line-height: 1.75rem;
     letter-spacing: -0.03375rem;
-    color: ${(props) => props.theme.colors.black};
+    color: ${(props) => props.theme.colors.text_01};
   }
 
   .AskKairoAI__close {
@@ -102,7 +117,7 @@ const AskKairoAIContainer = styled.div`
     font-weight: 500;
     line-height: 1.25rem;
     letter-spacing: -0.008125rem;
-    color: #3d3d3d;
+    color: ${(props) => props.theme.colors.text_01};
     word-break: break-word;
   }
 
@@ -114,7 +129,7 @@ const AskKairoAIContainer = styled.div`
 
   .AskKairoAI__bubble--user {
     align-self: flex-end;
-    background-color: #fff0e8;
+    background-color: ${(props) => props.theme.colors.orange}22;
     border-radius: 1rem 0 1rem 1rem;
   }
 
@@ -131,7 +146,7 @@ const AskKairoAIContainer = styled.div`
     padding: 0.5rem 0.5rem 0.5rem 1.5rem;
     border: 1.2px solid ${(props) => props.theme.colors.gray_03};
     border-radius: 1.75rem;
-    background-color: ${(props) => props.theme.colors.white};
+    background-color: ${(props) => props.theme.colors.ui_07};
     flex-shrink: 0;
   }
 
@@ -185,12 +200,15 @@ export type AskKairoAIProps = {
   iconOnly?: boolean;
   buttonLabel?: string;
   className?: string;
+  /** Keeps the trigger fixed while page content scrolls. Defaults to true. */
+  sticky?: boolean;
 };
 
 export const AskKairoAI = ({
   iconOnly = false,
   buttonLabel = "Ask AI",
   className,
+  sticky = true,
 }: AskKairoAIProps) => {
   const triggerRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -216,7 +234,7 @@ export const AskKairoAI = ({
   };
 
   return (
-    <AskKairoAIContainer className={className}>
+    <AskKairoAIContainer className={className} $sticky={sticky}>
       <div ref={triggerRef}>
         {iconOnly ? (
           <Button
@@ -307,7 +325,6 @@ export const AskKairoAI = ({
             width: "39.25rem",
             padding: "1rem",
             borderRadius: "1rem",
-            backgroundColor: "#fdfdfd",
           }}
         >
           <div className="AskKairoAI__chat">

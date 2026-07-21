@@ -9,7 +9,7 @@ const SelectDropDownElement = styled.div`
     border: 1px solid ${(props) => props.theme.colors.inputBorder};
     border-radius: 4px;
     color: ${(props) => props.theme.colors.text_02};
-    background-color: ${(props) => props.theme.colors.white};
+    background-color: ${(props) => props.theme.colors.ui_07};
     background-image: url("${caretDownIcon}");
     background-repeat: no-repeat;
     background-position: calc(100% - 10px) center;

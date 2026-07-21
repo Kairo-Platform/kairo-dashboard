@@ -3,7 +3,7 @@ import styled from "styled-components";
 
 const FormInputOtpContainer = styled.span`
   input {
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     border: 1px solid ${(props) => props.theme.colors.inputBorder};
     border-radius: 4px;
     width: 100%;

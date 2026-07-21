@@ -51,8 +51,8 @@ const ButtonContainer = styled.div`
   }
 
   .btn--quick-action-button {
-    background-color: white;
-    border: 1px solid white;
+    background-color: ${(props) => props.theme.colors.ui_07};
+    border: 1px solid ${(props) => props.theme.colors.gray_03};
     color: ${(props) => props.theme.colors.primaryColor};
     border-radius: 0.5rem;
     padding: 0.75rem 0.5rem;
@@ -152,7 +152,7 @@ const ButtonContainer = styled.div`
   }
 
   .btn--outlined {
-    background-color: ${(props) => props.theme.colors.white};
+    background-color: ${(props) => props.theme.colors.ui_07};
     border: 1px solid ${(props) => props.theme.colors.gray_02} !important;
     color: ${(props) => props.theme.colors.text_01};
     border-radius: 4rem;
@@ -165,7 +165,7 @@ const ButtonContainer = styled.div`
   }
 
   .btn--outlined-red {
-    background-color: ${(props) => props.theme.colors.white};
+    background-color: ${(props) => props.theme.colors.ui_07};
     border: 1px solid ${(props) => props.theme.colors.buttonRed};
     color: ${(props) => props.theme.colors.buttonRed};
     font-weight: bold;
@@ -187,7 +187,7 @@ const ButtonContainer = styled.div`
   }
 
   .btn--outlined-grey-to-primary {
-    background-color: ${(props) => props.theme.colors.white};
+    background-color: ${(props) => props.theme.colors.ui_07};
     border: 1px solid ${(props) => props.theme.colors.gray_03};
     color: ${(props) => props.theme.colors.text_01};
     font-weight: 500;
@@ -284,7 +284,9 @@ const ButtonContainer = styled.div`
       bottom: 0;
       margin: auto;
       border: 2px solid transparent;
-      border-color: white white white transparent;
+      border-color: ${(props) => props.theme.colors.white}
+        ${(props) => props.theme.colors.white}
+        ${(props) => props.theme.colors.white} transparent;
       border-radius: 50%;
       animation: button-loading 1s ease infinite;
     }

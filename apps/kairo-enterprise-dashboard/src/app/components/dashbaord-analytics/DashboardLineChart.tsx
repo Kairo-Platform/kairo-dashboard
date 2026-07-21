@@ -40,6 +40,7 @@ const DashboardLineChartContainer = styled.div`
   .chart_card {
     border-radius: 1.5rem;
     border: 1.5px solid ${(props) => props.theme.colors.gray_03};
+    background-color: ${(props) => props.theme.colors.ui_07};
     padding: 1.5rem;
     width: 100%;
     height: 100%;
@@ -78,7 +79,7 @@ const DashboardLineChartContainer = styled.div`
     font-weight: 500;
     line-height: 2rem;
     letter-spacing: -0.045rem;
-    color: #121212;
+    color: ${(props) => props.theme.colors.text_01};
   }
 
   .sub_title__label {
@@ -254,6 +255,16 @@ export const DashboardLineChart = ({
                   },
                 },
                 ...chartOptions,
+                scales: {
+                  x: {
+                    ticks: { color: theme.colors.text_02 },
+                    grid: { color: theme.colors.gray_03 },
+                  },
+                  y: {
+                    ticks: { color: theme.colors.text_02 },
+                    grid: { color: theme.colors.gray_03 },
+                  },
+                },
               }}
             />
           </div>

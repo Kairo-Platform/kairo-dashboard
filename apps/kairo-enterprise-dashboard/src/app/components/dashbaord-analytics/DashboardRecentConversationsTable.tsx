@@ -47,6 +47,7 @@ const humanize = (value: string) =>
 const DashboardRecentConversationsTableContainer = styled.div`
   border-radius: 1.5rem;
   border: 1.5px solid ${(props) => props.theme.colors.gray_03};
+  background-color: ${(props) => props.theme.colors.ui_07};
   overflow: hidden;
   width: 100%;
 
@@ -65,7 +66,7 @@ const DashboardRecentConversationsTableContainer = styled.div`
     max-width: 18rem;
     padding: 0.5rem 0.75rem;
     border-radius: 0rem 0.75rem 0.75rem 0.75rem;
-    background-color: ${(props) => props.theme.colors.gray_02};
+    background-color: ${(props) => props.theme.colors.gray_03};
     color: ${(props) => props.theme.colors.text_01};
     font-size: 0.875rem;
     font-weight: 500;

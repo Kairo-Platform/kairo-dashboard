@@ -37,7 +37,7 @@ const FlowSettingsHubContainer = styled.div`
     padding: 1rem 1.5rem 1.5rem;
     border: 1.5px solid ${({ theme }) => theme.colors.gray_02};
     border-radius: 1.25rem;
-    background-color: ${({ theme }) => theme.colors.white};
+    background-color: ${({ theme }) => theme.colors.ui_07};
     text-decoration: none;
     color: inherit;
     transition:

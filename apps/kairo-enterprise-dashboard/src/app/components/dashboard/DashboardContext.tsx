@@ -88,12 +88,14 @@ export type DashboardContextValue = {
   authUser: AuthUser | null;
   darkModeEnabled: boolean;
   toggleDarkMode: () => void;
+  isDesktop: boolean;
 };
 
 export const DashboardContext = createContext<DashboardContextValue>({
   authUser: null,
   darkModeEnabled: false,
   toggleDarkMode: () => undefined,
+  isDesktop: false,
 });
 
 export const useDashboardContext = () => useContext(DashboardContext);

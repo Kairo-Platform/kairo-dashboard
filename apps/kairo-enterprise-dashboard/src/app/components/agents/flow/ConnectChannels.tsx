@@ -95,7 +95,7 @@ const ConnectChannelsContainer = styled.div`
     width: 4.375rem;
     height: 4.375rem;
     border-radius: 2.5rem;
-    background-color: #f4fcf3;
+    background-color: ${(props) => `${props.theme.colors.green}18`};
     color: ${(props) => props.theme.colors.green};
   }
 
@@ -138,7 +138,7 @@ const ConnectChannelsContainer = styled.div`
     font-weight: 500;
     line-height: 1.5rem;
     letter-spacing: -0.009375rem;
-    color: #646464;
+    color: ${(props) => props.theme.colors.text_02};
   }
 
   .ConnectChannels__copyAll {
@@ -164,7 +164,7 @@ const ConnectChannelsContainer = styled.div`
     width: 100%;
     border-radius: 0.75rem;
     overflow: hidden;
-    background-color: #fafafa;
+    background-color: ${(props) => props.theme.colors.gray_01};
   }
 
   .ConnectChannels__credentialRow {
@@ -172,7 +172,7 @@ const ConnectChannelsContainer = styled.div`
     flex-direction: column;
     gap: 0.25rem;
     padding: 0.75rem 1rem;
-    background-color: #fafafa;
+    background-color: ${(props) => props.theme.colors.gray_01};
 
     &:first-child {
       padding-top: 1rem;
@@ -199,7 +199,7 @@ const ConnectChannelsContainer = styled.div`
     width: 100%;
     border: 1.2px solid ${(props) => props.theme.colors.gray_02};
     border-radius: 0.75rem;
-    background-color: ${(props) => props.theme.colors.white};
+    background-color: ${(props) => props.theme.colors.ui_07};
     overflow: hidden;
   }
 
@@ -235,7 +235,7 @@ const ConnectChannelsContainer = styled.div`
     border: none;
     border-left: 1.5px solid ${(props) => props.theme.colors.gray_03};
     border-radius: 0 0.75rem 0.75rem 0;
-    background-color: ${(props) => props.theme.colors.white};
+    background-color: ${(props) => props.theme.colors.ui_07};
     cursor: pointer;
     font-size: 0.9375rem;
     font-weight: 500;
@@ -248,7 +248,7 @@ const ConnectChannelsContainer = styled.div`
     }
 
     &:hover {
-      background-color: ${(props) => props.theme.colors.gray_01};
+      background-color: ${(props) => props.theme.colors.gray_02};
     }
   }
 `;

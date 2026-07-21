@@ -27,7 +27,7 @@ const FormTextareaContainer = styled.div`
     cursor: pointer;
   }
   .FormTextarea__control {
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     border: 1px solid ${(props) => props.theme.colors.inputBorder};
     border-radius: 8px;
     padding: 10px 14px 10px 14px;

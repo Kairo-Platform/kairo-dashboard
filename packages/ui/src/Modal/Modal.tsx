@@ -36,7 +36,7 @@ const ModalContainer = styled.div<{ $anchored?: boolean; $showOverlay?: boolean 
     top: 12%;
     transform: translateX(-50%);
     box-shadow: 0px 10px 10px rgba(0, 0, 0, 0.07);
-    background-color: ${(props) => props.theme.colors.white};
+    background-color: ${(props) => props.theme.colors.ui_07};
     border-radius: 24px;
     animation-name: fadeIn;
     animation-duration: 0.3s;
@@ -116,7 +116,7 @@ const ModalContainer = styled.div<{ $anchored?: boolean; $showOverlay?: boolean 
     &:focus,
     &:hover {
       cursor: pointer;
-      background-color: rgba(0, 0, 0, 0.05);
+      background-color: ${(props) => props.theme.colors.gray_02};
     }
   }
 

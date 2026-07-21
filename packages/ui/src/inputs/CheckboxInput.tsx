@@ -39,7 +39,7 @@ const CheckboxContainer = styled.div`
     height: 24px;
     min-width: 24px;
     min-height: 24px;
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     border: 1px solid ${(props) => props.theme.colors.inputBorder};
     border-radius: 8px;
     transition: all 0.2s ease-in-out;

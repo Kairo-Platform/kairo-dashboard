@@ -11,7 +11,7 @@ import { ICONS } from "@kairo/lib/utils";
 import { ActionMenu, Button, ButtonClass, ButtonSize, EmptyState, Flex } from "@kairo/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import styled, { useTheme } from "styled-components";
+import styled from "styled-components";
 
 const FlowPageContainer = styled.div`
   margin-top: 3rem;
@@ -34,7 +34,6 @@ const FlowPageContainer = styled.div`
 
 export default function FlowPage() {
   const router = useRouter();
-  const theme = useTheme();
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [flowSetupCompleted, setFlowSetupCompleted] = useState<boolean>(false)

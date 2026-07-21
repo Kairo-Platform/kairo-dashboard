@@ -18,7 +18,7 @@ const DashboardSidebarHeaderContainer = styled.div`
   letter-spacing: 0.44px;
   color: ${(props) => props.theme.colors.text_06};
   padding: 8px 18px;
-  background-color: ${(props) => props.theme.colors.white};
+  background-color: ${(props) => props.theme.colors.ui_07};
   position: relative;
 
   .logo-container {
@@ -61,6 +61,10 @@ const DashboardSidebarHeaderContainer = styled.div`
       }
     }
 
+    .DashboardSidebarHeader__collapseButton {
+      display: none;
+    }
+
     &.isCollapsed {
       justify-content: space-between;
       padding: 8px 32px;
@@ -95,11 +99,14 @@ export const DashboardSidebarHeader: FC<DashboardSidebarHeaderProps> = ({
   isCollapsed = false,
   toggleCollapse,
 }) => {
-  const { darkModeEnabled } = useDashboardContext();
+  const { darkModeEnabled, isDesktop } = useDashboardContext();
+  const showCollapseToggle = showOnDesktop && isDesktop;
+  const showMobileMenuToggle = !showOnDesktop || !isDesktop;
+  const collapsed = showCollapseToggle && isCollapsed;
 
   return (
     <DashboardSidebarHeaderContainer
-      className={`DashboardSidebarHeader${showOnDesktop ? " showOnDesktop" : ""}${isCollapsed ? " isCollapsed" : ""
+      className={`DashboardSidebarHeader${showOnDesktop ? " showOnDesktop" : ""}${collapsed ? " isCollapsed" : ""
         }`}
     >
       <div className="logo-container">
@@ -114,14 +121,14 @@ export const DashboardSidebarHeader: FC<DashboardSidebarHeaderProps> = ({
         />
       </div>
 
-      {showOnDesktop && (
+      {showCollapseToggle && (
         <Button
           type="button"
           classes={[ButtonClass.ICON_ONLY]}
           className="DashboardSidebarHeader__collapseButton"
           onClick={toggleCollapse}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-expanded={!isCollapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
         >
           <Icon
             icon="fluent:window-column-one-fourth-left-20-regular"
@@ -131,7 +138,7 @@ export const DashboardSidebarHeader: FC<DashboardSidebarHeaderProps> = ({
         </Button>
       )}
 
-      {!showOnDesktop && (
+      {showMobileMenuToggle && (
         <Flex align="center" gap="1.5rem">
           <HamburgerMenu isOpen={isOpen} onClick={toggleSidebar} />
         </Flex>

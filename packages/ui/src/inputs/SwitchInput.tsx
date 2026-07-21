@@ -50,7 +50,7 @@ const SwitchContainer = styled.div`
     height: var(--switch-height);
     min-width: var(--switch-width);
     min-height: var(--switch-height);
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     border-radius: var(--switch-track-radius);
     border: var(--switch-track-border) solid
       ${(props) => props.theme.colors.gray_02};

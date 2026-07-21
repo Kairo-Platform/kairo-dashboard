@@ -300,7 +300,7 @@ const FlowGeneralSettingsContainer = styled.div`
     position: sticky;
     top: 0;
     z-index: 1;
-    background-color: ${({ theme }) => theme.colors.white};
+    background-color: ${({ theme }) => theme.colors.ui_07};
     padding-bottom: 0.5rem;
 
     &-content {
@@ -345,7 +345,7 @@ const FlowGeneralSettingsContainer = styled.div`
     border: 1px solid ${({ theme }) => theme.colors.gray_02};
     border-radius: 1rem;
     padding: 1rem;
-    background-color: ${({ theme }) => theme.colors.white};
+    background-color: ${({ theme }) => theme.colors.ui_07};
 
     &-header {
       display: flex;
@@ -404,7 +404,7 @@ const FlowGeneralSettingsContainer = styled.div`
     padding: 1rem;
     border: 1px solid ${({ theme }) => theme.colors.gray_02};
     border-radius: 1rem;
-    background-color: ${({ theme }) => theme.colors.white};
+    background-color: ${({ theme }) => theme.colors.ui_07};
     font-size: 0.9375rem;
     font-weight: 500;
     color: ${({ theme }) => theme.colors.text_01};

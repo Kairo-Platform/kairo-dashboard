@@ -7,7 +7,7 @@ import searchIcon from "./icons/search/search.svg";
 import Image from "next/image";
 
 const SimpleSearchContainer = styled.div`
-  background: ${(props) => props.theme.colors.white};
+  background: ${(props) => props.theme.colors.ui_07};
   border: 1px solid ${(props) => props.theme.colors.inputBorder};
   border-radius: 4px;
   padding: 10px;
@@ -43,7 +43,7 @@ const SimpleSearchContainer = styled.div`
     /* transition: 0.5s; */
 
     &:hover {
-      background-color: rgba(0, 0, 0, 0.055);
+      background-color: ${(props) => props.theme.colors.gray_02};
     }
   }
 

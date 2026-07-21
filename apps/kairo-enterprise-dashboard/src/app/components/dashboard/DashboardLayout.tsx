@@ -27,9 +27,10 @@ import {
   normalizeAuthUser,
 } from "./DashboardContext";
 import { Breadcrumbs, Flex, type BreadcrumbItem } from "@/app/components/ui";
+import { useDarkMode } from "@/app/providers/DarkModeProvider";
 
-const DARK_MODE_KEY = "kairo-enterprise-dark-mode";
 const SIDEBAR_COLLAPSED_KEY = "kairo-enterprise-sidebar-collapsed";
+const DESKTOP_MEDIA_QUERY = "(min-width: 769px)";
 
 const DashboardLayoutElement = styled.div`
   width: 100%;
@@ -165,11 +166,12 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
 
   const router = useRouter();
   const pathname = usePathname();
-  const [sidebarIsOpen, setSidebarIsOpen] = useState(true);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [sidebarIsOpen, setSidebarIsOpen] = useState(false);
   const [sidebarIsCollapsed, setSidebarIsCollapsed] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [fetchingAuthUser, setFetchingAuthUser] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  const { darkModeEnabled, toggleDarkMode } = useDarkMode();
   const fetchedAuthUser = useRef(false);
 
   const toggleSidebar = useCallback(() => {
@@ -177,21 +179,16 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
   }, []);
 
   const toggleSidebarCollapse = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (!window.matchMedia(DESKTOP_MEDIA_QUERY).matches) {
+      setSidebarIsCollapsed(false);
+      window.localStorage.removeItem(SIDEBAR_COLLAPSED_KEY);
+      return;
+    }
+
     setSidebarIsCollapsed((collapsed) => {
       const next = !collapsed;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
-      }
-      return next;
-    });
-  }, []);
-
-  const toggleDarkMode = useCallback(() => {
-    setDarkModeEnabled((enabled) => {
-      const next = !enabled;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(DARK_MODE_KEY, String(next));
-      }
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
       return next;
     });
   }, []);
@@ -201,11 +198,31 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
   }, [pathname]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setDarkModeEnabled(window.localStorage.getItem(DARK_MODE_KEY) === "true");
-    setSidebarIsCollapsed(
-      window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true",
-    );
+    if (typeof window === "undefined") return undefined;
+
+    const mediaQuery = window.matchMedia(DESKTOP_MEDIA_QUERY);
+
+    const syncSidebarMode = () => {
+      const desktop = mediaQuery.matches;
+      setIsDesktop(desktop);
+
+      if (!desktop) {
+        setSidebarIsCollapsed(false);
+        window.localStorage.removeItem(SIDEBAR_COLLAPSED_KEY);
+        return;
+      }
+
+      setSidebarIsCollapsed(
+        window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true",
+      );
+    };
+
+    syncSidebarMode();
+    mediaQuery.addEventListener("change", syncSidebarMode);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncSidebarMode);
+    };
   }, []);
 
   useEffect(() => {
@@ -256,9 +273,11 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
     })();
   }, [authUser, fetchLoggedInUser, router]);
 
+  const shouldCollapseSidebar = isDesktop && sidebarIsCollapsed;
+
   const contextValue = useMemo(
-    () => ({ authUser, darkModeEnabled, toggleDarkMode }),
-    [authUser, darkModeEnabled, toggleDarkMode],
+    () => ({ authUser, darkModeEnabled, toggleDarkMode, isDesktop }),
+    [authUser, darkModeEnabled, toggleDarkMode, isDesktop],
   );
 
   if (fetchingAuthUser && !hasAuthUserProfile(authUser)) {
@@ -275,11 +294,11 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
         <DashboardSidebar
           isOpen={sidebarIsOpen}
           toggleSidebar={toggleSidebar}
-          isCollapsed={sidebarIsCollapsed}
+          isCollapsed={shouldCollapseSidebar}
           toggleCollapse={toggleSidebarCollapse}
         />
         <div
-          className={`DashboardLayout__wrapper${sidebarIsCollapsed ? " isSidebarCollapsed" : ""}`}
+          className={`DashboardLayout__wrapper${shouldCollapseSidebar ? " isSidebarCollapsed" : ""}`}
         >
           <Flex
             justify="space-between"

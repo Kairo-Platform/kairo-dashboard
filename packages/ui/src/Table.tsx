@@ -31,6 +31,7 @@ const TableOverviewContainer = styled.div`
   margin: 20px 0;
   border-radius: 1.5rem;
   border: 1px solid ${(props) => props.theme.colors.gray_03};
+  background-color: ${(props) => props.theme.colors.ui_07};
 
   table {
     width: 100%;
@@ -79,7 +80,7 @@ const TableOverviewContainer = styled.div`
       }
 
       tr:nth-child(even) {
-        background-color: ${(props) => props.theme.colors.ui_07};
+        background-color: ${(props) => props.theme.colors.gray_02};
       }
 
       td {

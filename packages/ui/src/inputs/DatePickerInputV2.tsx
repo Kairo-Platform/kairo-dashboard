@@ -9,7 +9,7 @@ import Flex from "../Flex";
 import Button, { ButtonClass, ButtonSize } from "../Button";
 
 const DatePickerInputV2Container = styled.div`
-  background: ${(props) => props.theme.colors.white};
+  background: ${(props) => props.theme.colors.ui_07};
   border: 1px solid ${(props) => props.theme.colors.inputBorder};
   border-radius: 4px;
   padding: 4px 14px 10px 14px;
@@ -273,7 +273,7 @@ const DatePickerInputV2Container = styled.div`
     position: absolute;
     left: 0;
     width: 160px;
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     border: 0.1px solid ${(props) => props.theme.colors.inputBorder};
     border-radius: 4px;
     padding: 10px;

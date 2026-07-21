@@ -3,7 +3,7 @@ import styled from "styled-components";
 
 const FileDropZoneContainer = styled.div`
   flex-grow: 1;
-  background: ${(props) => props.theme.colors.white};
+  background: ${(props) => props.theme.colors.ui_07};
   border: 2px dashed ${(props) => props.theme.colors.inputBorder};
   min-height: 94px;
   border-radius: 1rem;

@@ -146,7 +146,7 @@ const ConversationDetailsContainer = styled.div`
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(22rem, 1fr);
   min-height: 70vh;
-  background-color: ${({ theme }) => theme.colors.white};
+  background-color: ${({ theme }) => theme.colors.ui_07};
   border: 1px solid ${({ theme }) => theme.colors.gray_02};
   border-radius: 0 0 1.5rem 0;
   overflow: hidden;
@@ -243,7 +243,7 @@ const ConversationDetailsContainer = styled.div`
           border-radius: 0 1rem 1rem 1rem;
 
           .chatBubble__time {
-            color: ${({ theme }) => theme.colors.gray_02};
+            color: rgba(255, 255, 255, 0.75);
           }
         }
 
@@ -267,7 +267,7 @@ const ConversationDetailsContainer = styled.div`
       }
 
       .receiptCard {
-        background-color: ${({ theme }) => theme.colors.white};
+        background-color: ${({ theme }) => theme.colors.ui_07};
         border: 1px solid ${({ theme }) => theme.colors.gray_02};
         border-radius: 0.75rem;
         padding: 1.0625rem 0.75rem;
@@ -400,7 +400,7 @@ const ConversationDetailsContainer = styled.div`
     display: flex;
     flex-direction: column;
     min-width: 0;
-    background-color: ${({ theme }) => theme.colors.white};
+    background-color: ${({ theme }) => theme.colors.ui_07};
 
     .ConversationInfoHeader {
       border-bottom: 1px solid ${({ theme }) => theme.colors.gray_02};

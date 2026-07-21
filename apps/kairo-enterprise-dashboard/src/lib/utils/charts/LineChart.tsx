@@ -188,28 +188,57 @@ export const LineChart: FC<LineChartProps> = ({
     const chartOptions: ChartOptions<"line"> = {
       responsive: true,
       maintainAspectRatio: false,
+      ...options,
       scales: {
         x: {
-          display: showXAxis,
+          ...(options.scales?.x as object),
+          display:
+            (options.scales?.x as { display?: boolean })?.display ?? showXAxis,
           title: { display: false },
-          grid: { display: showVerticalLines && showXAxis },
-          ticks: { display: showXAxis },
+          grid: {
+            ...(options.scales?.x as { grid?: object })?.grid,
+            display:
+              (options.scales?.x as { grid?: { display?: boolean } })?.grid
+                ?.display ?? (showVerticalLines && showXAxis),
+          },
+          ticks: {
+            ...(options.scales?.x as { ticks?: object })?.ticks,
+            display:
+              (options.scales?.x as { ticks?: { display?: boolean } })?.ticks
+                ?.display ?? showXAxis,
+          },
         },
         y: {
-          display: showYAxis,
+          ...(options.scales?.y as object),
+          display:
+            (options.scales?.y as { display?: boolean })?.display ?? showYAxis,
           title: { display: false },
-          grid: { display: showHorizontalLines && showYAxis },
-          ticks: { display: showYAxis && showYAxisLabels },
+          grid: {
+            ...(options.scales?.y as { grid?: object })?.grid,
+            display:
+              (options.scales?.y as { grid?: { display?: boolean } })?.grid
+                ?.display ?? (showHorizontalLines && showYAxis),
+          },
+          ticks: {
+            ...(options.scales?.y as { ticks?: object })?.ticks,
+            display:
+              (options.scales?.y as { ticks?: { display?: boolean } })?.ticks
+                ?.display ?? (showYAxis && showYAxisLabels),
+          },
         },
       },
       plugins: {
+        ...(options.plugins as object),
         legend: {
           display: showLegend,
           position: "bottom",
+          ...(options.plugins?.legend as object),
         } as any,
         tooltip: {
           enabled: showTooltip,
+          ...(options.plugins?.tooltip as object),
           callbacks: {
+            ...(options.plugins?.tooltip as { callbacks?: object })?.callbacks,
             label: function (context: any) {
               const label = context.dataset.label || "";
               const value = context.parsed.y;
@@ -218,7 +247,6 @@ export const LineChart: FC<LineChartProps> = ({
           },
         } as any,
       },
-      ...options,
     };
 
     chartRef.current = new ChartJS(ctx, {

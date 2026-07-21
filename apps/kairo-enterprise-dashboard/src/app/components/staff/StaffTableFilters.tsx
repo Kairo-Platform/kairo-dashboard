@@ -17,7 +17,7 @@ const StaffTableFiltersContainer = styled.div`
     top: 3.5rem;
     left: 18%;
     z-index: 1;
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
     border-radius: 1rem;
     padding: 1.5rem 1rem 1rem 1rem;

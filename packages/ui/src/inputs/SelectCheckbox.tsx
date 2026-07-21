@@ -17,14 +17,14 @@ const SelectCheckboxContainer = styled.div`
     border: 1px solid ${(props) => props.theme.colors.inputBorder};
     border-radius: 4px;
     padding: 10px;
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
   }
 
   .select {
     cursor: pointer;
     padding: 10px;
     border-radius: 4px;
-    background-color: ${(props) => props.theme.colors.white};
+    background-color: ${(props) => props.theme.colors.ui_07};
     border: 1px solid ${(props) => props.theme.colors.inputBorder};
     background-image: url("${caretDownIcon}");
     background-repeat: no-repeat;
@@ -76,7 +76,7 @@ const SelectCheckboxContainer = styled.div`
     height: 24px;
     min-width: 24px;
     min-height: 24px;
-    background: ${(props) => props.theme.colors.white};
+    background: ${(props) => props.theme.colors.ui_07};
     border: 2px solid ${(props) => props.theme.colors.inputBorder};
     border-radius: 2px;
   }
