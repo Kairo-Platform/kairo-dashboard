@@ -11,7 +11,7 @@ import {
   ModalSize,
 } from "@/app/components/ui";
 import { OtpInput } from "@/app/components/ui/inputs";
-import { xApiAuth } from "@/services/xApi";
+import { auth } from "@/services/Auth";
 import { isApiError, parseApiError } from "@/lib/utils";
 import {
   showErrorNotification,
@@ -101,7 +101,7 @@ export const EmailVerificationModal = ({
 
       setVerifying(true);
       try {
-        const response = (await xApiAuth.verifyEmail({
+        const response = (await auth.verifyEmail({
           email,
           code,
         })) as Record<string, unknown>;
@@ -144,7 +144,7 @@ export const EmailVerificationModal = ({
 
     setResending(true);
     try {
-      const response = (await xApiAuth.resendEmailVerification({
+      const response = (await auth.resendEmailVerification({
         email,
       })) as Record<string, unknown>;
 

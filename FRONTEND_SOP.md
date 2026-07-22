@@ -114,7 +114,7 @@ apps/kairo-enterprise-dashboard  → Port 3001 → xApi only (user-facing endpoi
 | App        | Package name                  | Backend target | BFF route           | Service folder             |
 | ---------- | ----------------------------- | -------------- | ------------------- | -------------------------- |
 | Admin      | `@kairo/admin-dashboard`      | backOffice     | `/api/backoffice/*` | `src/services/backOffice/` |
-| Enterprise | `@kairo/enterprise-dashboard` | xApi           | `/api/x-api/*`      | `src/services/xApi/`       |
+| Enterprise | `@kairo/enterprise-dashboard` | xApi           | `/api/x-api/*`      | `src/services/` (e.g. `Auth/`, `User/`) |
 
 **Rules:**
 
@@ -278,11 +278,13 @@ export const users = {
 ```ts
 import { xApiBff } from "@/lib/bff/client";
 
-export const xApiAuth = {
+export const auth = {
   login: (data) =>
-    xApiBff.request("auth/login", { method: "POST", body: data }),
+    xApiBff.request("v1/auth/login", { method: "POST", body: data }),
 };
 ```
+
+Import as `@/services/Auth` (not `@/services/xApi`). Do not prefix service exports with `xApi` — the BFF already targets xApi.
 
 **Rules:**
 
@@ -344,7 +346,7 @@ Multi-step auth (OTP, stages, etc.) helpers live in the **enterprise** app:
 
 - `src/lib/hooks/useAccessControlFlow.ts`
 - `src/lib/utils/accessControlFlowHelpers.ts`
-- `src/services/xApi/Auth` — `initiateLogin`, `processFlowStage`, etc.
+- `src/services/Auth` — `initiateLogin`, `processFlowStage`, etc.
 
 Admin uses **direct login** (`auth/login` → dashboard) until product requirements change.
 
@@ -488,7 +490,7 @@ Each workflow runs: `pnpm install` → `turbo lint typecheck build --filter=<app
 | Admin BFF client      | `apps/kairo-admin-dashboard/src/lib/bff/client.ts`                                  |
 | Enterprise BFF client | `apps/kairo-enterprise-dashboard/src/lib/bff/client.ts`                             |
 | Admin services        | `apps/kairo-admin-dashboard/src/services/backOffice/`                               |
-| Enterprise services   | `apps/kairo-enterprise-dashboard/src/services/xApi/`                                |
+| Enterprise services   | `apps/kairo-enterprise-dashboard/src/services/` (e.g. `Auth/`, `User/`)              |
 | Admin login page      | `apps/kairo-admin-dashboard/src/app/(routes)/auth/login/page.tsx`                   |
 | Enterprise login page | `apps/kairo-enterprise-dashboard/src/app/(routes)/auth/login/page.tsx`              |
 | Root README           | `README.md`                                                                         |

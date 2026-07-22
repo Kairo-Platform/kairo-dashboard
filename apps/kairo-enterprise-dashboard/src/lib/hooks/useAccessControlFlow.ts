@@ -5,7 +5,7 @@ import {
   showErrorNotification,
   showSuccessNotification,
 } from "@kairo/utils";
-import { xApiAuth } from "@/services/xApi";
+import { auth } from "@/services/Auth";
 import { USER_STATUS } from "@/lib/constants/USER_STATUS";
 import { getApiData, parseApiError } from "@/lib/utils";
 
@@ -32,7 +32,7 @@ export function useAccessControlFlow({
   const previousStageRef = useRef<string | null>(null);
   const [loadingPrevStage, setLoadingPrevStage] = useState(false);
 
-  const service = useMemo(() => xApiAuth, []);
+  const service = useMemo(() => auth, []);
 
   const handleStageSubmit = useCallback(
     async (_stage: string, data: any) => {

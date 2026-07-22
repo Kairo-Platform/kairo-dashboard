@@ -17,7 +17,7 @@ import { showErrorNotification } from "@kairo/utils";
 import { URL } from "@/lib/constants/URL";
 import { AuthUtils } from "@/lib/auth";
 import { getApiData, isApiError } from "@/lib/utils";
-import { xApiUser } from "@/services/xApi/User";
+import { user as userService } from "@/services/User";
 import { DashboardHeader } from "./DashboardHeader";
 import { DashboardSidebar } from "./DashboardSidebar";
 import {
@@ -235,7 +235,7 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
     setFetchingAuthUser(true);
 
     try {
-      const response = await xApiUser.me();
+      const response = await userService.me();
       if (isApiError(response)) {
         throw response;
       }

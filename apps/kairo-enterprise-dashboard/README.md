@@ -28,8 +28,9 @@ Copy `.env.sample` to `.env.local`.
 - `src/app/api/x-api/[...path]` — BFF proxy to xApi (GAT + service credentials)
 - `src/app/auth/login` — login UI
 - `src/app/auth/callback` — Google OAuth return (`status=SUCCESS|DENIED|ERROR`, `code`, `new`); exchanges code via `POST /v1/auth/oauth/exchange`
-- `src/services/xApi/` — client modules calling `/api/x-api/*` and `/api/user/*`
-- `src/lib/bff/` — `xApiBff` client + `proxyXApiRequest()` / `proxyXApiBearerRequest()` server helpers
+- `src/services/Auth/` — auth client (`login`, `signup`, OAuth, access-control flows)
+- `src/services/User/` — user client (`me`)
+- `src/lib/bff/` — BFF client + `proxyXApiRequest()` / `proxyXApiBearerRequest()` server helpers
 
 Cookie prefix: `kairo_enterprise_*` (separate from admin's `kairo_admin_*`).
 

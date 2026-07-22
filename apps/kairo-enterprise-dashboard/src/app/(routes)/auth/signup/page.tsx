@@ -9,7 +9,7 @@ import { Button, ButtonClass, ButtonSize, Flex } from "@/app/components/ui";
 import { FormInput } from "@/app/components/ui/inputs";
 import { EmailVerificationModal } from "@/app/components/auth/EmailVerificationModal";
 import { applyLoginSession } from "@/lib/auth";
-import { xApiAuth } from "@/services/xApi";
+import { auth } from "@/services/Auth";
 import { URL } from "@/lib/constants/URL";
 import { useGoogleOAuth, useOAuthStatusNotification } from "@/lib/hooks";
 import {
@@ -159,7 +159,7 @@ export default function EnterpriseSignupPage() {
     setLoading(true);
 
     try {
-      const response = (await xApiAuth.signup({
+      const response = (await auth.signup({
         name: validation.data.name,
         orgName: validation.data.orgName,
         email: validation.data.email,

@@ -6,7 +6,7 @@ import styled from "styled-components";
 import { Button, ButtonClass, ButtonSize, Flex } from "@/app/components/ui";
 import { FormInput } from "@/app/components/ui/inputs";
 import { applyLoginSession } from "@/lib/auth";
-import { xApiAuth } from "@/services/xApi";
+import { auth } from "@/services/Auth";
 import { URL } from "@/lib/constants/URL";
 import { useGoogleOAuth, useOAuthStatusNotification } from "@/lib/hooks";
 import {
@@ -123,7 +123,7 @@ export default function EnterpriseLoginPage() {
     setLoading(true);
 
     try {
-      const response = (await xApiAuth.login({
+      const response = (await auth.login({
         email: validation.data.email,
         password: validation.data.password,
       })) as Record<string, any>;

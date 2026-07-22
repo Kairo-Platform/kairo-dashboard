@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { getOAuthReturnToUrl, setOAuthReturnTo } from "@/lib/auth";
-import { xApiAuth } from "@/services/xApi";
+import { auth } from "@/services/Auth";
 import { parseApiError } from "@/lib/utils";
 
 export function useGoogleOAuth(returnTo?: string) {
@@ -18,7 +18,7 @@ export function useGoogleOAuth(returnTo?: string) {
     }
 
     try {
-      await xApiAuth.startGoogleOAuth(getOAuthReturnToUrl());
+      await auth.startGoogleOAuth(getOAuthReturnToUrl());
     } catch (error) {
       setOauthError(
         parseApiError(error, "Failed to start Google sign-in. Try again."),

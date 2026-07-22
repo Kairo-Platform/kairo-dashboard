@@ -14,7 +14,7 @@ import {
 } from "@/lib/auth";
 import { URL } from "@/lib/constants/URL";
 import { getApiData, isApiError } from "@/lib/utils";
-import { xApiAuth } from "@/services/xApi";
+import { auth } from "@/services/Auth";
 import { showSuccessNotification } from "@kairo/utils";
 
 const PageContainer = styled.main`
@@ -79,7 +79,7 @@ function OAuthCallbackContent() {
       }
 
       try {
-        const response = await xApiAuth.exchangeOAuthCode(code);
+        const response = await auth.exchangeOAuthCode(code);
 
         if (isApiError(response)) {
           throw response;

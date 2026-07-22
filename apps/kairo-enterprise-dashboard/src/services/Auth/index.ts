@@ -18,7 +18,7 @@ export type OAuthExchangeResponse = {
   data?: OAuthExchangeResponse;
 };
 
-export const xApiAuth = {
+export const auth = {
   login: (data: Record<string, unknown>) =>
     xApiBff.request("v1/auth/login", {
       method: "POST",
@@ -60,8 +60,11 @@ export const xApiAuth = {
       headers: { Accept: "application/json" },
     });
 
-    let payload: { redirectUrl?: string; message?: string; statusCode?: number } =
-      {};
+    let payload: {
+      redirectUrl?: string;
+      message?: string;
+      statusCode?: number;
+    } = {};
 
     try {
       payload = (await response.json()) as typeof payload;
@@ -133,5 +136,3 @@ export const xApiAuth = {
       body: data,
     }),
 };
-
-export const auth = xApiAuth;
