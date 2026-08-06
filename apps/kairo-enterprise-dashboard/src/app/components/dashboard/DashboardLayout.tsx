@@ -322,7 +322,7 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
           <div className="DashboardLayout__content-wrapper">
             <div className="DashboardLayout__pageHeading">
               <Flex justify="space-between" wrap="wrap" align="center">
-                <Flex direction="column" gap="0.5rem">
+                <Flex direction="column" gap="0.2rem">
                   <div className="DashboardLayout__titleRow">
                     <h2 className="DashboardLayout__pageHeading--title">
                       {typeof pageTitle === "string"

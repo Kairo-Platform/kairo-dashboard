@@ -191,6 +191,17 @@ const FlowGeneralSettingsContainer = styled.div`
     gap: 1.5rem;
   }
 
+  > aside {
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+    height: fit-content;
+
+    @media (max-width: ${({ theme }) => theme.breakpoint.lg}) {
+      position: static;
+    }
+  }
+
   .FlowGeneralSettings__navLabel {
     font-size: 0.9375rem;
     font-weight: 500;
@@ -297,10 +308,8 @@ const FlowGeneralSettingsContainer = styled.div`
     align-items: flex-start;
     justify-content: space-between;
     gap: 1.5rem;
-    position: sticky;
     top: 0;
     z-index: 1;
-    background-color: ${({ theme }) => theme.colors.ui_07};
     padding-bottom: 0.5rem;
 
     &-content {

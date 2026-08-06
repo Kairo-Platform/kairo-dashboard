@@ -21,8 +21,16 @@ import {
   SwitchInput,
   SwitchInputSize,
 } from "@kairo/ui/inputs";
-import { useMemo, useState } from "react";
+import {
+  forwardRef,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import styled from "styled-components";
+// Local defaults / option catalogs for conversation settings UI
+export type ConversationStatus = "DRAFT" | "ACTIVE" | "INACTIVE";
 
 export type BuiltInConversationTypeId =
   | "onboarding"
@@ -37,40 +45,32 @@ export type BuiltInConversationTypeId =
 
 export type ConversationTypeId = BuiltInConversationTypeId | string;
 
-type ConversationType = {
-  id: ConversationTypeId;
-  title: string;
-  description: string;
-  icon: string;
-  conversationsTitle: string;
-  isCustom?: boolean;
-  enabled?: boolean;
-  intent?: string;
-  condition?: string;
-  message?: string;
-  action?: string;
-  otherwise?: string;
+export type SelectOption = {
+  label: string;
+  value: string;
 };
 
-type CustomConversationForm = {
-  name: string;
+export type MessageVariable = {
+  token: string;
   description: string;
-  intent: string;
-  condition: string;
-  message: string;
-  action: string;
-  otherwise: string;
-  enableOnCreate: boolean;
+  example?: string;
 };
 
-type TemplateButton = {
+export type TemplateButtonPayload = {
+  url?: string;
+  replyText?: string;
+  phoneNumber?: string;
+};
+
+export type TemplateButton = {
   id: string;
   label: string;
   action: string;
   buttonType: string;
+  payload: TemplateButtonPayload;
 };
 
-type MessageTemplate = {
+export type MessageTemplate = {
   id: string;
   name: string;
   trigger: string;
@@ -83,12 +83,7 @@ type MessageTemplate = {
   expanded: boolean;
 };
 
-type MessageVariable = {
-  token: string;
-  description: string;
-};
-
-type AutomationSettings = {
+export type AutomationSettings = {
   retryEnabled: boolean;
   retryDuration: string;
   retryUnit: string;
@@ -100,13 +95,152 @@ type AutomationSettings = {
   stopAutomation: string[];
 };
 
-const CONVERSATION_TYPES: ConversationType[] = [
+export type ConversationTypeMeta = {
+  id: ConversationTypeId;
+  title: string;
+  description: string;
+  icon: string;
+  conversationsTitle: string;
+  kind: "built-in" | "custom";
+};
+
+export type ConversationTypeConfig = {
+  status: ConversationStatus;
+  kind: "built-in" | "custom";
+  title?: string;
+  description?: string;
+  templates: MessageTemplate[];
+  automation: AutomationSettings;
+  customTriggers: SelectOption[];
+  customVariables: MessageVariable[];
+};
+
+export type ConversationSettingsMap = Record<
+  ConversationTypeId,
+  ConversationTypeConfig
+>;
+
+export const STATUS_OPTIONS: SelectOption[] = [
+  { label: "Draft", value: "DRAFT" },
+  { label: "Active", value: "ACTIVE" },
+  { label: "Inactive", value: "INACTIVE" },
+];
+
+export const TRIGGER_OPTIONS: SelectOption[] = [
+  { label: "User signup", value: "user-signup" },
+  { label: "KYC submitted", value: "kyc-submitted" },
+  { label: "Wallet funded", value: "wallet-funded" },
+];
+
+export const TRIGGER_CONDITION_OPTIONS: SelectOption[] = [
+  { value: "first-time-user", label: "First-time user" },
+  { value: "referred-user", label: "Referred user" },
+  { value: "kyc-incomplete", label: "KYC incomplete" },
+];
+
+export const INTENT_OPTIONS: SelectOption[] = [
+  { label: "Onboarding", value: "onboarding" },
+  { label: "Engagement", value: "engagement" },
+  { label: "Support", value: "support" },
+];
+
+export const TEMPLATE_TYPE_OPTIONS: SelectOption[] = [
+  { label: "Text", value: "text" },
+  { label: "Interactive", value: "interactive" },
+  { label: "Media", value: "media" },
+];
+
+export const BUTTON_ACTION_OPTIONS: SelectOption[] = [
+  { label: "Open URL", value: "open-url" },
+  { label: "Quick reply", value: "quick-reply" },
+  { label: "Call phone", value: "call-phone" },
+];
+
+/** Payload options when button action is quick-reply */
+export const QUICK_REPLY_PAYLOAD_OPTIONS: SelectOption[] = [
+  { label: "Get started", value: "GET_STARTED" },
+  { label: "Continue", value: "CONTINUE" },
+  { label: "Yes", value: "YES" },
+  { label: "No", value: "NO" },
+  { label: "Learn more", value: "LEARN_MORE" },
+  { label: "Talk to agent", value: "TALK_TO_AGENT" },
+  { label: "Opt out", value: "OPT_OUT" },
+];
+
+export const BUTTON_TYPE_OPTIONS: SelectOption[] = [
+  { label: "Primary", value: "primary" },
+  { label: "Secondary", value: "secondary" },
+];
+
+export const FALLBACK_LANGUAGE_OPTIONS: SelectOption[] = [
+  { label: "English", value: "english" },
+  { label: "Igbo", value: "igbo" },
+  { label: "Yoruba", value: "yoruba" },
+  { label: "Hausa", value: "hausa" },
+];
+
+export const DEFAULT_MESSAGE_VARIABLES: MessageVariable[] = [
+  {
+    token: "{{first_name}}",
+    description: "User's first name",
+    example: "Chinedu",
+  },
+  {
+    token: "{{business_name}}",
+    description: "Business name",
+    example: "Kairo",
+  },
+  {
+    token: "{{wallet_balance}}",
+    description: "Current wallet balance",
+    example: "₦142,500.00",
+  },
+  {
+    token: "{{last_transaction}}",
+    description: "Last transaction amount",
+    example: "₦15,000",
+  },
+  {
+    token: "{{referral_code}}",
+    description: "Referral code",
+    example: "KAIRO20",
+  },
+];
+
+export const TIME_UNIT_OPTIONS: SelectOption[] = [
+  { label: "Days", value: "days" },
+  { label: "Weeks", value: "weeks" },
+  { label: "Months", value: "months" },
+  { label: "Years", value: "years" },
+];
+
+export const RETRY_LIMIT_OPTIONS: SelectOption[] = [
+  { label: "1", value: "1" },
+  { label: "2", value: "2" },
+  { label: "3", value: "3" },
+  { label: "5", value: "5" },
+];
+
+export const FOLLOW_UP_TYPE_OPTIONS: SelectOption[] = [
+  { label: "KYC reminder", value: "kyc-reminder" },
+  { label: "Wallet funding prompt", value: "wallet-funding-prompt" },
+];
+
+export const STOP_AUTOMATION_OPTIONS: SelectOption[] = [
+  { value: "onboarding-completed", label: "Onboarding completed" },
+  { value: "user-opts-out", label: "User opts out" },
+  { value: "account-suspended", label: "Account suspended" },
+  { value: "fraud-detected", label: "Fraud detected" },
+];
+
+export const BUILT_IN_CONVERSATION_TYPES: ConversationTypeMeta[] = [
   {
     id: "onboarding",
     title: "Onboarding",
     description: "New user registration flow",
     icon: "material-symbols:person-add-outline",
     conversationsTitle: "Onboarding conversations",
+    kind: "built-in",
   },
   {
     id: "welcome",
@@ -114,20 +248,23 @@ const CONVERSATION_TYPES: ConversationType[] = [
     description: "Returning user greeting",
     icon: "tdesign:wave-bye",
     conversationsTitle: "Welcome conversations",
+    kind: "built-in",
   },
   {
     id: "checkup",
     title: "Checkup",
-    description: "New user registration flow",
+    description: "Periodic engagement checkup",
     icon: "solar:heart-pulse-linear",
     conversationsTitle: "Checkup conversations",
+    kind: "built-in",
   },
   {
     id: "birthday",
     title: "Birthday",
-    description: "New user registration flow",
+    description: "Birthday wishes & offers",
     icon: "mynaui:confetti",
     conversationsTitle: "Birthday conversations",
+    kind: "built-in",
   },
   {
     id: "reward",
@@ -135,6 +272,7 @@ const CONVERSATION_TYPES: ConversationType[] = [
     description: "Milestone & cashback alert",
     icon: "solar:gift-linear",
     conversationsTitle: "Reward conversations",
+    kind: "built-in",
   },
   {
     id: "transaction",
@@ -142,13 +280,15 @@ const CONVERSATION_TYPES: ConversationType[] = [
     description: "Transaction event notifications",
     icon: "majesticons:coins-line",
     conversationsTitle: "Transaction conversations",
+    kind: "built-in",
   },
   {
     id: "analytics",
     title: "Analytics",
-    description: "Transaction event notifications",
+    description: "Spend insights alerts",
     icon: "solar:chart-2-linear",
     conversationsTitle: "Analytics conversations",
+    kind: "built-in",
   },
   {
     id: "financial-advice",
@@ -156,93 +296,44 @@ const CONVERSATION_TYPES: ConversationType[] = [
     description: "AI advice and guidance",
     icon: "mingcute:ai-fill",
     conversationsTitle: "Financial advice conversations",
+    kind: "built-in",
   },
   {
     id: "advertisement",
     title: "Advertisement",
-    description: "AI advice and guidance",
+    description: "Promotional campaigns",
     icon: "solar:megaphone-linear",
     conversationsTitle: "Advertisement conversations",
+    kind: "built-in",
   },
 ];
 
-const TRIGGER_OPTIONS = [
-  { label: "User signup", value: "user-signup" },
-  { label: "KYC submitted", value: "kyc-submitted" },
-  { label: "Wallet funded", value: "wallet-funded" },
+export const CUSTOM_CONVERSATION_ICON = "fluent:chat-32-regular";
+
+export const COMMON_EMOJIS = [
+  "😀",
+  "😁",
+  "😂",
+  "🙂",
+  "😉",
+  "😍",
+  "🙌",
+  "👍",
+  "🎉",
+  "🔥",
+  "💯",
+  "✨",
+  "🙏",
+  "💪",
+  "🤝",
+  "💙",
+  "🧡",
+  "✅",
+  "📌",
+  "💬",
 ];
 
-const TRIGGER_CONDITION_OPTIONS = [
-  { value: "first-time-user", label: "First-time user" },
-  { value: "referred-user", label: "Referred user" },
-  { value: "kyc-incomplete", label: "KYC incomplete" },
-];
-
-const INTENT_OPTIONS = [
-  { label: "Onboarding", value: "onboarding" },
-  { label: "Engagement", value: "engagement" },
-  { label: "Support", value: "support" },
-];
-
-const TEMPLATE_TYPE_OPTIONS = [
-  { label: "Text", value: "text" },
-  { label: "Interactive", value: "interactive" },
-  { label: "Media", value: "media" },
-];
-
-const BUTTON_ACTION_OPTIONS = [
-  { label: "Open URL", value: "open-url" },
-  { label: "Quick reply", value: "quick-reply" },
-  { label: "Call phone", value: "call-phone" },
-];
-
-const BUTTON_TYPE_OPTIONS = [
-  { label: "Primary", value: "primary" },
-  { label: "Secondary", value: "secondary" },
-];
-
-const FALLBACK_LANGUAGE_OPTIONS = [
-  { label: "English", value: "english" },
-  { label: "Igbo", value: "igbo" },
-  { label: "Yoruba", value: "yoruba" },
-  { label: "Hausa", value: "hausa" },
-];
-
-const MESSAGE_VARIABLES: MessageVariable[] = [
-  { token: "{{first_name}}", description: "User's first name" },
-  { token: "{{business_name}}", description: "Business name" },
-  { token: "{{wallet_balance}}", description: "Current wallet balance" },
-  { token: "{{last_transaction}}", description: "Last transaction amount" },
-  { token: "{{referral_code}}", description: "Referral code" },
-];
-
-const TIME_UNIT_OPTIONS = [
-  { label: "Days", value: "days" },
-  { label: "Weeks", value: "weeks" },
-  { label: "Months", value: "months" },
-  { label: "Years", value: "years" },
-];
-
-const RETRY_LIMIT_OPTIONS = [
-  { label: "1", value: "1" },
-  { label: "2", value: "2" },
-  { label: "3", value: "3" },
-  { label: "5", value: "5" },
-];
-
-const FOLLOW_UP_TYPE_OPTIONS = [
-  { label: "KYC reminder", value: "kyc-reminder" },
-  { label: "Wallet funding prompt", value: "wallet-funding-prompt" },
-];
-
-const STOP_AUTOMATION_OPTIONS = [
-  { value: "onboarding-completed", label: "Onboarding completed" },
-  { value: "user-opts-out", label: "User opts out" },
-  { value: "account-suspended", label: "Account suspended" },
-  { value: "fraud-detected", label: "Fraud detected" },
-];
-
-const createDefaultAutomation = (): AutomationSettings => ({
+export const createDefaultAutomation = (): AutomationSettings => ({
   retryEnabled: false,
   retryDuration: "",
   retryUnit: "",
@@ -254,60 +345,236 @@ const createDefaultAutomation = (): AutomationSettings => ({
   stopAutomation: [],
 });
 
-const createEmptyButton = (): TemplateButton => ({
+export const createEmptyButton = (): TemplateButton => ({
   id: crypto.randomUUID(),
   label: "",
   action: "",
   buttonType: "",
+  payload: {},
 });
 
-const createDefaultTemplate = (index: number): MessageTemplate => ({
+export const createDefaultTemplate = (index: number): MessageTemplate => ({
   id: crypto.randomUUID(),
   name: `Template ${index}`,
-  trigger: "",
-  triggerConditions: [],
-  intent: "",
-  templateType: "",
-  message: "",
-  buttons: [createEmptyButton(), createEmptyButton()],
-  fallbackLanguage: "",
+  trigger: "user-signup",
+  triggerConditions: ["first-time-user"],
+  intent: "onboarding",
+  templateType: "interactive",
+  message: "Hi {{first_name}}, welcome to {{business_name}}!",
+  buttons: [
+    {
+      id: crypto.randomUUID(),
+      label: "Get started",
+      action: "quick-reply",
+      buttonType: "primary",
+      payload: { replyText: "GET_STARTED" },
+    },
+    createEmptyButton(),
+  ],
+  fallbackLanguage: "english",
   expanded: true,
 });
 
-const countWords = (text: string) =>
+export const createDefaultTypeConfig = (
+  kind: "built-in" | "custom" = "built-in",
+  status: ConversationStatus = "DRAFT",
+): ConversationTypeConfig => ({
+  status,
+  kind,
+  templates: [createDefaultTemplate(1)],
+  automation: createDefaultAutomation(),
+  customTriggers: [],
+  customVariables: [],
+});
+
+export const createInitialSettingsMap = (): ConversationSettingsMap => {
+  const map: ConversationSettingsMap = {};
+  for (const type of BUILT_IN_CONVERSATION_TYPES) {
+    map[type.id] = createDefaultTypeConfig("built-in", "DRAFT");
+  }
+  return map;
+};
+
+export const cloneTypeConfig = (
+  config: ConversationTypeConfig,
+): ConversationTypeConfig => ({
+  ...config,
+  templates: config.templates.map((template) => ({
+    ...template,
+    triggerConditions: [...template.triggerConditions],
+    buttons: template.buttons.map((button) => ({
+      ...button,
+      payload: { ...button.payload },
+    })),
+  })),
+  automation: {
+    ...config.automation,
+    stopAutomation: [...config.automation.stopAutomation],
+  },
+  customTriggers: config.customTriggers.map((option) => ({ ...option })),
+  customVariables: config.customVariables.map((variable) => ({ ...variable })),
+});
+
+export const serializeTypeConfig = (config: ConversationTypeConfig) =>
+  JSON.stringify({
+    status: config.status,
+    kind: config.kind,
+    title: config.title,
+    description: config.description,
+    templates: config.templates.map(({ expanded: _expanded, ...template }) => ({
+      ...template,
+      triggerConditions: [...template.triggerConditions].sort(),
+      buttons: template.buttons.map((button) => ({
+        ...button,
+        payload: { ...button.payload },
+      })),
+    })),
+    automation: {
+      ...config.automation,
+      stopAutomation: [...config.automation.stopAutomation].sort(),
+    },
+    customTriggers: [...config.customTriggers]
+      .map((option) => option.value)
+      .sort(),
+    customVariables: [...config.customVariables]
+      .map((variable) => variable.token)
+      .sort(),
+  });
+
+/** API-ready type config (strips UI-only fields like `expanded`). */
+export const toApiTypeConfig = (config: ConversationTypeConfig) => ({
+  status: config.status,
+  kind: config.kind,
+  ...(config.title !== undefined ? { title: config.title } : {}),
+  ...(config.description !== undefined
+    ? { description: config.description }
+    : {}),
+  templates: config.templates.map(({ expanded: _expanded, ...template }) => ({
+    ...template,
+    buttons: template.buttons.map((button) => ({
+      ...button,
+      payload: { ...button.payload },
+    })),
+  })),
+  automation: {
+    ...config.automation,
+    stopAutomation: [...config.automation.stopAutomation],
+  },
+  customTriggers: config.customTriggers.map((option) => ({ ...option })),
+  customVariables: config.customVariables.map((variable) => ({ ...variable })),
+});
+
+export type ConversationSettingsSavePayload = {
+  settings: Record<ConversationTypeId, ReturnType<typeof toApiTypeConfig>>;
+};
+
+export const toConversationSettingsSavePayload = (
+  settings: ConversationSettingsMap,
+): ConversationSettingsSavePayload => ({
+  settings: Object.fromEntries(
+    Object.entries(settings).map(([id, config]) => [
+      id,
+      toApiTypeConfig(config),
+    ]),
+  ),
+});
+
+export const interpolatePreviewMessage = (
+  message: string,
+  variables: MessageVariable[],
+) => {
+  let result = message;
+  for (const variable of variables) {
+    const sample = variable.example ?? variable.token.replace(/[{}]/g, "");
+    result = result.split(variable.token).join(sample);
+  }
+  return result;
+};
+
+export const wrapWhatsAppMarkdown = (
+  text: string,
+  selectionStart: number,
+  selectionEnd: number,
+  wrapper: "*" | "_" | "~" | "```",
+) => {
+  const selected = text.slice(selectionStart, selectionEnd) || "text";
+  const before = text.slice(0, selectionStart);
+  const after = text.slice(selectionEnd);
+  const wrapped =
+    wrapper === "```"
+      ? `${wrapper}${selected}${wrapper}`
+      : `${wrapper}${selected}${wrapper}`;
+  return {
+    value: `${before}${wrapped}${after}`,
+    cursorStart: before.length + wrapper.length,
+    cursorEnd: before.length + wrapper.length + selected.length,
+  };
+};
+
+export const countWords = (text: string) =>
   text.trim() ? text.trim().split(/\s+/).length : 0;
+
+
+export type FlowConversationSettingsHandle = {
+  /** Returns API-shaped settings map for the parent Save settings CTA. */
+  getSavePayload: () => ConversationSettingsSavePayload;
+  /** Commits local draft snapshot and returns the same payload. */
+  save: () => ConversationSettingsSavePayload;
+};
+
+type CustomConversationForm = {
+  name: string;
+  description: string;
+  enableOnCreate: boolean;
+};
+
+type CatalogModal = "trigger" | "variable" | null;
 
 const EMPTY_CUSTOM_CONVERSATION_FORM: CustomConversationForm = {
   name: "",
   description: "",
-  intent: "",
-  condition: "",
-  message: "",
-  action: "",
-  otherwise: "",
   enableOnCreate: false,
 };
 
-const CUSTOM_CONVERSATION_ICON = "fluent:chat-32-regular";
 const DESCRIPTION_WORD_LIMIT = 10;
 const MESSAGE_WORD_LIMIT = 500;
+
+const statusTagType = (status: ConversationStatus) => {
+  if (status === "ACTIVE") return TagType.GREEN;
+  if (status === "INACTIVE") return TagType.RED;
+  return TagType.YELLOW;
+};
+
+const statusLabel = (status: ConversationStatus) =>
+  STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 
 const FlowConversationSettingsContainer = styled.div`
   display: grid;
   grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
   gap: 0;
-  margin-top: 1.5rem;
   align-items: start;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.xl}) {
     grid-template-columns: 1fr;
   }
 
+  > aside:first-of-type {
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+    height: fit-content;
+    border-right: 1px solid ${({ theme }) => theme.colors.gray_02};
+
+    @media (max-width: ${({ theme }) => theme.breakpoint.xl}) {
+      position: static;
+    }
+  }
+
   .FlowConversationSettings__navLabel {
     font-size: 0.9375rem;
     font-weight: 500;
     color: ${({ theme }) => theme.colors.text_02};
-    margin-bottom: 1rem;
+    margin-block: 1rem;
   }
 
   .FlowConversationSettings__nav {
@@ -315,7 +582,6 @@ const FlowConversationSettingsContainer = styled.div`
     flex-direction: column;
     gap: 0.25rem;
     padding-right: 1rem;
-    border-right: 1px solid ${({ theme }) => theme.colors.gray_02};
 
     @media (max-width: ${({ theme }) => theme.breakpoint.xl}) {
       border-right: none;
@@ -671,7 +937,7 @@ const FlowConversationSettingsContainer = styled.div`
 
   .FlowConversationSettings__messageEditorBody {
     display: grid;
-    grid-template-columns: 7.375rem minmax(0, 1fr);
+    grid-template-columns: 7.75rem minmax(0, 1fr);
     border: 1px solid ${({ theme }) => theme.colors.gray_02};
     border-radius: 0.75rem;
     overflow: hidden;
@@ -683,7 +949,7 @@ const FlowConversationSettingsContainer = styled.div`
   }
 
   .FlowConversationSettings__variables {
-    padding: 0.6875rem 1rem 1rem 0;
+    padding: 0.6875rem 1rem 1rem 0.5rem;
     border-right: 1px solid ${({ theme }) => theme.colors.gray_02};
 
     @media (max-width: ${({ theme }) => theme.breakpoint.md}) {
@@ -808,7 +1074,7 @@ const FlowConversationSettingsContainer = styled.div`
 
   .FlowConversationSettings__buttonRow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 10rem minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) 10rem minmax(0, 1fr) minmax(0, 1fr) auto;
     gap: 1rem;
     align-items: end;
 
@@ -939,7 +1205,7 @@ const FlowConversationSettingsContainer = styled.div`
   }
 
   .FlowConversationSettings__phoneBody {
-    min-height: 25rem;
+    min-height: 30rem;
     padding: 1rem 0.875rem 1.5rem;
     background-color: ${({ theme }) => theme.colors.gray_05};
   }
@@ -959,15 +1225,67 @@ const FlowConversationSettingsContainer = styled.div`
   .FlowConversationSettings__phoneBubble {
     max-width: 80%;
     margin-right: auto;
-    padding: 0.625rem 0.75rem;
+    padding: 0;
     border-radius: 0.75rem;
     background: ${({ theme }) => theme.colors.ui_07};
     font-size: 0.9375rem;
     line-height: 1.35;
     color: ${({ theme }) => theme.colors.text_01};
+    overflow: hidden;
+    box-shadow: 0 1px 1px ${({ theme }) => theme.colors.gray_03};
+  }
+
+  .FlowConversationSettings__phoneBubbleText {
+    padding: 0.625rem 0.75rem;
     white-space: pre-wrap;
     word-break: break-word;
-    box-shadow: 0 1px 1px ${({ theme }) => theme.colors.gray_03};
+  }
+
+  .FlowConversationSettings__phoneBubbleActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid ${({ theme }) => theme.colors.gray_02};
+
+    &--single {
+      grid-template-columns: 1fr;
+    }
+
+    &--odd > :last-child {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .FlowConversationSettings__phoneBubbleAction {
+    padding: 0.625rem 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: ${({ theme }) => theme.colors.primary};
+    text-align: center;
+    border-right: 1px solid ${({ theme }) => theme.colors.gray_02};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.gray_02};
+
+    &:nth-child(even) {
+      border-right: none;
+    }
+  }
+
+  .FlowConversationSettings__phoneBubbleActions--single
+    .FlowConversationSettings__phoneBubbleAction,
+  .FlowConversationSettings__phoneBubbleActions--odd
+    > .FlowConversationSettings__phoneBubbleAction:last-child {
+    border-right: none;
+  }
+
+  .FlowConversationSettings__phoneBubbleActions
+    > .FlowConversationSettings__phoneBubbleAction:last-child {
+    border-bottom: none;
+  }
+
+  .FlowConversationSettings__phoneBubbleActions:not(
+      .FlowConversationSettings__phoneBubbleActions--odd
+    ):not(.FlowConversationSettings__phoneBubbleActions--single)
+    > .FlowConversationSettings__phoneBubbleAction:nth-last-child(-n + 2) {
+    border-bottom: none;
   }
 
   .FlowConversationSettings__phoneBubbleMeta {
@@ -1008,51 +1326,273 @@ const FlowConversationSettingsContainer = styled.div`
       background: ${({ theme }) => theme.colors.text_01};
     }
   }
-`;
+
+  .FlowConversationSettings__headerActions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .FlowConversationSettings__templateName {
+    font: inherit;
+    font-weight: 500;
+    color: ${({ theme }) => theme.colors.text_01};
+    white-space: nowrap;
+  }
+
+  .FlowConversationSettings__templateNameInput {
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-weight: 500;
+    color: ${({ theme }) => theme.colors.text_01};
+    padding: 0;
+    width: max-content;
+    max-width: 100%;
+    field-sizing: content;
+
+    &:focus {
+      outline: none;
+      border-bottom: 1px solid ${({ theme }) => theme.colors.primary};
+    }
+  }
+
+  .FlowConversationSettings__templateEditButton {
+    border: none;
+    background: transparent;
+    color: ${({ theme }) => theme.colors.text_02};
+    cursor: pointer;
+    display: inline-flex;
+    padding: 0.125rem;
+    border-radius: 0.25rem;
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.text_01};
+    }
+  }
+
+  .FlowConversationSettings__templateToggle {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: inline-flex;
+    color: ${({ theme }) => theme.colors.text_01};
+    transition: transform 0.15s ease;
+
+    &.is-expanded {
+      transform: rotate(180deg);
+    }
+  }
+
+  .FlowConversationSettings__toolbarButton {
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    padding: 0;
+  }
+
+  .FlowConversationSettings__emojiPopover {
+    position: absolute;
+    left: 0.5rem;
+    bottom: 2.5rem;
+    z-index: 5;
+    display: grid;
+    grid-template-columns: repeat(5, 1.75rem);
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid ${({ theme }) => theme.colors.gray_02};
+    background: ${({ theme }) => theme.colors.ui_07};
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  .FlowConversationSettings__emojiOption {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    border-radius: 0.375rem;
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.gray_01};
+    }
+  }
+
+  .FlowConversationSettings__templatesList {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+`
 
 type FlowConversationSettingsProps = {
   initialConversationType?: ConversationTypeId;
 };
 
-export const FlowConversationSettings = ({
-  initialConversationType = "onboarding",
-}: FlowConversationSettingsProps) => {
-  const [conversationTypes, setConversationTypes] =
-    useState<ConversationType[]>(CONVERSATION_TYPES);
-  const [activeTypeId, setActiveTypeId] =
-    useState<ConversationTypeId>(initialConversationType);
+const handleSelectValue = (value: string | { value: string }): string =>
+  value && typeof value === "object" && "value" in value
+    ? String(value.value)
+    : String(value ?? "");
+
+const buttonPayloadPlaceholder = (action: string) => {
+  if (action === "open-url") return "https://example.com";
+  if (action === "call-phone") return "+2348000000000";
+  return "Select reply";
+};
+
+const buttonPayloadValue = (button: TemplateButton) => {
+  if (button.action === "open-url") return button.payload.url ?? "";
+  if (button.action === "call-phone") return button.payload.phoneNumber ?? "";
+  return button.payload.replyText ?? "";
+};
+
+const payloadFromAction = (
+  action: string,
+  value: string,
+): TemplateButton["payload"] => {
+  if (action === "open-url") return { url: value };
+  if (action === "call-phone") return { phoneNumber: value };
+  return { replyText: value };
+};
+
+export const FlowConversationSettings = forwardRef<
+  FlowConversationSettingsHandle,
+  FlowConversationSettingsProps
+>(function FlowConversationSettings(
+  { initialConversationType = "onboarding" },
+  ref,
+) {
+  const [typeCatalog, setTypeCatalog] = useState<ConversationTypeMeta[]>(
+    BUILT_IN_CONVERSATION_TYPES,
+  );
+  const [settings, setSettings] = useState(createInitialSettingsMap);
+  const [savedSettings, setSavedSettings] = useState(() => {
+    const initial = createInitialSettingsMap();
+    const cloned: Record<string, ConversationTypeConfig> = {};
+    for (const [id, config] of Object.entries(initial)) {
+      cloned[id] = cloneTypeConfig(config);
+    }
+    return cloned;
+  });
+  const [activeTypeId, setActiveTypeId] = useState<ConversationTypeId>(
+    initialConversationType,
+  );
   const [activeTabIndex, setActiveTabIndex] = useState(0);
-  const [isActive, setIsActive] = useState(true);
-  const [templates, setTemplates] = useState<MessageTemplate[]>([
-    createDefaultTemplate(1),
-  ]);
-  const [automation, setAutomation] = useState<AutomationSettings>(
-    createDefaultAutomation,
+  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(
+    null,
+  );
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(
+    null,
   );
   const [showAddCustomModal, setShowAddCustomModal] = useState(false);
   const [customForm, setCustomForm] = useState<CustomConversationForm>(
     EMPTY_CUSTOM_CONVERSATION_FORM,
   );
+  const [catalogModal, setCatalogModal] = useState<CatalogModal>(null);
+  const [catalogLabel, setCatalogLabel] = useState("");
+  const [catalogToken, setCatalogToken] = useState("");
+  const [emojiOpenFor, setEmojiOpenFor] = useState<string | null>(null);
+  const messageRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  const nameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
-  const activeType = useMemo(
-    () =>
-      conversationTypes.find((type) => type.id === activeTypeId) ??
-      conversationTypes[0],
-    [activeTypeId, conversationTypes],
+  const activeType =
+    typeCatalog.find((type) => type.id === activeTypeId) ?? typeCatalog[0];
+  const activeConfig =
+    settings[activeTypeId] ?? createDefaultTypeConfig(activeType.kind);
+
+  useImperativeHandle(ref, () => ({
+    getSavePayload: () =>
+      toConversationSettingsSavePayload(settingsRef.current),
+    save: () => {
+      const snapshot: Record<string, ConversationTypeConfig> = {};
+      for (const [id, config] of Object.entries(settingsRef.current)) {
+        snapshot[id] = cloneTypeConfig(config);
+      }
+      setSavedSettings(snapshot);
+      return toConversationSettingsSavePayload(settingsRef.current);
+    },
+  }));
+
+  const messageVariables = useMemo(
+    () => [...DEFAULT_MESSAGE_VARIABLES, ...activeConfig.customVariables],
+    [activeConfig.customVariables],
   );
 
-  const activeTemplate = templates[0];
-  const isCustomType = Boolean(activeType?.isCustom);
+  const triggerOptions = useMemo(
+    () => [...TRIGGER_OPTIONS, ...activeConfig.customTriggers],
+    [activeConfig.customTriggers],
+  );
+
+  const triggerConditionOptions = useMemo(
+    () => [
+      ...TRIGGER_CONDITION_OPTIONS,
+      ...activeConfig.customTriggers.map((option) => ({
+        value: option.value,
+        label: option.label,
+      })),
+    ],
+    [activeConfig.customTriggers],
+  );
+
+  const previewTemplate =
+    activeConfig.templates.find((template) => template.id === previewTemplateId) ??
+    activeConfig.templates.find((template) => template.expanded) ??
+    activeConfig.templates[0];
+
+  const previewMessage = interpolatePreviewMessage(
+    previewTemplate?.message?.trim() || "Write a personalised message here....",
+    messageVariables,
+  );
+
+  const previewButtons =
+    previewTemplate?.templateType === "interactive"
+      ? previewTemplate.buttons.filter((button) => button.label.trim())
+      : [];
 
   const customDescriptionWordCount = countWords(customForm.description);
-  const customMessageWordCount = countWords(customForm.message);
   const canAddCustomConversation =
     customForm.name.trim().length > 0 &&
-    customDescriptionWordCount <= DESCRIPTION_WORD_LIMIT &&
-    customMessageWordCount <= MESSAGE_WORD_LIMIT;
+    customDescriptionWordCount <= DESCRIPTION_WORD_LIMIT;
 
-  const updateCustomForm = (updates: Partial<CustomConversationForm>) => {
-    setCustomForm((prev) => ({ ...prev, ...updates }));
+  const updateActiveConfig = (
+    updater: (config: ConversationTypeConfig) => ConversationTypeConfig,
+  ) => {
+    setSettings((prev) => {
+      const current =
+        prev[activeTypeId] ?? createDefaultTypeConfig(activeType.kind);
+      return {
+        ...prev,
+        [activeTypeId]: updater(cloneTypeConfig(current)),
+      };
+    });
+  };
+
+  const updateTemplateById = (
+    templateId: string,
+    updates: Partial<MessageTemplate>,
+  ) => {
+    updateActiveConfig((config) => ({
+      ...config,
+      templates: config.templates.map((template) =>
+        template.id === templateId ? { ...template, ...updates } : template,
+      ),
+    }));
+    if (updates.message !== undefined || updates.buttons !== undefined) {
+      setPreviewTemplateId(templateId);
+    }
+  };
+
+  const updateAutomation = (updates: Partial<AutomationSettings>) => {
+    updateActiveConfig((config) => ({
+      ...config,
+      automation: { ...config.automation, ...updates },
+    }));
   };
 
   const openAddCustomModal = () => {
@@ -1069,113 +1609,217 @@ export const FlowConversationSettings = ({
     if (!canAddCustomConversation) return;
 
     const title = customForm.name.trim();
-    const description = customForm.description.trim();
-    const newType: ConversationType = {
-      id: crypto.randomUUID(),
+    const description = customForm.description.trim() || "Custom conversation";
+    const id = `cnv_custom_${crypto.randomUUID()}`;
+    const status: ConversationStatus = customForm.enableOnCreate
+      ? "ACTIVE"
+      : "DRAFT";
+
+    const meta: ConversationTypeMeta = {
+      id,
       title,
-      description: description || "Custom conversation",
+      description,
       icon: CUSTOM_CONVERSATION_ICON,
       conversationsTitle: title,
-      isCustom: true,
-      enabled: customForm.enableOnCreate,
-      intent: customForm.intent.trim(),
-      condition: customForm.condition.trim(),
-      message: customForm.message,
-      action: customForm.action.trim(),
-      otherwise: customForm.otherwise.trim(),
+      kind: "custom",
     };
 
-    setConversationTypes((prev) => [...prev, newType]);
-    setActiveTypeId(newType.id);
-    setIsActive(customForm.enableOnCreate);
+    const config = createDefaultTypeConfig("custom", status);
+    config.title = title;
+    config.description = description;
+
+    setTypeCatalog((prev) => [...prev, meta]);
+    setSettings((prev) => ({ ...prev, [id]: config }));
+    setSavedSettings((prev) => ({ ...prev, [id]: cloneTypeConfig(config) }));
+    setActiveTypeId(id);
     setActiveTabIndex(0);
+    setPreviewTemplateId(config.templates[0]?.id ?? null);
     closeAddCustomModal();
   };
 
-  const updateActiveCustomType = (updates: Partial<ConversationType>) => {
-    setConversationTypes((prev) =>
-      prev.map((type) =>
-        type.id === activeTypeId ? { ...type, ...updates } : type,
-      ),
-    );
-  };
-
-  const handleSelectConversationType = (type: ConversationType) => {
-    setActiveTypeId(type.id);
-    setIsActive(type.enabled ?? true);
+  const handleSelectConversationType = (typeId: ConversationTypeId) => {
+    setActiveTypeId(typeId);
     setActiveTabIndex(0);
+    setEmojiOpenFor(null);
+    setEditingTemplateId(null);
+    const next = settings[typeId];
+    setPreviewTemplateId(next?.templates[0]?.id ?? null);
   };
 
-  const handleToggleActive = (checked: boolean) => {
-    setIsActive(checked);
-    if (isCustomType) {
-      updateActiveCustomType({ enabled: checked });
-    }
+  const handleEnabledToggle = (enabled: boolean) => {
+    updateActiveConfig((config) => ({
+      ...config,
+      status: enabled ? "ACTIVE" : "INACTIVE",
+    }));
   };
 
-  const handleSelectValue = (
-    value: string | { value: string },
-  ): string =>
-    value && typeof value === "object" && "value" in value
-      ? String(value.value)
-      : String(value ?? "");
+  const handleAddTemplate = () => {
+    const next = createDefaultTemplate(activeConfig.templates.length + 1);
+    updateActiveConfig((config) => ({
+      ...config,
+      templates: [
+        ...config.templates.map((template) => ({
+          ...template,
+          expanded: false,
+        })),
+        next,
+      ],
+    }));
+    setPreviewTemplateId(next.id);
+    setEditingTemplateId(null);
+  };
 
-  const updateTemplate = (updates: Partial<MessageTemplate>) => {
-    setTemplates((prev) =>
-      prev.map((template, index) =>
-        index === 0 ? { ...template, ...updates } : template,
+  const toggleTemplateExpanded = (templateId: string) => {
+    updateActiveConfig((config) => ({
+      ...config,
+      templates: config.templates.map((template) =>
+        template.id === templateId
+          ? { ...template, expanded: !template.expanded }
+          : template,
       ),
-    );
+    }));
+    setPreviewTemplateId(templateId);
+  };
+
+  const startEditingTemplateName = (templateId: string) => {
+    setEditingTemplateId(templateId);
+    requestAnimationFrame(() => {
+      const input = nameInputRefs.current[templateId];
+      if (!input) return;
+      input.focus();
+      input.select();
+    });
   };
 
   const updateTemplateButton = (
+    templateId: string,
     buttonId: string,
     updates: Partial<TemplateButton>,
   ) => {
-    updateTemplate({
-      buttons: activeTemplate.buttons.map((button) =>
+    const template = activeConfig.templates.find((item) => item.id === templateId);
+    if (!template) return;
+    updateTemplateById(templateId, {
+      buttons: template.buttons.map((button) =>
         button.id === buttonId ? { ...button, ...updates } : button,
       ),
     });
   };
 
-  const addTemplateButton = () => {
-    updateTemplate({
-      buttons: [...activeTemplate.buttons, createEmptyButton()],
+  const addTemplateButton = (templateId: string) => {
+    const template = activeConfig.templates.find((item) => item.id === templateId);
+    if (!template) return;
+    updateTemplateById(templateId, {
+      buttons: [...template.buttons, createEmptyButton()],
     });
   };
 
-  const removeTemplateButton = (buttonId: string) => {
-    if (activeTemplate.buttons.length <= 1) return;
-    updateTemplate({
-      buttons: activeTemplate.buttons.filter((button) => button.id !== buttonId),
+  const removeTemplateButton = (templateId: string, buttonId: string) => {
+    const template = activeConfig.templates.find((item) => item.id === templateId);
+    if (!template || template.buttons.length <= 1) return;
+    updateTemplateById(templateId, {
+      buttons: template.buttons.filter((button) => button.id !== buttonId),
     });
   };
 
-  const insertVariable = (token: string) => {
-    updateTemplate({
-      message: `${activeTemplate.message}${activeTemplate.message ? " " : ""}${token}`,
+  const insertAtCursor = (templateId: string, insertion: string) => {
+    const textarea = messageRefs.current[templateId];
+    const template = activeConfig.templates.find((item) => item.id === templateId);
+    if (!template) return;
+
+    if (!textarea) {
+      updateTemplateById(templateId, {
+        message: `${template.message}${template.message ? " " : ""}${insertion}`,
+      });
+      return;
+    }
+
+    const start = textarea.selectionStart ?? template.message.length;
+    const end = textarea.selectionEnd ?? template.message.length;
+    const next = `${template.message.slice(0, start)}${insertion}${template.message.slice(end)}`;
+    updateTemplateById(templateId, { message: next });
+
+    requestAnimationFrame(() => {
+      const node = messageRefs.current[templateId];
+      if (!node) return;
+      const cursor = start + insertion.length;
+      node.focus();
+      node.setSelectionRange(cursor, cursor);
     });
   };
 
-  const allTriggerConditionsSelected =
-    activeTemplate.triggerConditions.length ===
-    TRIGGER_CONDITION_OPTIONS.length;
+  const applyMarkdown = (
+    templateId: string,
+    wrapper: "*" | "_" | "~" | "```",
+  ) => {
+    const textarea = messageRefs.current[templateId];
+    const template = activeConfig.templates.find((item) => item.id === templateId);
+    if (!template) return;
 
-  const handleSelectAllTriggerConditions = () => {
-    updateTemplate({
-      triggerConditions: allTriggerConditionsSelected
-        ? []
-        : TRIGGER_CONDITION_OPTIONS.map((option) => option.value),
+    const start = textarea?.selectionStart ?? 0;
+    const end = textarea?.selectionEnd ?? 0;
+    const next = wrapWhatsAppMarkdown(template.message, start, end, wrapper);
+    updateTemplateById(templateId, { message: next.value });
+
+    requestAnimationFrame(() => {
+      const node = messageRefs.current[templateId];
+      if (!node) return;
+      node.focus();
+      node.setSelectionRange(next.cursorStart, next.cursorEnd);
     });
   };
 
-  const updateAutomation = (updates: Partial<AutomationSettings>) => {
-    setAutomation((prev) => ({ ...prev, ...updates }));
+  const openCatalogModal = (kind: "trigger" | "variable") => {
+    setCatalogLabel("");
+    setCatalogToken("");
+    setCatalogModal(kind);
+  };
+
+  const closeCatalogModal = () => {
+    setCatalogModal(null);
+    setCatalogLabel("");
+    setCatalogToken("");
+  };
+
+  const handleAddCatalogItem = () => {
+    if (!catalogModal) return;
+    const label = catalogLabel.trim();
+    if (!label) return;
+
+    if (catalogModal === "trigger") {
+      const value = label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      if (!value) return;
+      const option: SelectOption = { label, value };
+      updateActiveConfig((config) => ({
+        ...config,
+        customTriggers: [...config.customTriggers, option],
+      }));
+      closeCatalogModal();
+      return;
+    }
+
+    const tokenRaw = (catalogToken.trim() || label)
+      .replace(/[{}]/g, "")
+      .replace(/\s+/g, "_")
+      .toLowerCase();
+    const token = `{{${tokenRaw}}}`;
+    const variable: MessageVariable = {
+      token,
+      description: label,
+      example: tokenRaw,
+    };
+    updateActiveConfig((config) => ({
+      ...config,
+      customVariables: [...config.customVariables, variable],
+    }));
+    closeCatalogModal();
   };
 
   const allStopAutomationSelected =
-    automation.stopAutomation.length === STOP_AUTOMATION_OPTIONS.length;
+    activeConfig.automation.stopAutomation.length ===
+    STOP_AUTOMATION_OPTIONS.length;
 
   const handleSelectAllStopAutomation = () => {
     updateAutomation({
@@ -1185,14 +1829,429 @@ export const FlowConversationSettings = ({
     });
   };
 
-  const previewMessage = isCustomType
-    ? activeType.message?.trim() || "Write your personalized message here..."
-    : activeTemplate.message.trim() ||
-    "Write a personalised message here....";
+  const setMessageRef =
+    (templateId: string) => (node: HTMLTextAreaElement | null) => {
+      messageRefs.current[templateId] = node;
+    };
 
-  const wordCount = isCustomType
-    ? countWords(activeType.message ?? "")
-    : countWords(activeTemplate.message);
+  const renderMessageEditor = (template: MessageTemplate) => {
+    const wordCount = countWords(template.message);
+    const allTriggerConditionsSelected =
+      template.triggerConditions.length === triggerConditionOptions.length;
+
+    return (
+      <div className="FlowConversationSettings__templateCard" key={template.id}>
+        <div className="FlowConversationSettings__templateHeader">
+          <div className="FlowConversationSettings__templateTitleRow">
+            {editingTemplateId === template.id ? (
+              <input
+                ref={(node) => {
+                  nameInputRefs.current[template.id] = node;
+                }}
+                className="FlowConversationSettings__templateNameInput"
+                value={template.name}
+                aria-label="Template name"
+                onChange={(event) =>
+                  updateTemplateById(template.id, { name: event.target.value })
+                }
+                onBlur={() => setEditingTemplateId(null)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === "Escape") {
+                    setEditingTemplateId(null);
+                  }
+                }}
+              />
+            ) : (
+              <span className="FlowConversationSettings__templateName">
+                {template.name}
+              </span>
+            )}
+            <button
+              type="button"
+              className="FlowConversationSettings__templateEditButton"
+              aria-label="Edit template name"
+              onClick={(event) => {
+                event.stopPropagation();
+                startEditingTemplateName(template.id);
+              }}
+            >
+              <Icon icon="mi:edit" width={16} height={16} />
+            </button>
+          </div>
+          <button
+            type="button"
+            className={`FlowConversationSettings__templateToggle${template.expanded ? " is-expanded" : ""
+              }`}
+            aria-label={template.expanded ? "Collapse template" : "Expand template"}
+            aria-expanded={template.expanded}
+            onClick={() => toggleTemplateExpanded(template.id)}
+          >
+            <Icon icon="iconamoon:arrow-down-2-light" width={24} height={24} />
+          </button>
+        </div>
+
+        {template.expanded && (
+          <>
+            <SelectInput
+              label="Trigger"
+              placeholder="Select trigger"
+              options={triggerOptions}
+              value={template.trigger}
+              onChange={(val: string | { value: string }) =>
+                updateTemplateById(template.id, {
+                  trigger: handleSelectValue(val),
+                })
+              }
+            />
+
+            <div className="FlowConversationSettings__checkboxCard">
+              <div className="FlowConversationSettings__checkboxCard-header">
+                <span>Trigger conditions</span>
+                <div className="FlowConversationSettings__checkboxCard-actions">
+                  <button
+                    type="button"
+                    className="FlowConversationSettings__ghostButton"
+                    onClick={() => openCatalogModal("trigger")}
+                  >
+                    Add custom trigger
+                  </button>
+                  <button
+                    type="button"
+                    className="FlowConversationSettings__checkboxCard-selectAll"
+                    onClick={() =>
+                      updateTemplateById(template.id, {
+                        triggerConditions: allTriggerConditionsSelected
+                          ? []
+                          : triggerConditionOptions.map((option) => option.value),
+                      })
+                    }
+                  >
+                    {allTriggerConditionsSelected ? "Clear" : "Select all"}
+                  </button>
+                </div>
+              </div>
+              <CheckboxInput
+                name={`triggerConditions-${template.id}`}
+                options={triggerConditionOptions}
+                value={template.triggerConditions}
+                onChange={(values) =>
+                  updateTemplateById(template.id, {
+                    triggerConditions: values,
+                  })
+                }
+                direction="column"
+              />
+            </div>
+
+            <SelectInput
+              label="Intent"
+              placeholder="Select intent"
+              options={INTENT_OPTIONS}
+              value={template.intent}
+              onChange={(val: string | { value: string }) =>
+                updateTemplateById(template.id, {
+                  intent: handleSelectValue(val),
+                })
+              }
+            />
+
+            <SelectInput
+              label="Template type"
+              placeholder="Select type"
+              options={TEMPLATE_TYPE_OPTIONS}
+              value={template.templateType}
+              onChange={(val: string | { value: string }) =>
+                updateTemplateById(template.id, {
+                  templateType: handleSelectValue(val),
+                })
+              }
+            />
+
+            <div className="FlowConversationSettings__messageEditor">
+              <div className="FlowConversationSettings__messageEditorHeader">
+                <div>
+                  <p className="FlowConversationSettings__messageEditorTitle">
+                    Message editor
+                  </p>
+                  <p className="FlowConversationSettings__messageEditorDescription">
+                    Use {"{{variables}}"} and WhatsApp markdown (*bold*, _italic_,
+                    ~strike~, monospace).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="FlowConversationSettings__ghostButton"
+                  style={{ minWidth: "fit-content" }}
+                  onClick={() => openCatalogModal("variable")}
+                >
+                  <Icon icon="basil:plus-outline" width={16} height={16} />
+                  Add custom variable
+                </button>
+              </div>
+
+              <div className="FlowConversationSettings__messageEditorBody">
+                <div className="FlowConversationSettings__variables">
+                  <p className="FlowConversationSettings__variables-title">
+                    Insert variable
+                  </p>
+                  <div className="FlowConversationSettings__variables-list">
+                    {messageVariables.map((variable) => (
+                      <button
+                        key={variable.token}
+                        type="button"
+                        className="FlowConversationSettings__variables-item"
+                        onClick={() =>
+                          insertAtCursor(template.id, variable.token)
+                        }
+                      >
+                        <span className="FlowConversationSettings__variables-item-token">
+                          {variable.token}
+                        </span>
+                        <span className="FlowConversationSettings__variables-item-description">
+                          {variable.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="FlowConversationSettings__editorPane">
+                  <div className="FlowConversationSettings__editorToolbar">
+                    <div className="FlowConversationSettings__editorTools">
+                      <div className="FlowConversationSettings__editorToolsGroup">
+                        <button
+                          type="button"
+                          className="FlowConversationSettings__toolbarButton"
+                          aria-label="Bold"
+                          onClick={() => applyMarkdown(template.id, "*")}
+                        >
+                          <Icon icon="octicon:bold-16" width={16} height={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="FlowConversationSettings__toolbarButton"
+                          aria-label="Italic"
+                          onClick={() => applyMarkdown(template.id, "_")}
+                        >
+                          <Icon icon="tabler:italic" width={16} height={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="FlowConversationSettings__toolbarButton"
+                          aria-label="Strikethrough"
+                          onClick={() => applyMarkdown(template.id, "~")}
+                        >
+                          <Icon
+                            icon="material-symbols:format-strikethrough"
+                            width={16}
+                            height={16}
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          className="FlowConversationSettings__toolbarButton"
+                          aria-label="Monospace"
+                          onClick={() => applyMarkdown(template.id, "```")}
+                        >
+                          <Icon
+                            icon="material-symbols:code"
+                            width={16}
+                            height={16}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                    <span className="FlowConversationSettings__wordCount">
+                      {wordCount}/{MESSAGE_WORD_LIMIT} words
+                    </span>
+                  </div>
+
+                  <div className="FlowConversationSettings__editorInput">
+                    <FormTextarea
+                      name={`message-${template.id}`}
+                      value={template.message}
+                      onChange={(event) =>
+                        updateTemplateById(template.id, {
+                          message: event.target.value,
+                        })
+                      }
+                      onFocus={() => setPreviewTemplateId(template.id)}
+                      placeholder="Write a personalised message here...."
+                      rows={10}
+                      ref={setMessageRef(template.id)}
+                    />
+                    {emojiOpenFor === template.id && (
+                      <div className="FlowConversationSettings__emojiPopover">
+                        {COMMON_EMOJIS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            className="FlowConversationSettings__emojiOption"
+                            onClick={() => {
+                              insertAtCursor(template.id, emoji);
+                              setEmojiOpenFor(null);
+                            }}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="FlowConversationSettings__emojiButton"
+                      aria-label="Insert emoji"
+                      onClick={() =>
+                        setEmojiOpenFor((current) =>
+                          current === template.id ? null : template.id,
+                        )
+                      }
+                    >
+                      <Icon icon="mingcute:emoji-line" width={16} height={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="FlowConversationSettings__buttonsSection">
+              <div className="FlowConversationSettings__sectionHeader">
+                <p className="FlowConversationSettings__messageEditorTitle">
+                  Button
+                </p>
+                <button
+                  type="button"
+                  className="FlowConversationSettings__ghostButton"
+                  onClick={() => addTemplateButton(template.id)}
+                >
+                  <Icon icon="basil:plus-outline" width={16} height={16} />
+                  Add button
+                </button>
+              </div>
+
+              <div className="FlowConversationSettings__buttonsCard">
+                {template.buttons.map((button, index) => (
+                  <div
+                    key={button.id}
+                    className="FlowConversationSettings__buttonRow"
+                  >
+                    <FormInput
+                      label={index === 0 ? "Button label" : undefined}
+                      name={`button-label-${button.id}`}
+                      value={button.label}
+                      onChange={(event) =>
+                        updateTemplateButton(template.id, button.id, {
+                          label: event.target.value,
+                        })
+                      }
+                      placeholder="Enter label"
+                    />
+                    <SelectInput
+                      label={index === 0 ? "Action" : undefined}
+                      placeholder="Select action"
+                      options={BUTTON_ACTION_OPTIONS}
+                      value={button.action}
+                      onChange={(val: string | { value: string }) => {
+                        const action = handleSelectValue(val);
+                        const previous = buttonPayloadValue({
+                          ...button,
+                          action,
+                        });
+                        const nextValue =
+                          action === "quick-reply"
+                            ? previous ||
+                            QUICK_REPLY_PAYLOAD_OPTIONS[0]?.value ||
+                            "GET_STARTED"
+                            : previous;
+                        updateTemplateButton(template.id, button.id, {
+                          action,
+                          payload: payloadFromAction(action, nextValue),
+                        });
+                      }}
+                    />
+                    <SelectInput
+                      label={index === 0 ? "Button type" : undefined}
+                      placeholder="Select type"
+                      options={BUTTON_TYPE_OPTIONS}
+                      value={button.buttonType}
+                      onChange={(val: string | { value: string }) =>
+                        updateTemplateButton(template.id, button.id, {
+                          buttonType: handleSelectValue(val),
+                        })
+                      }
+                    />
+                    {button.action === "quick-reply" ? (
+                      <SelectInput
+                        label={index === 0 ? "Payload" : undefined}
+                        placeholder="Select reply"
+                        options={QUICK_REPLY_PAYLOAD_OPTIONS}
+                        value={buttonPayloadValue(button)}
+                        onChange={(val: string | { value: string }) =>
+                          updateTemplateButton(template.id, button.id, {
+                            payload: payloadFromAction(
+                              button.action,
+                              handleSelectValue(val),
+                            ),
+                          })
+                        }
+                      />
+                    ) : (
+                      <FormInput
+                        label={index === 0 ? "Payload" : undefined}
+                        name={`button-payload-${button.id}`}
+                        value={buttonPayloadValue(button)}
+                        onChange={(event) =>
+                          updateTemplateButton(template.id, button.id, {
+                            payload: payloadFromAction(
+                              button.action,
+                              event.target.value,
+                            ),
+                          })
+                        }
+                        placeholder={buttonPayloadPlaceholder(button.action)}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      className="FlowConversationSettings__deleteButton"
+                      aria-label="Delete button"
+                      onClick={() =>
+                        removeTemplateButton(template.id, button.id)
+                      }
+                    >
+                      <Icon
+                        icon="fluent:delete-12-regular"
+                        width={20}
+                        height={20}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <SelectInput
+                label="Fall back language"
+                placeholder="Select language"
+                options={FALLBACK_LANGUAGE_OPTIONS}
+                value={template.fallbackLanguage}
+                onChange={(val: string | { value: string }) =>
+                  updateTemplateById(template.id, {
+                    fallbackLanguage: handleSelectValue(val),
+                  })
+                }
+              />
+              <div className="FlowConversationSettings__fallbackHint">
+                <Icon icon="si:warning-line" width={16} height={16} />
+                Used when selected language is unavailable.
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <FlowConversationSettingsContainer>
@@ -1202,13 +2261,13 @@ export const FlowConversationSettings = ({
           className="FlowConversationSettings__nav"
           aria-label="Conversation types"
         >
-          {conversationTypes.map((type) => (
+          {typeCatalog.map((type) => (
             <button
               key={type.id}
               type="button"
               className={`FlowConversationSettings__navItem${activeTypeId === type.id ? " is-active" : ""
                 }`}
-              onClick={() => handleSelectConversationType(type)}
+              onClick={() => handleSelectConversationType(type.id)}
             >
               <span className="FlowConversationSettings__navItem-icon">
                 <Icon icon={type.icon} width={20} height={20} />
@@ -1243,7 +2302,7 @@ export const FlowConversationSettings = ({
             <Flex align="flex-start" gap="0.75rem">
               <div>
                 <h3 className="FlowConversationSettings__conversationTitle">
-                  {isCustomType
+                  {activeType.kind === "custom"
                     ? activeType.title
                     : activeType.conversationsTitle}
                 </h3>
@@ -1251,18 +2310,21 @@ export const FlowConversationSettings = ({
                   {activeType.description}
                 </p>
               </div>
-              {isActive && (
-                <Tag type={TagType.GREEN} style={{ height: "1.5625rem" }}>
-                  Active
-                </Tag>
-              )}
+              <Tag
+                type={statusTagType(activeConfig.status)}
+                style={{ height: "1.5625rem" }}
+              >
+                {statusLabel(activeConfig.status)}
+              </Tag>
             </Flex>
-            <SwitchInput
-              size={SwitchInputSize.SMALL}
-              value={isActive}
-              onChange={handleToggleActive}
-              name="conversationActive"
-            />
+            <div className="FlowConversationSettings__headerActions">
+              <SwitchInput
+                size={SwitchInputSize.SMALL}
+                value={activeConfig.status === "ACTIVE"}
+                onChange={handleEnabledToggle}
+                name="conversationActive"
+              />
+            </div>
           </div>
 
           <Tabs
@@ -1272,404 +2334,25 @@ export const FlowConversationSettings = ({
             tabs={[
               {
                 title: "Messaging setup",
-                content: isCustomType ? (
-                  <div className="FlowConversationSettings__customSetup">
-                    <div className="FlowConversationSettings__templateCard">
-                      <div className="FlowConversationSettings__templateHeader">
-                        <div className="FlowConversationSettings__templateTitleRow">
-                          <span>{activeType.title}</span>
-                          <Icon icon="mi:edit" width={16} height={16} />
-                        </div>
-                      </div>
-
-                      <FormInput
-                        label="Intent"
-                        name="customIntent"
-                        placeholder="Enter intent"
-                        value={activeType.intent ?? ""}
-                        onChange={(event) =>
-                          updateActiveCustomType({ intent: event.target.value })
-                        }
-                      />
-
-                      <FormInput
-                        label="Condition (If)"
-                        name="customCondition"
-                        placeholder="Enter condition"
-                        value={activeType.condition ?? ""}
-                        onChange={(event) =>
-                          updateActiveCustomType({
-                            condition: event.target.value,
-                          })
-                        }
-                      />
-
-                      <div className="FlowConversationSettings__editorPane">
-                        <div className="FlowConversationSettings__editorToolbar">
-                          <div className="FlowConversationSettings__editorTools">
-                            <div className="FlowConversationSettings__editorToolsGroup">
-                              <Icon icon="octicon:bold-16" width={16} height={16} />
-                              <Icon icon="tabler:italic" width={16} height={16} />
-                              <Icon
-                                icon="flowbite:link-outline"
-                                width={16}
-                                height={16}
-                              />
-                            </div>
-                            <Icon
-                              icon="material-symbols:undo-rounded"
-                              width={18}
-                              height={18}
-                            />
-                            <Icon
-                              icon="material-symbols:redo-rounded"
-                              width={18}
-                              height={18}
-                            />
-                          </div>
-                          <span className="FlowConversationSettings__wordCount">
-                            {wordCount}/{MESSAGE_WORD_LIMIT} words
-                          </span>
-                        </div>
-
-                        <div className="FlowConversationSettings__editorInput">
-                          <FormTextarea
-                            name="customMessage"
-                            value={activeType.message ?? ""}
-                            onChange={(event) =>
-                              updateActiveCustomType({
-                                message: event.target.value,
-                              })
-                            }
-                            placeholder="Write your personalized message here..."
-                            rows={10}
-                          />
-                          <button
-                            type="button"
-                            className="FlowConversationSettings__emojiButton"
-                            aria-label="Insert emoji"
-                          >
-                            <Icon
-                              icon="mingcute:emoji-line"
-                              width={16}
-                              height={16}
-                            />
-                          </button>
-                        </div>
-                      </div>
-
-                      <FormInput
-                        label="Action"
-                        name="customAction"
-                        placeholder="Enter action"
-                        value={activeType.action ?? ""}
-                        onChange={(event) =>
-                          updateActiveCustomType({ action: event.target.value })
-                        }
-                      />
-
-                      <FormInput
-                        label="Otherwise (Optional)"
-                        name="customOtherwise"
-                        placeholder="Enter reason"
-                        value={activeType.otherwise ?? ""}
-                        onChange={(event) =>
-                          updateActiveCustomType({
-                            otherwise: event.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                ) : (
+                content: (
                   <>
                     <div className="FlowConversationSettings__sectionHeader">
                       <h4 className="FlowConversationSettings__sectionTitle">
                         Setup {activeType.title.toLowerCase()} template
                       </h4>
-                      <button type="button" className="FlowConversationSettings__ghostButton">
+                      <button
+                        type="button"
+                        className="FlowConversationSettings__ghostButton"
+                        onClick={handleAddTemplate}
+                      >
                         <Icon icon="basil:plus-solid" width={16} height={16} />
                         Add template
                       </button>
                     </div>
 
-                    <div className="FlowConversationSettings__templateCard">
-                      <div className="FlowConversationSettings__templateHeader">
-                        <div className="FlowConversationSettings__templateTitleRow">
-                          <span>{activeTemplate.name}</span>
-                          <Icon icon="mi:edit" width={16} height={16} />
-                        </div>
-                        <button
-                          type="button"
-                          aria-label="Toggle template"
-                          onClick={() =>
-                            updateTemplate({ expanded: !activeTemplate.expanded })
-                          }
-                          style={{
-                            border: "none",
-                            background: "transparent",
-                            cursor: "pointer",
-                            transform: activeTemplate.expanded
-                              ? "rotate(180deg)"
-                              : "none",
-                          }}
-                        >
-                          <Icon
-                            icon="iconamoon:arrow-down-2-light"
-                            width={24}
-                            height={24}
-                          />
-                        </button>
-                      </div>
-
-                      {activeTemplate.expanded && (
-                        <>
-                          <SelectInput
-                            label="Trigger"
-                            placeholder="Select trigger"
-                            options={TRIGGER_OPTIONS}
-                            value={activeTemplate.trigger}
-                            onChange={(val: string | { value: string }) =>
-                              updateTemplate({ trigger: handleSelectValue(val) })
-                            }
-                          />
-
-                          <div className="FlowConversationSettings__checkboxCard">
-                            <div className="FlowConversationSettings__checkboxCard-header">
-                              <span>Trigger conditions</span>
-                              <div className="FlowConversationSettings__checkboxCard-actions">
-                                <button
-                                  type="button"
-                                  className="FlowConversationSettings__ghostButton"
-                                >
-                                  Add custom trigger
-                                </button>
-                                <button
-                                  type="button"
-                                  className="FlowConversationSettings__checkboxCard-selectAll"
-                                  onClick={handleSelectAllTriggerConditions}
-                                >
-                                  {allTriggerConditionsSelected ? "Clear" : "Select all"}
-                                </button>
-                              </div>
-                            </div>
-                            <CheckboxInput
-                              name="triggerConditions"
-                              options={TRIGGER_CONDITION_OPTIONS}
-                              value={activeTemplate.triggerConditions}
-                              onChange={(values) =>
-                                updateTemplate({ triggerConditions: values })
-                              }
-                              direction="column"
-                            />
-                          </div>
-
-                          <SelectInput
-                            label="Intent"
-                            placeholder="Select intent"
-                            options={INTENT_OPTIONS}
-                            value={activeTemplate.intent}
-                            onChange={(val: string | { value: string }) =>
-                              updateTemplate({ intent: handleSelectValue(val) })
-                            }
-                          />
-
-                          <SelectInput
-                            label="Template type"
-                            placeholder="Select type"
-                            options={TEMPLATE_TYPE_OPTIONS}
-                            value={activeTemplate.templateType}
-                            onChange={(val: string | { value: string }) =>
-                              updateTemplate({ templateType: handleSelectValue(val) })
-                            }
-                          />
-
-                          <div className="FlowConversationSettings__messageEditor">
-                            <div className="FlowConversationSettings__messageEditorHeader">
-                              <div>
-                                <p className="FlowConversationSettings__messageEditorTitle">
-                                  Message editor
-                                </p>
-                                <p className="FlowConversationSettings__messageEditorDescription">
-                                  Use variables to personalize your message.
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                className="FlowConversationSettings__ghostButton"
-                              >
-                                <Icon icon="basil:plus-outline" width={16} height={16} />
-                                Add custom variable
-                              </button>
-                            </div>
-
-                            <div className="FlowConversationSettings__messageEditorBody">
-                              <div className="FlowConversationSettings__variables">
-                                <p className="FlowConversationSettings__variables-title">
-                                  Insert variable
-                                </p>
-                                <div className="FlowConversationSettings__variables-list">
-                                  {MESSAGE_VARIABLES.map((variable) => (
-                                    <button
-                                      key={variable.token}
-                                      type="button"
-                                      className="FlowConversationSettings__variables-item"
-                                      onClick={() => insertVariable(variable.token)}
-                                    >
-                                      <span className="FlowConversationSettings__variables-item-token">
-                                        {variable.token}
-                                      </span>
-                                      <span className="FlowConversationSettings__variables-item-description">
-                                        {variable.description}
-                                      </span>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div className="FlowConversationSettings__editorPane">
-                                <div className="FlowConversationSettings__editorToolbar">
-                                  <div className="FlowConversationSettings__editorTools">
-                                    <div className="FlowConversationSettings__editorToolsGroup">
-                                      <Icon icon="octicon:bold-16" width={16} height={16} />
-                                      <Icon icon="tabler:italic" width={16} height={16} />
-                                      <Icon
-                                        icon="flowbite:link-outline"
-                                        width={16}
-                                        height={16}
-                                      />
-                                    </div>
-                                    <Icon
-                                      icon="material-symbols:undo-rounded"
-                                      width={18}
-                                      height={18}
-                                    />
-                                    <Icon
-                                      icon="material-symbols:redo-rounded"
-                                      width={18}
-                                      height={18}
-                                    />
-                                  </div>
-                                  <span className="FlowConversationSettings__wordCount">
-                                    {wordCount}/500 words
-                                  </span>
-                                </div>
-
-                                <div className="FlowConversationSettings__editorInput">
-                                  <FormTextarea
-                                    name="message"
-                                    value={activeTemplate.message}
-                                    onChange={(event) =>
-                                      updateTemplate({ message: event.target.value })
-                                    }
-                                    placeholder="Write a personalised message here...."
-                                    rows={10}
-                                  />
-                                  <button
-                                    type="button"
-                                    className="FlowConversationSettings__emojiButton"
-                                    aria-label="Insert emoji"
-                                  >
-                                    <Icon
-                                      icon="mingcute:emoji-line"
-                                      width={16}
-                                      height={16}
-                                    />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="FlowConversationSettings__buttonsSection">
-                            <div className="FlowConversationSettings__sectionHeader">
-                              <p className="FlowConversationSettings__messageEditorTitle">
-                                Button
-                              </p>
-                              <button
-                                type="button"
-                                className="FlowConversationSettings__ghostButton"
-                                onClick={addTemplateButton}
-                              >
-                                <Icon icon="basil:plus-outline" width={16} height={16} />
-                                Add button
-                              </button>
-                            </div>
-
-                            <div className="FlowConversationSettings__buttonsCard">
-                              {activeTemplate.buttons.map((button, index) => (
-                                <div
-                                  key={button.id}
-                                  className="FlowConversationSettings__buttonRow"
-                                >
-                                  <FormInput
-                                    label={index === 0 ? "Button label" : undefined}
-                                    name={`button-label-${button.id}`}
-                                    value={button.label}
-                                    onChange={(event) =>
-                                      updateTemplateButton(button.id, {
-                                        label: event.target.value,
-                                      })
-                                    }
-                                    placeholder="Enter label"
-                                  />
-                                  <SelectInput
-                                    label={index === 0 ? "Action" : undefined}
-                                    placeholder="Select action"
-                                    options={BUTTON_ACTION_OPTIONS}
-                                    value={button.action}
-                                    onChange={(val: string | { value: string }) =>
-                                      updateTemplateButton(button.id, {
-                                        action: handleSelectValue(val),
-                                      })
-                                    }
-                                  />
-                                  <SelectInput
-                                    label={index === 0 ? "Button type" : undefined}
-                                    placeholder="Select type"
-                                    options={BUTTON_TYPE_OPTIONS}
-                                    value={button.buttonType}
-                                    onChange={(val: string | { value: string }) =>
-                                      updateTemplateButton(button.id, {
-                                        buttonType: handleSelectValue(val),
-                                      })
-                                    }
-                                  />
-                                  <button
-                                    type="button"
-                                    className="FlowConversationSettings__deleteButton"
-                                    aria-label="Delete button"
-                                    onClick={() => removeTemplateButton(button.id)}
-                                  >
-                                    <Icon
-                                      icon="fluent:delete-12-regular"
-                                      width={20}
-                                      height={20}
-                                    />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <SelectInput
-                              label="Fall back language"
-                              placeholder="Select language"
-                              options={FALLBACK_LANGUAGE_OPTIONS}
-                              value={activeTemplate.fallbackLanguage}
-                              onChange={(val: string | { value: string }) =>
-                                updateTemplate({
-                                  fallbackLanguage: handleSelectValue(val),
-                                })
-                              }
-                            />
-                            <div className="FlowConversationSettings__fallbackHint">
-                              <Icon icon="si:warning-line" width={16} height={16} />
-                              Used when selected language is unavailable.
-                            </div>
-                          </div>
-                        </>
+                    <div className="FlowConversationSettings__templatesList">
+                      {activeConfig.templates.map((template) =>
+                        renderMessageEditor(template),
                       )}
                     </div>
                   </>
@@ -1684,7 +2367,7 @@ export const FlowConversationSettings = ({
                         <span>Retry unanswered messages</span>
                         <SwitchInput
                           size={SwitchInputSize.SMALL}
-                          value={automation.retryEnabled}
+                          value={activeConfig.automation.retryEnabled}
                           onChange={(value) =>
                             updateAutomation({ retryEnabled: value })
                           }
@@ -1692,7 +2375,7 @@ export const FlowConversationSettings = ({
                         />
                       </div>
 
-                      {automation.retryEnabled && (
+                      {activeConfig.automation.retryEnabled && (
                         <div className="FlowConversationSettings__automationCard-fields">
                           <p className="FlowConversationSettings__automationCard-sectionTitle">
                             Retry period
@@ -1701,7 +2384,7 @@ export const FlowConversationSettings = ({
                             <FormInput
                               label="Duration"
                               name="retryDuration"
-                              value={automation.retryDuration}
+                              value={activeConfig.automation.retryDuration}
                               onChange={(event) =>
                                 updateAutomation({
                                   retryDuration: event.target.value,
@@ -1713,7 +2396,7 @@ export const FlowConversationSettings = ({
                               label="Unit"
                               placeholder="Select unit"
                               options={TIME_UNIT_OPTIONS}
-                              value={automation.retryUnit}
+                              value={activeConfig.automation.retryUnit}
                               onChange={(val: string | { value: string }) =>
                                 updateAutomation({
                                   retryUnit: handleSelectValue(val),
@@ -1725,7 +2408,7 @@ export const FlowConversationSettings = ({
                             label="Retry Limit"
                             placeholder="Enter limit"
                             options={RETRY_LIMIT_OPTIONS}
-                            value={automation.retryLimit}
+                            value={activeConfig.automation.retryLimit}
                             onChange={(val: string | { value: string }) =>
                               updateAutomation({
                                 retryLimit: handleSelectValue(val),
@@ -1746,7 +2429,7 @@ export const FlowConversationSettings = ({
                         <span>Automated Follow-Ups</span>
                         <SwitchInput
                           size={SwitchInputSize.SMALL}
-                          value={automation.followUpEnabled}
+                          value={activeConfig.automation.followUpEnabled}
                           onChange={(value) =>
                             updateAutomation({ followUpEnabled: value })
                           }
@@ -1754,13 +2437,13 @@ export const FlowConversationSettings = ({
                         />
                       </div>
 
-                      {automation.followUpEnabled && (
+                      {activeConfig.automation.followUpEnabled && (
                         <div className="FlowConversationSettings__automationCard-fields">
                           <SelectInput
                             label="Follow-up type"
                             placeholder="Select type"
                             options={FOLLOW_UP_TYPE_OPTIONS}
-                            value={automation.followUpType}
+                            value={activeConfig.automation.followUpType}
                             onChange={(val: string | { value: string }) =>
                               updateAutomation({
                                 followUpType: handleSelectValue(val),
@@ -1771,7 +2454,7 @@ export const FlowConversationSettings = ({
                             <FormInput
                               label="Frequency"
                               name="followUpFrequency"
-                              value={automation.followUpFrequency}
+                              value={activeConfig.automation.followUpFrequency}
                               onChange={(event) =>
                                 updateAutomation({
                                   followUpFrequency: event.target.value,
@@ -1783,7 +2466,7 @@ export const FlowConversationSettings = ({
                               label="Unit"
                               placeholder="Select unit"
                               options={TIME_UNIT_OPTIONS}
-                              value={automation.followUpUnit}
+                              value={activeConfig.automation.followUpUnit}
                               onChange={(val: string | { value: string }) =>
                                 updateAutomation({
                                   followUpUnit: handleSelectValue(val),
@@ -1809,7 +2492,7 @@ export const FlowConversationSettings = ({
                       <CheckboxInput
                         name="stopAutomation"
                         options={STOP_AUTOMATION_OPTIONS}
-                        value={automation.stopAutomation}
+                        value={activeConfig.automation.stopAutomation}
                         onChange={(values) =>
                           updateAutomation({ stopAutomation: values })
                         }
@@ -1868,12 +2551,33 @@ export const FlowConversationSettings = ({
 
               <div className="FlowConversationSettings__phoneBody">
                 <div className="FlowConversationSettings__phoneDate">Today</div>
-                {(isCustomType
-                  ? Boolean(activeType.message?.trim())
-                  : Boolean(activeTemplate.message.trim())) ? (
+                {previewTemplate?.message.trim() ? (
                   <div>
                     <div className="FlowConversationSettings__phoneBubble">
-                      {previewMessage}
+                      <div className="FlowConversationSettings__phoneBubbleText">
+                        {previewMessage}
+                      </div>
+                      {previewButtons.length > 0 && (
+                        <div
+                          className={`FlowConversationSettings__phoneBubbleActions${previewButtons.length === 1
+                              ? " FlowConversationSettings__phoneBubbleActions--single"
+                              : ""
+                            }${previewButtons.length > 1 &&
+                              previewButtons.length % 2 === 1
+                              ? " FlowConversationSettings__phoneBubbleActions--odd"
+                              : ""
+                            }`}
+                        >
+                          {previewButtons.map((button) => (
+                            <div
+                              key={button.id}
+                              className="FlowConversationSettings__phoneBubbleAction"
+                            >
+                              {button.label}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="FlowConversationSettings__phoneBubbleMeta">
                       17:47
@@ -1885,9 +2589,24 @@ export const FlowConversationSettings = ({
               <div className="FlowConversationSettings__phoneComposer">
                 <Icon icon="mdi:plus" width={18} height={18} color="#8e8e93" />
                 <div className="FlowConversationSettings__phoneInput" />
-                <Icon icon="mdi:sticker-emoji" width={18} height={18} color="#8e8e93" />
-                <Icon icon="mdi:camera-outline" width={20} height={20} color="#8e8e93" />
-                <Icon icon="mdi:microphone-outline" width={20} height={20} color="#8e8e93" />
+                <Icon
+                  icon="mdi:sticker-emoji"
+                  width={18}
+                  height={18}
+                  color="#8e8e93"
+                />
+                <Icon
+                  icon="mdi:camera-outline"
+                  width={20}
+                  height={20}
+                  color="#8e8e93"
+                />
+                <Icon
+                  icon="mdi:microphone-outline"
+                  width={20}
+                  height={20}
+                  color="#8e8e93"
+                />
               </div>
 
               <div className="FlowConversationSettings__phoneHomeIndicator">
@@ -1903,8 +2622,13 @@ export const FlowConversationSettings = ({
           title="Add custom conversation"
           onClose={closeAddCustomModal}
           size={ModalSize.MEDIUM}
-          Footer={() =>
-            <Flex gap="0.75rem" align="center" justify="flex-end" style={{ marginTop: "1rem" }}>
+          Footer={() => (
+            <Flex
+              gap="0.75rem"
+              align="center"
+              justify="flex-end"
+              style={{ marginTop: "1rem" }}
+            >
               <Button
                 classes={[ButtonClass.OUTLINED]}
                 size={ButtonSize.WIDTH_140}
@@ -1923,7 +2647,7 @@ export const FlowConversationSettings = ({
                 Add
               </Button>
             </Flex>
-          }
+          )}
         >
           <Flex direction="column" gap="1rem">
             <FormInput
@@ -1931,7 +2655,9 @@ export const FlowConversationSettings = ({
               name="customConversationName"
               placeholder="Enter conversation name"
               value={customForm.name}
-              onChange={(event) => updateCustomForm({ name: event.target.value })}
+              onChange={(event) =>
+                setCustomForm((prev) => ({ ...prev, name: event.target.value }))
+              }
               required
             />
 
@@ -1942,7 +2668,10 @@ export const FlowConversationSettings = ({
                 placeholder="Enter description"
                 value={customForm.description}
                 onChange={(event) =>
-                  updateCustomForm({ description: event.target.value })
+                  setCustomForm((prev) => ({
+                    ...prev,
+                    description: event.target.value,
+                  }))
                 }
               />
               <p className="FlowConversationSettings__fieldHint">
@@ -1953,90 +2682,6 @@ export const FlowConversationSettings = ({
               </p>
             </div>
 
-            <FormInput
-              label="Intent"
-              name="customConversationIntent"
-              placeholder="Enter intent"
-              value={customForm.intent}
-              onChange={(event) =>
-                updateCustomForm({ intent: event.target.value })
-              }
-            />
-
-            <FormInput
-              label="Condition (If)"
-              name="customConversationCondition"
-              placeholder="Enter condition"
-              value={customForm.condition}
-              onChange={(event) =>
-                updateCustomForm({ condition: event.target.value })
-              }
-            />
-
-            <div className="FlowConversationSettings__modalEditor">
-              <div className="FlowConversationSettings__editorToolbar">
-                <div className="FlowConversationSettings__editorTools">
-                  <div className="FlowConversationSettings__editorToolsGroup">
-                    <Icon icon="octicon:bold-16" width={16} height={16} />
-                    <Icon icon="tabler:italic" width={16} height={16} />
-                    <Icon icon="flowbite:link-outline" width={16} height={16} />
-                  </div>
-                  <Icon
-                    icon="material-symbols:undo-rounded"
-                    width={18}
-                    height={18}
-                  />
-                  <Icon
-                    icon="material-symbols:redo-rounded"
-                    width={18}
-                    height={18}
-                  />
-                </div>
-                <span className="FlowConversationSettings__wordCount">
-                  {customMessageWordCount}/{MESSAGE_WORD_LIMIT} words
-                </span>
-              </div>
-
-              <div className="FlowConversationSettings__editorInput">
-                <FormTextarea
-                  name="customConversationMessage"
-                  value={customForm.message}
-                  onChange={(event) =>
-                    updateCustomForm({ message: event.target.value })
-                  }
-                  placeholder="Write your personalized message here..."
-                  rows={8}
-                />
-                <button
-                  type="button"
-                  className="FlowConversationSettings__emojiButton"
-                  aria-label="Insert emoji"
-                >
-                  <Icon icon="mingcute:emoji-line" width={16} height={16} />
-                </button>
-              </div>
-            </div>
-
-            <FormInput
-              label="Action"
-              name="customConversationAction"
-              placeholder="Enter action"
-              value={customForm.action}
-              onChange={(event) =>
-                updateCustomForm({ action: event.target.value })
-              }
-            />
-
-            <FormInput
-              label="Otherwise (Optional)"
-              name="customConversationOtherwise"
-              placeholder="Enter reason"
-              value={customForm.otherwise}
-              onChange={(event) =>
-                updateCustomForm({ otherwise: event.target.value })
-              }
-            />
-
             <Flex
               justify="space-between"
               align="center"
@@ -2045,12 +2690,14 @@ export const FlowConversationSettings = ({
               className="FlowConversationSettings__modalEnable"
             >
               <span>Enable conversation upon creation</span>
-
               <SwitchInput
                 size={SwitchInputSize.SMALL}
                 value={customForm.enableOnCreate}
                 onChange={(value) =>
-                  updateCustomForm({ enableOnCreate: value })
+                  setCustomForm((prev) => ({
+                    ...prev,
+                    enableOnCreate: value,
+                  }))
                 }
                 name="enableCustomConversation"
               />
@@ -2058,8 +2705,69 @@ export const FlowConversationSettings = ({
           </Flex>
         </Modal>
       )}
+
+      {catalogModal && (
+        <Modal
+          title={
+            catalogModal === "trigger"
+              ? "Add custom trigger"
+              : "Add custom variable"
+          }
+          onClose={closeCatalogModal}
+          size={ModalSize.SMALL}
+          Footer={() => (
+            <Flex
+              gap="0.75rem"
+              align="center"
+              justify="flex-end"
+              style={{ marginTop: "1rem" }}
+            >
+              <Button
+                classes={[ButtonClass.OUTLINED]}
+                size={ButtonSize.WIDTH_140}
+                type="button"
+                onClick={closeCatalogModal}
+              >
+                Cancel
+              </Button>
+              <Button
+                classes={[ButtonClass.SOLID]}
+                size={ButtonSize.WIDTH_140}
+                type="button"
+                onClick={handleAddCatalogItem}
+                disabled={!catalogLabel.trim()}
+              >
+                Add
+              </Button>
+            </Flex>
+          )}
+        >
+          <Flex direction="column" gap="1rem">
+            <FormInput
+              label={catalogModal === "trigger" ? "Trigger label" : "Description"}
+              name="catalogLabel"
+              placeholder={
+                catalogModal === "trigger"
+                  ? "e.g. Chargeback opened"
+                  : "e.g. Support ticket id"
+              }
+              value={catalogLabel}
+              onChange={(event) => setCatalogLabel(event.target.value)}
+            />
+            {catalogModal === "variable" && (
+              <FormInput
+                label="Token (optional)"
+                name="catalogToken"
+                placeholder="ticket_id"
+                value={catalogToken}
+                onChange={(event) => setCatalogToken(event.target.value)}
+              />
+            )}
+          </Flex>
+        </Modal>
+      )}
     </FlowConversationSettingsContainer>
   );
-};
+});
 
 export default FlowConversationSettings;

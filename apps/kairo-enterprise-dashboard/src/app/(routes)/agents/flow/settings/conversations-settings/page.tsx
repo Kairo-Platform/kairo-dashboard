@@ -1,10 +1,14 @@
 "use client";
 
-import { FlowConversationSettings } from "@/app/components/agents/flow";
+import {
+  FlowConversationSettings,
+  type FlowConversationSettingsHandle,
+} from "@/app/components/agents/flow";
 import { DashboardLayout } from "@/app/components/dashboard";
 import { URL } from "@/lib/constants";
 import { Button, ButtonClass, ButtonSize, Flex } from "@kairo/ui";
 import { useRouter } from "next/navigation";
+import { useRef } from "react";
 import styled from "styled-components";
 
 const FlowConversationSettingsPageContainer = styled.div`
@@ -14,7 +18,6 @@ const FlowConversationSettingsPageContainer = styled.div`
     justify-content: space-between;
     gap: 1.5rem;
     padding-bottom: 1.875rem;
-    margin-bottom: 0.5rem;
     border-bottom: 1px solid ${({ theme }) => theme.colors.gray_02};
 
     h2 {
@@ -35,6 +38,7 @@ const FlowConversationSettingsPageContainer = styled.div`
 
 export default function FlowConversationsSettingsPage() {
   const router = useRouter();
+  const conversationSettingsRef = useRef<FlowConversationSettingsHandle>(null);
 
   const breadcrumbs = [
     {
@@ -54,6 +58,14 @@ export default function FlowConversationsSettingsPage() {
     },
   ];
 
+  const handleSaveSettings = () => {
+    const payload = conversationSettingsRef.current?.save();
+    if (!payload) return;
+    // Ready for BFF: PUT /v1/agents/flow/conversation-settings/:typeId per key
+    // or a bulk save using payload.settings
+    console.info("Conversation settings save payload", payload);
+  };
+
   return (
     <DashboardLayout pageTitle="" breadcrumbs={breadcrumbs}>
       <FlowConversationSettingsPageContainer>
@@ -67,11 +79,16 @@ export default function FlowConversationsSettingsPage() {
             <h2>Conversation settings</h2>
             <p>Configure how Flow communicates with your users</p>
           </div>
-          <Button classes={[ButtonClass.SOLID]} size={ButtonSize.WIDTH_140}>
+          <Button
+            classes={[ButtonClass.SOLID]}
+            size={ButtonSize.WIDTH_140}
+            type="button"
+            onClick={handleSaveSettings}
+          >
             Save settings
           </Button>
         </Flex>
-        <FlowConversationSettings />
+        <FlowConversationSettings ref={conversationSettingsRef} />
       </FlowConversationSettingsPageContainer>
     </DashboardLayout>
   );
