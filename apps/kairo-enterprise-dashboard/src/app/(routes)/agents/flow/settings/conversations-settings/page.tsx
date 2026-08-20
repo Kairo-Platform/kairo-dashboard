@@ -6,9 +6,11 @@ import {
 } from "@/app/components/agents/flow";
 import { DashboardLayout } from "@/app/components/dashboard";
 import { URL } from "@/lib/constants";
+import { parseApiError } from "@/lib/utils/parseApiError";
 import { Button, ButtonClass, ButtonSize, Flex } from "@kairo/ui";
+import { showErrorNotification, showSuccessNotification } from "@kairo/utils";
 import { useRouter } from "next/navigation";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import styled from "styled-components";
 
 const FlowConversationSettingsPageContainer = styled.div`
@@ -39,6 +41,7 @@ const FlowConversationSettingsPageContainer = styled.div`
 export default function FlowConversationsSettingsPage() {
   const router = useRouter();
   const conversationSettingsRef = useRef<FlowConversationSettingsHandle>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const breadcrumbs = [
     {
@@ -58,12 +61,20 @@ export default function FlowConversationsSettingsPage() {
     },
   ];
 
-  const handleSaveSettings = () => {
-    const payload = conversationSettingsRef.current?.save();
-    if (!payload) return;
-    // Ready for BFF: PUT /v1/agents/flow/conversation-settings/:typeId per key
-    // or a bulk save using payload.settings
-    console.info("Conversation settings save payload", payload);
+  const handleSaveSettings = async () => {
+    if (!conversationSettingsRef.current || isSaving) return;
+
+    setIsSaving(true);
+    try {
+      await conversationSettingsRef.current.save();
+      showSuccessNotification({ message: "Settings saved" });
+    } catch (error) {
+      showErrorNotification({
+        message: parseApiError(error, "Failed to save settings"),
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -84,6 +95,8 @@ export default function FlowConversationsSettingsPage() {
             size={ButtonSize.WIDTH_140}
             type="button"
             onClick={handleSaveSettings}
+            loading={isSaving}
+            disabled={isSaving}
           >
             Save settings
           </Button>

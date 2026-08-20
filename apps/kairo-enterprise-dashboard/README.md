@@ -25,7 +25,7 @@ Copy `.env.sample` to `.env.local`.
 
 - `src/app/api/auth/session` — httpOnly cookie session (POST/GET/DELETE)
 - `src/app/api/user/me` — current user profile via xApi `GET /v1/me` (Bearer from session)
-- `src/app/api/x-api/[...path]` — BFF proxy to xApi (GAT + service credentials)
+- `src/app/api/x-api/[...path]` — BFF proxy to xApi (Bearer from session when present, otherwise service Basic auth)
 - `src/app/auth/login` — login UI
 - `src/app/auth/callback` — Google OAuth return (`status=SUCCESS|DENIED|ERROR`, `code`, `new`); exchanges code via `POST /v1/auth/oauth/exchange`
 - `src/services/Auth/` — auth client (`login`, `signup`, OAuth, access-control flows)

@@ -4,7 +4,7 @@ export function parseApiError(
   error: unknown,
   fallback = "An error occurred",
 ): string {
-  const errorObj = (error || {}) as any;
+  const errorObj = (error || {}) as Record<string, unknown>;
   const errors = errorObj?.errors;
 
   if (Array.isArray(errors) && errors.length > 0) {
@@ -17,6 +17,11 @@ export function parseApiError(
 
   if (typeof errorObj?.message === "string" && errorObj.message.trim()) {
     return humanize(errorObj.message);
+  }
+
+  // { error: "..." } — current backend format
+  if (typeof errorObj?.error === "string" && errorObj.error.trim()) {
+    return humanize(errorObj.error);
   }
 
   return fallback;

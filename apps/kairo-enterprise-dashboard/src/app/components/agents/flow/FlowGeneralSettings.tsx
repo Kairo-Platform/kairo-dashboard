@@ -9,6 +9,7 @@ import {
   ConfirmationModal,
   EmptyState,
   Flex,
+  Loading,
   Modal,
 } from "@kairo/ui";
 import {
@@ -19,165 +20,54 @@ import {
   SwitchInput,
   SwitchInputSize,
 } from "@kairo/ui/inputs";
-import { useMemo, useRef, useState } from "react";
+import { getOrgId } from "@/lib/auth/client";
+import { parseApiError } from "@/lib/utils/parseApiError";
+import {
+  arrayToBooleanObject,
+  booleanObjectToArray,
+  CONVERSATION_MEMORY_KEY_MAP,
+  ESCALATION_INTELLIGENCE_KEY_MAP,
+  flow,
+  getSchemaDefaultValue,
+  PROACTIVE_ASSISTANCE_KEY_MAP,
+  responseStyleFromBackend,
+  responseStyleToBackend,
+  toSelectOptions,
+  type BackendSettings,
+} from "@/services/Flow";
+import { fetchFlowSchema, fetchFlowSettings, flowStore } from "@/app/store/flow";
+import { showErrorNotification, showSuccessNotification } from "@kairo/utils";
+import { useEntity } from "simpler-state";
+import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
 
-export type GeneralSettingsSection =
-  | "setup"
-  | "ai-behaviour"
-  | "guardrails"
-  | "knowledge";
+import {
+  formatKnowledgeDate,
+} from "./helpers";
+import {
+  BEHAVIOR_DETECTION_OPTIONS,
+  CONVERSATION_MEMORY_OPTIONS,
+  ESCALATION_CONDITIONS_OPTIONS,
+  ESCALATION_INTELLIGENCE_OPTIONS,
+  FALLBACK_GUARDRAIL_OPTIONS,
+  FALLBACK_LANGUAGE_OPTIONS,
+  FALLBACK_MEMORY_UNIT_OPTIONS,
+  FALLBACK_RESPONSE_STYLE_OPTIONS,
+  FALLBACK_TONE_OPTIONS,
+  GENERAL_SETTINGS_SECTIONS,
+  GUARDRAIL_STATE_KEYS,
+  PROACTIVE_ASSISTANCE_OPTIONS,
+  REQUIRE_APPROVAL_OPTIONS,
+  RESPONSE_RESTRICTIONS_OPTIONS,
+  RESTRICTED_TOPICS_OPTIONS,
+} from "./resources";
+import type {
+  FlowCheckboxOption,
+  GeneralSettingsSection,
+  KnowledgeItem,
+} from "./types";
 
-type CheckboxOption = { value: string; label: string };
-
-type KnowledgeItem = {
-  id: string;
-  type: "file" | "note";
-  name: string;
-  subtitle: string;
-  dateAdded: string;
-  content?: string;
-};
-
-const SECTIONS: {
-  id: GeneralSettingsSection;
-  title: string;
-  description: string;
-  icon: string;
-}[] = [
-    {
-      id: "setup",
-      title: "Setup",
-      description: "Tell Flow how to reach your users.",
-      icon: "hugeicons:configuration-02",
-    },
-    {
-      id: "ai-behaviour",
-      title: "AI behaviour",
-      description: "How AI decides, and responds.",
-      icon: "mingcute:ai-fill",
-    },
-    {
-      id: "guardrails",
-      title: "Guardrails",
-      description: "Set the limits",
-      icon: "material-symbols:rule-rounded",
-    },
-    {
-      id: "knowledge",
-      title: "Knowledge",
-      description: "Teach AI to know more",
-      icon: "iconoir:brain",
-    },
-  ];
-
-const TONE_OPTIONS = [
-  { label: "Professional", value: "professional" },
-  { label: "Friendly", value: "friendly" },
-  { label: "Formal", value: "formal" },
-  { label: "Casual", value: "casual" },
-];
-
-const LANGUAGE_OPTIONS = [
-  { value: "english", label: "English (Default)" },
-  { value: "igbo", label: "Igbo" },
-  { value: "yoruba", label: "Yoruba" },
-  { value: "hausa", label: "Hausa" },
-];
-
-const MEMORY_UNIT_OPTIONS = [
-  { label: "Days", value: "days" },
-  { label: "Weeks", value: "weeks" },
-  { label: "Months", value: "months" },
-  { label: "Years", value: "years" },
-];
-
-const CONVERSATION_MEMORY_OPTIONS: CheckboxOption[] = [
-  { value: "onboarding-progress", label: "Remember onboarding progress" },
-  { value: "preferred-language", label: "Remember preferred language" },
-  { value: "previous-interactions", label: "Remember previous interactions" },
-  { value: "unfinished-actions", label: "Remember unfinished actions" },
-];
-
-const PROACTIVE_ASSISTANCE_OPTIONS: CheckboxOption[] = [
-  { value: "suggest-next-actions", label: "Suggest next actions" },
-  { value: "recommend-onboarding", label: "Recommend onboarding steps" },
-  { value: "remind-inactive", label: "Remind inactive users" },
-  { value: "recommend-funding", label: "Recommend wallet funding" },
-];
-
-const ESCALATION_INTELLIGENCE_OPTIONS: CheckboxOption[] = [
-  { value: "detect-frustration", label: "Detect frustration" },
-  { value: "detect-confusion", label: "Detect repeated confusion" },
-  { value: "escalate-unresolved", label: "Escalate unresolved issues" },
-  { value: "escalate-disputes", label: "Escalate financial disputes" },
-];
-
-const RESPONSE_STYLE_OPTIONS = [
-  { key: "shortReplies", label: "Short replies" },
-  { key: "conversational", label: "Conversational" },
-  { key: "detailedGuidance", label: "Detailed guidance" },
-] as const;
-
-const RESTRICTED_TOPICS_OPTIONS: CheckboxOption[] = [
-  { value: "investment-advice", label: "Investment advice" },
-  { value: "loan-approvals", label: "Loan approvals" },
-  { value: "legal-advice", label: "Legal advice" },
-  { value: "political-content", label: "Political content" },
-  { value: "sensitive-account", label: "Sensitive account details" },
-  { value: "fraud-disputes", label: "Fraud dispute resolution" },
-];
-
-const ESCALATION_CONDITIONS_OPTIONS: CheckboxOption[] = [
-  { value: "fraud-detected", label: "Fraud detected" },
-  { value: "human-agent", label: "User requests human agent" },
-  { value: "high-risk-tx", label: "High-risk transaction detected" },
-];
-
-const REQUIRE_APPROVAL_OPTIONS: CheckboxOption[] = [
-  { value: "refunds", label: "Refund requests" },
-  { value: "reversals", label: "Transaction reversals" },
-  { value: "freezes", label: "Account freezes" },
-  { value: "kyc-overrides", label: "KYC overrides" },
-];
-
-const RESPONSE_RESTRICTIONS_OPTIONS: CheckboxOption[] = [
-  { value: "offensive-language", label: "Prevent offensive language" },
-  { value: "hallucinated-answers", label: "Prevent hallucinated answers" },
-  { value: "speculative-responses", label: "Avoid speculative responses" },
-  {
-    value: "factual-transaction-data",
-    label: "Require factual transaction data",
-  },
-  { value: "unsupported-claims", label: "Restrict unsupported claims" },
-];
-
-const BEHAVIOR_DETECTION_OPTIONS: CheckboxOption[] = [
-  {
-    value: "suspicious-patterns",
-    label: "Detect suspicious transaction patterns",
-  },
-  { value: "account-takeover", label: "Detect account takeover attempts" },
-  { value: "panic-signals", label: "Detect panic or urgency signals" },
-  {
-    value: "social-engineering",
-    label: "Detect social engineering attempts",
-  },
-];
-
-const formatKnowledgeDate = (date: Date) => {
-  const day = date.getDate();
-  const suffix =
-    day % 10 === 1 && day !== 11
-      ? "st"
-      : day % 10 === 2 && day !== 12
-        ? "nd"
-        : day % 10 === 3 && day !== 13
-          ? "rd"
-          : "th";
-  const month = date.toLocaleString("en-GB", { month: "long" });
-  return `${day}${suffix} ${month}, ${date.getFullYear()}`;
-};
+export type { GeneralSettingsSection };
 
 const FlowGeneralSettingsContainer = styled.div`
   display: grid;
@@ -296,7 +186,9 @@ const FlowGeneralSettingsContainer = styled.div`
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    justify-self: center;
     max-width: 32.5rem;
+    width: 100%;
 
     &.is-knowledge {
       max-width: 41.5625rem;
@@ -500,7 +392,7 @@ const FlowGeneralSettingsContainer = styled.div`
 
 type CheckboxGroupCardProps = {
   title: string;
-  options: CheckboxOption[];
+  options: FlowCheckboxOption[];
   selected: string[];
   onChange: (values: string[]) => void;
 };
@@ -528,7 +420,7 @@ type EditableSettingsState = {
 
 const INITIAL_EDITABLE_SETTINGS: EditableSettingsState = {
   tone: "",
-  languages: ["english"],
+  languages: ["en"],
   voiceToText: false,
   conversationMemory: [
     "onboarding-progress",
@@ -537,7 +429,7 @@ const INITIAL_EDITABLE_SETTINGS: EditableSettingsState = {
     "unfinished-actions",
   ],
   memoryDuration: "2",
-  memoryUnit: "months",
+  memoryUnit: "MONTHS",
   proactiveAssistance: ["suggest-next-actions"],
   escalationIntelligence: ["detect-frustration", "detect-confusion"],
   responseStyle: {
@@ -551,6 +443,172 @@ const INITIAL_EDITABLE_SETTINGS: EditableSettingsState = {
   responseRestrictions: [],
   behaviorDetection: [],
 };
+
+function fromBackendGeneral(
+  general: BackendSettings["general"],
+): EditableSettingsState {
+  const { setup, aiBehaviour, guardrails } = general;
+
+  const DEFAULT_MEM = {
+    rememberOnboardingProgress: false,
+    rememberPreferredLanguage: false,
+    rememberPreviousInteractions: false,
+    rememberUnfinishedActions: false,
+  };
+  const DEFAULT_PA = {
+    suggestNextActions: false,
+    recommendOnboardingSteps: false,
+    remindInactiveUsers: false,
+    recommendWalletFunding: false,
+  };
+  const DEFAULT_EI = {
+    detectFrustration: false,
+    detectRepeatedConfusion: false,
+    escalateUnresolvedIssues: false,
+    escalateFinancialDisputes: false,
+  };
+
+  return {
+    tone: setup.tone ?? "",
+    languages: setup.languages ?? ["en"],
+    voiceToText: setup.voiceToTextResponse ?? false,
+    conversationMemory: booleanObjectToArray(
+      { ...DEFAULT_MEM, ...(aiBehaviour?.conversationMemory ?? {}) },
+      CONVERSATION_MEMORY_KEY_MAP,
+    ),
+    memoryDuration: String(
+      aiBehaviour?.memoryRetentionPeriod?.duration ?? "2",
+    ),
+    memoryUnit: aiBehaviour?.memoryRetentionPeriod?.unit ?? "MONTHS",
+    proactiveAssistance: booleanObjectToArray(
+      { ...DEFAULT_PA, ...(aiBehaviour?.proactiveAssistance ?? {}) },
+      PROACTIVE_ASSISTANCE_KEY_MAP,
+    ),
+    escalationIntelligence: booleanObjectToArray(
+      { ...DEFAULT_EI, ...(aiBehaviour?.escalationIntelligence ?? {}) },
+      ESCALATION_INTELLIGENCE_KEY_MAP,
+    ),
+    responseStyle: responseStyleFromBackend(
+      aiBehaviour?.responseStyle ?? "CONVERSATIONAL",
+    ),
+    restrictedTopics: guardrails?.restrictedTopics ?? [],
+    escalationConditions: guardrails?.escalationConditions ?? [],
+    requireApproval: guardrails?.requireApprovalFor ?? [],
+    responseRestrictions: guardrails?.responseRestrictions ?? [],
+    behaviorDetection: guardrails?.behaviorDetection ?? [],
+  };
+}
+
+function fromBackendKnowledgeItems(
+  general: BackendSettings["general"],
+): KnowledgeItem[] {
+  const items = general.knowledgeBase?.items;
+  if (!Array.isArray(items)) return [];
+
+  return items.map((item, index) => {
+    const entry = (item ?? {}) as Record<string, unknown>;
+    const type = entry.type === "file" ? "file" : "note";
+    const name =
+      typeof entry.name === "string" && entry.name.trim()
+        ? entry.name
+        : `Knowledge ${index + 1}`;
+    const subtitle =
+      typeof entry.subtitle === "string" && entry.subtitle.trim()
+        ? entry.subtitle
+        : type === "file"
+          ? "File"
+          : "Note";
+    const dateAdded =
+      typeof entry.dateAdded === "string" && entry.dateAdded.trim()
+        ? entry.dateAdded
+        : formatKnowledgeDate(new Date());
+    const content =
+      typeof entry.content === "string" ? entry.content : undefined;
+
+    return {
+      id:
+        typeof entry.id === "string" && entry.id.trim()
+          ? entry.id
+          : crypto.randomUUID(),
+      type,
+      name,
+      subtitle,
+      dateAdded,
+      content,
+    };
+  });
+}
+
+function toBackendGeneral(
+  s: EditableSettingsState,
+  knowledgeItems: KnowledgeItem[],
+): BackendSettings["general"] {
+  const DEFAULT_MEM = {
+    rememberOnboardingProgress: false,
+    rememberPreferredLanguage: false,
+    rememberPreviousInteractions: false,
+    rememberUnfinishedActions: false,
+  };
+  const DEFAULT_PA = {
+    suggestNextActions: false,
+    recommendOnboardingSteps: false,
+    remindInactiveUsers: false,
+    recommendWalletFunding: false,
+  };
+  const DEFAULT_EI = {
+    detectFrustration: false,
+    detectRepeatedConfusion: false,
+    escalateUnresolvedIssues: false,
+    escalateFinancialDisputes: false,
+  };
+
+  return {
+    setup: {
+      tone: s.tone,
+      languages: s.languages,
+      voiceToTextResponse: s.voiceToText,
+    },
+    aiBehaviour: {
+      conversationMemory: arrayToBooleanObject(
+        s.conversationMemory,
+        CONVERSATION_MEMORY_KEY_MAP,
+        DEFAULT_MEM,
+      ),
+      memoryRetentionPeriod: {
+        duration: Number(s.memoryDuration) || 2,
+        unit: s.memoryUnit,
+      },
+      proactiveAssistance: arrayToBooleanObject(
+        s.proactiveAssistance,
+        PROACTIVE_ASSISTANCE_KEY_MAP,
+        DEFAULT_PA,
+      ),
+      escalationIntelligence: arrayToBooleanObject(
+        s.escalationIntelligence,
+        ESCALATION_INTELLIGENCE_KEY_MAP,
+        DEFAULT_EI,
+      ),
+      responseStyle: responseStyleToBackend(s.responseStyle),
+    },
+    guardrails: {
+      restrictedTopics: s.restrictedTopics,
+      escalationConditions: s.escalationConditions,
+      requireApprovalFor: s.requireApproval,
+      responseRestrictions: s.responseRestrictions,
+      behaviorDetection: s.behaviorDetection,
+    },
+    knowledgeBase: {
+      items: knowledgeItems.map((item) => ({
+        id: item.id,
+        type: item.type,
+        name: item.name,
+        subtitle: item.subtitle,
+        dateAdded: item.dateAdded,
+        content: item.content ?? "",
+      })),
+    },
+  };
+}
 
 const sortStrings = (values: string[]) => [...values].sort();
 
@@ -714,6 +772,9 @@ export const FlowGeneralSettings = ({
   );
 
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItem[]>([]);
+  const [savedKnowledgeItems, setSavedKnowledgeItems] = useState<
+    KnowledgeItem[]
+  >([]);
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
   const [showEditNoteModal, setShowEditNoteModal] = useState(false);
   const [showDeleteKnowledgeModal, setShowDeleteKnowledgeModal] =
@@ -725,11 +786,178 @@ export const FlowGeneralSettings = ({
   const [editNoteTitle, setEditNoteTitle] = useState("");
   const [editNoteContent, setEditNoteContent] = useState("");
 
+  const [isSaving, setIsSaving] = useState(false);
+
+  const { flowSettings, fetchingFlowSettings, flowSchema, fetchingFlowSchema } =
+    useEntity(flowStore);
+
+  useEffect(() => {
+    fetchFlowSettings().catch(() => { });
+    fetchFlowSchema().catch(() => { });
+  }, []);
+
+  useEffect(() => {
+    if (!flowSettings?.general) return;
+    const mapped = fromBackendGeneral(flowSettings.general);
+    const mappedKnowledgeItems = fromBackendKnowledgeItems(flowSettings.general);
+    applyEditableSettings(mapped, {
+      setTone,
+      setLanguages,
+      setVoiceToText,
+      setConversationMemory,
+      setMemoryDuration,
+      setMemoryUnit,
+      setProactiveAssistance,
+      setEscalationIntelligence,
+      setResponseStyle,
+      setRestrictedTopics,
+      setEscalationConditions,
+      setRequireApproval,
+      setResponseRestrictions,
+      setBehaviorDetection,
+    });
+    setSavedSettings({
+      ...mapped,
+      languages: [...mapped.languages],
+      conversationMemory: [...mapped.conversationMemory],
+      proactiveAssistance: [...mapped.proactiveAssistance],
+      escalationIntelligence: [...mapped.escalationIntelligence],
+      responseStyle: { ...mapped.responseStyle },
+      restrictedTopics: [...mapped.restrictedTopics],
+      escalationConditions: [...mapped.escalationConditions],
+      requireApproval: [...mapped.requireApproval],
+      responseRestrictions: [...mapped.responseRestrictions],
+      behaviorDetection: [...mapped.behaviorDetection],
+    });
+    setKnowledgeItems(mappedKnowledgeItems);
+    setSavedKnowledgeItems(
+      mappedKnowledgeItems.map((item) => ({ ...item })),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flowSettings]);
+
   const activeMeta = useMemo(
     () =>
-      SECTIONS.find((section) => section.id === activeSection) ?? SECTIONS[0],
+      GENERAL_SETTINGS_SECTIONS.find((section) => section.id === activeSection) ?? GENERAL_SETTINGS_SECTIONS[0],
     [activeSection],
   );
+
+  const toneOptions = useMemo(
+    () => toSelectOptions(flowSchema?.tones, FALLBACK_TONE_OPTIONS),
+    [flowSchema],
+  );
+
+  const languageOptions = useMemo(
+    () => toSelectOptions(flowSchema?.languages, FALLBACK_LANGUAGE_OPTIONS),
+    [flowSchema],
+  );
+
+  const memoryUnitOptions = useMemo(
+    () => toSelectOptions(flowSchema?.retentionUnits, FALLBACK_MEMORY_UNIT_OPTIONS),
+    [flowSchema],
+  );
+
+  const responseStyleOptions = useMemo(
+    () =>
+      toSelectOptions(flowSchema?.responseStyles, FALLBACK_RESPONSE_STYLE_OPTIONS),
+    [flowSchema],
+  );
+
+  const selectedResponseStyle = useMemo(() => {
+    if (responseStyle.shortReplies) return "SHORT_REPLIES";
+    if (responseStyle.conversational) return "CONVERSATIONAL";
+    if (responseStyle.detailedGuidance) return "DETAILED_GUIDANCE";
+    return getSchemaDefaultValue(flowSchema?.responseStyles, "CONVERSATIONAL");
+  }, [responseStyle, flowSchema]);
+
+  const guardrailSections = useMemo(() => {
+    if (!flowSchema?.guardrails?.length) {
+      return [
+        {
+          field: "restrictedTopics",
+          label: "Restricted topics",
+          options: RESTRICTED_TOPICS_OPTIONS,
+          selected: restrictedTopics,
+          onChange: setRestrictedTopics,
+        },
+        {
+          field: "escalationConditions",
+          label: "Escalation conditions",
+          options: ESCALATION_CONDITIONS_OPTIONS,
+          selected: escalationConditions,
+          onChange: setEscalationConditions,
+        },
+        {
+          field: "requireApprovalFor",
+          label: "Require approval for",
+          options: REQUIRE_APPROVAL_OPTIONS,
+          selected: requireApproval,
+          onChange: setRequireApproval,
+        },
+        {
+          field: "responseRestrictions",
+          label: "Response restrictions",
+          options: RESPONSE_RESTRICTIONS_OPTIONS,
+          selected: responseRestrictions,
+          onChange: setResponseRestrictions,
+        },
+        {
+          field: "behaviorDetection",
+          label: "Behavior detection",
+          options: BEHAVIOR_DETECTION_OPTIONS,
+          selected: behaviorDetection,
+          onChange: setBehaviorDetection,
+        },
+      ];
+    }
+
+    const stateByField: Record<
+      string,
+      { selected: string[]; onChange: (values: string[]) => void }
+    > = {
+      restrictedTopics: { selected: restrictedTopics, onChange: setRestrictedTopics },
+      escalationConditions: {
+        selected: escalationConditions,
+        onChange: setEscalationConditions,
+      },
+      requireApprovalFor: { selected: requireApproval, onChange: setRequireApproval },
+      responseRestrictions: {
+        selected: responseRestrictions,
+        onChange: setResponseRestrictions,
+      },
+      behaviorDetection: { selected: behaviorDetection, onChange: setBehaviorDetection },
+    };
+
+    return flowSchema.guardrails.map((field) => {
+      const stateKey =
+        GUARDRAIL_STATE_KEYS[field.field as keyof typeof GUARDRAIL_STATE_KEYS];
+      const fallback =
+        FALLBACK_GUARDRAIL_OPTIONS[field.field as keyof typeof FALLBACK_GUARDRAIL_OPTIONS] ??
+        [];
+      const state = stateByField[field.field] ??
+        stateByField[stateKey] ?? {
+        selected: [],
+        onChange: () => { },
+      };
+
+      return {
+        field: field.field,
+        label: field.label,
+        options: toSelectOptions(field.options, fallback),
+        selected: state.selected,
+        onChange: state.onChange,
+      };
+    });
+  }, [
+    flowSchema,
+    restrictedTopics,
+    escalationConditions,
+    requireApproval,
+    responseRestrictions,
+    behaviorDetection,
+  ]);
+
+  const isLoadingSettings = fetchingFlowSettings || fetchingFlowSchema;
 
   const currentSettings = useMemo<EditableSettingsState>(
     () => ({
@@ -773,11 +1001,11 @@ export const FlowGeneralSettings = ({
   const showHeaderActions =
     activeSection !== "knowledge" && hasUnsavedChanges;
 
-  const allLanguageValues = LANGUAGE_OPTIONS.map((option) => option.value);
+  const allLanguageValues = languageOptions.map((option) => option.value);
   const allLanguagesSelected = languages.length === allLanguageValues.length;
 
   const handleSelectAllLanguages = () => {
-    setLanguages(allLanguagesSelected ? ["english"] : allLanguageValues);
+    setLanguages(allLanguagesSelected ? [languageOptions[0]?.value ?? "en"] : allLanguageValues);
   };
 
   const handleSelectValue = (
@@ -810,8 +1038,8 @@ export const FlowGeneralSettings = ({
     });
   };
 
-  const handleSaveSettingsChanges = () => {
-    setSavedSettings({
+  const handleSaveSettingsChanges = async () => {
+    const snapshot = {
       ...currentSettings,
       languages: [...currentSettings.languages],
       conversationMemory: [...currentSettings.conversationMemory],
@@ -823,7 +1051,62 @@ export const FlowGeneralSettings = ({
       requireApproval: [...currentSettings.requireApproval],
       responseRestrictions: [...currentSettings.responseRestrictions],
       behaviorDetection: [...currentSettings.behaviorDetection],
-    });
+    };
+
+    const orgId = getOrgId();
+    const knowledgeSnapshot = knowledgeItems.map((item) => ({ ...item }));
+
+    if (!orgId) {
+      setSavedSettings(snapshot);
+      setSavedKnowledgeItems(knowledgeSnapshot);
+      showSuccessNotification({ message: "Settings saved" });
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      await flow.saveSettings(orgId, {
+        general: toBackendGeneral(snapshot, knowledgeSnapshot),
+      });
+      setSavedSettings(snapshot);
+      setSavedKnowledgeItems(knowledgeSnapshot);
+      showSuccessNotification({ message: "Settings saved" });
+    } catch (error) {
+      showErrorNotification({
+        message: parseApiError(error, "Failed to save settings"),
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const persistKnowledgeItems = async (
+    nextItems: KnowledgeItem[],
+    successMessage: string,
+  ) => {
+    const previousItems = savedKnowledgeItems.map((item) => ({ ...item }));
+    setKnowledgeItems(nextItems);
+
+    const orgId = getOrgId();
+    if (!orgId) {
+      setSavedKnowledgeItems(nextItems.map((item) => ({ ...item })));
+      showSuccessNotification({ message: successMessage });
+      return;
+    }
+
+    try {
+      await flow.saveSettings(orgId, {
+        general: toBackendGeneral(currentSettings, nextItems),
+      });
+      setSavedKnowledgeItems(nextItems.map((item) => ({ ...item })));
+      showSuccessNotification({ message: successMessage });
+    } catch (error) {
+      setKnowledgeItems(previousItems);
+      showErrorNotification({
+        message: parseApiError(error, "Failed to save knowledge"),
+      });
+    }
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -832,39 +1115,40 @@ export const FlowGeneralSettings = ({
 
     const extension = file.name.split(".").pop()?.toUpperCase() ?? "FILE";
     const name = file.name.replace(/\.[^/.]+$/, "");
-
-    setKnowledgeItems((prev) => [
-      ...prev,
+    const nextItems = [
+      ...knowledgeItems,
       {
         id: crypto.randomUUID(),
-        type: "file",
+        type: "file" as const,
         name,
         subtitle: extension,
         dateAdded: formatKnowledgeDate(new Date()),
       },
-    ]);
+    ];
 
+    void persistKnowledgeItems(nextItems, "Knowledge file added");
     event.target.value = "";
   };
 
   const handleAddNote = () => {
     if (!noteTitle.trim()) return;
 
-    setKnowledgeItems((prev) => [
-      ...prev,
+    const nextItems = [
+      ...knowledgeItems,
       {
         id: crypto.randomUUID(),
-        type: "note",
+        type: "note" as const,
         name: noteTitle.trim(),
         subtitle: "Note",
         dateAdded: formatKnowledgeDate(new Date()),
         content: noteContent,
       },
-    ]);
+    ];
 
     setNoteTitle("");
     setNoteContent("");
     setShowAddNoteModal(false);
+    void persistKnowledgeItems(nextItems, "Note added");
   };
 
   const closeAddNoteModal = () => {
@@ -891,18 +1175,18 @@ export const FlowGeneralSettings = ({
   const handleEditNote = () => {
     if (!selectedKnowledgeItem || !editNoteTitle.trim()) return;
 
-    setKnowledgeItems((prev) =>
-      prev.map((item) =>
-        item.id === selectedKnowledgeItem.id
-          ? {
-            ...item,
-            name: editNoteTitle.trim(),
-            content: editNoteContent,
-          }
-          : item,
-      ),
+    const nextItems = knowledgeItems.map((item) =>
+      item.id === selectedKnowledgeItem.id
+        ? {
+          ...item,
+          name: editNoteTitle.trim(),
+          content: editNoteContent,
+        }
+        : item,
     );
+
     closeEditNoteModal();
+    void persistKnowledgeItems(nextItems, "Note updated");
   };
 
   const openDeleteKnowledgeModal = (item: KnowledgeItem) => {
@@ -917,456 +1201,432 @@ export const FlowGeneralSettings = ({
 
   const handleDeleteKnowledge = () => {
     if (!selectedKnowledgeItem) return;
-    setKnowledgeItems((prev) =>
-      prev.filter((item) => item.id !== selectedKnowledgeItem.id),
+    const nextItems = knowledgeItems.filter(
+      (item) => item.id !== selectedKnowledgeItem.id,
     );
     closeDeleteKnowledgeModal();
+    void persistKnowledgeItems(nextItems, "Knowledge deleted");
   };
 
   return (
     <FlowGeneralSettingsContainer>
-      <aside>
-        <p className="FlowGeneralSettings__navLabel">General settings</p>
-        <nav className="FlowGeneralSettings__nav" aria-label="General settings">
-          {SECTIONS.map((section) => (
-            <button
-              key={section.id}
-              type="button"
-              className={`FlowGeneralSettings__navItem${activeSection === section.id ? " is-active" : ""
-                }`}
-              onClick={() => setActiveSection(section.id)}
-            >
-              <span className="FlowGeneralSettings__navItem-icon">
-                <Icon icon={section.icon} width={20} height={20} />
-              </span>
-              <span className="FlowGeneralSettings__navItem-text">
-                <span className="FlowGeneralSettings__navItem-title">
-                  {section.title}
-                </span>
-                <span className="FlowGeneralSettings__navItem-description">
-                  {section.description}
-                </span>
-              </span>
-            </button>
-          ))}
-        </nav>
-      </aside>
-
-      <section
-        className={`FlowGeneralSettings__panel${activeSection === "knowledge" ? " is-knowledge" : ""
-          }`}
-      >
-        {activeSection === "knowledge" ? (
-          <div className="FlowGeneralSettings__knowledgeHeader">
-            <div className="FlowGeneralSettings__panelHeader-content">
-              <h3 className="FlowGeneralSettings__panelHeader-title">
-                {activeMeta.title}
-              </h3>
-              <p className="FlowGeneralSettings__panelHeader-description">
-                {activeMeta.description}
-              </p>
-            </div>
-
-            <ActionMenu
-              positions={["bottom", "left"]}
-              actionItemWidth="13.6875rem"
-              children={
-                <Button
-                  classes={[ButtonClass.OUTLINED, ButtonClass.WITH_ICON]}
-                  style={{ height: "2.5rem" }}
-                >
-                  Add
-                  <Icon icon="iconamoon:arrow-down-2-light" width={20} height={20} />
-                </Button>
-              }
-              actions={[
-                {
-                  title: "Upload",
-                  onClick: () => fileInputRef.current?.click(),
-                },
-                {
-                  title: "Add note",
-                  onClick: () => setShowAddNoteModal(true),
-                },
-              ]}
-            />
-            <input
-              ref={fileInputRef}
-              type="file"
-              hidden
-              onChange={handleFileUpload}
-            />
-          </div>
-        ) : (
-          <div className="FlowGeneralSettings__panelHeader">
-            <div className="FlowGeneralSettings__panelHeader-content">
-              <h3 className="FlowGeneralSettings__panelHeader-title">
-                {activeMeta.title}
-              </h3>
-              <p className="FlowGeneralSettings__panelHeader-description">
-                {activeMeta.description}
-              </p>
-            </div>
-
-            {showHeaderActions && (
-              <div className="FlowGeneralSettings__panelHeader-actions">
-                <Button
-                  classes={[ButtonClass.ICON_ONLY, ButtonClass.OUTLINED]}
+      {isLoadingSettings ? (
+        <Flex align="center" justify="center" style={{ height: "10rem" }}>
+          <Loading>Loading settings ...</Loading>
+        </Flex>
+      ) : (
+        <>
+          <aside>
+            <p className="FlowGeneralSettings__navLabel">General settings</p>
+            <nav className="FlowGeneralSettings__nav" aria-label="General settings">
+              {GENERAL_SETTINGS_SECTIONS.map((section) => (
+                <button
+                  key={section.id}
                   type="button"
-                  onClick={handleCancelSettingsChanges}
+                  className={`FlowGeneralSettings__navItem${activeSection === section.id ? " is-active" : ""
+                    }`}
+                  onClick={() => setActiveSection(section.id)}
                 >
-                  <Icon icon="iconoir:cancel" width={20} height={20} />
-                </Button>
-                <Button
-                  classes={[ButtonClass.SOLID]}
-                  size={ButtonSize.WIDTH_140}
-                  type="button"
-                  onClick={handleSaveSettingsChanges}
-                >
-                  Save changes
-                </Button>
+                  <span className="FlowGeneralSettings__navItem-icon">
+                    <Icon icon={section.icon} width={20} height={20} />
+                  </span>
+                  <span className="FlowGeneralSettings__navItem-text">
+                    <span className="FlowGeneralSettings__navItem-title">
+                      {section.title}
+                    </span>
+                    <span className="FlowGeneralSettings__navItem-description">
+                      {section.description}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </nav>
+          </aside>
+
+          <section
+            className={`FlowGeneralSettings__panel${activeSection === "knowledge" ? " is-knowledge" : ""
+              }`}
+          >
+            {activeSection === "knowledge" ? (
+              <div className="FlowGeneralSettings__knowledgeHeader">
+                <div className="FlowGeneralSettings__panelHeader-content">
+                  <h3 className="FlowGeneralSettings__panelHeader-title">
+                    {activeMeta.title}
+                  </h3>
+                  <p className="FlowGeneralSettings__panelHeader-description">
+                    {activeMeta.description}
+                  </p>
+                </div>
+
+                <ActionMenu
+                  positions={["bottom", "left"]}
+                  actionItemWidth="13.6875rem"
+                  children={
+                    <Button
+                      classes={[ButtonClass.OUTLINED, ButtonClass.WITH_ICON]}
+                      style={{ height: "2.5rem" }}
+                    >
+                      Add
+                      <Icon icon="iconamoon:arrow-down-2-light" width={20} height={20} />
+                    </Button>
+                  }
+                  actions={[
+                    {
+                      title: "Upload",
+                      onClick: () => fileInputRef.current?.click(),
+                    },
+                    {
+                      title: "Add note",
+                      onClick: () => setShowAddNoteModal(true),
+                    },
+                  ]}
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  hidden
+                  onChange={handleFileUpload}
+                />
+              </div>
+            ) : (
+              <div className="FlowGeneralSettings__panelHeader">
+                <div className="FlowGeneralSettings__panelHeader-content">
+                  <h3 className="FlowGeneralSettings__panelHeader-title">
+                    {activeMeta.title}
+                  </h3>
+                  <p className="FlowGeneralSettings__panelHeader-description">
+                    {activeMeta.description}
+                  </p>
+                </div>
+
+                {showHeaderActions && (
+                  <div className="FlowGeneralSettings__panelHeader-actions">
+                    <Button
+                      classes={[ButtonClass.ICON_ONLY, ButtonClass.OUTLINED]}
+                      type="button"
+                      disabled={isSaving}
+                      onClick={handleCancelSettingsChanges}
+                    >
+                      <Icon icon="iconoir:cancel" width={20} height={20} />
+                    </Button>
+                    <Button
+                      classes={[ButtonClass.SOLID]}
+                      size={ButtonSize.WIDTH_140}
+                      type="button"
+                      disabled={isSaving}
+                      loading={isSaving}
+                      onClick={handleSaveSettingsChanges}
+                    >
+                      Save changes
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {activeSection === "setup" && (
-          <>
-            <SelectInput
-              label="Tone"
-              placeholder="Select tone"
-              options={TONE_OPTIONS}
-              value={tone}
-              onChange={(val: string | { value: string }) =>
-                handleSelectValue(setTone, val)
-              }
-            />
-
-            <div className="FlowGeneralSettings__languageCard">
-              <div className="FlowGeneralSettings__languageCard-header">
-                <span>Language</span>
-                <button
-                  type="button"
-                  className="FlowGeneralSettings__languageCard-selectAll"
-                  onClick={handleSelectAllLanguages}
-                >
-                  {allLanguagesSelected ? "Clear" : "Select all"}
-                </button>
-              </div>
-              <CheckboxInput
-                name="languages"
-                options={LANGUAGE_OPTIONS}
-                value={languages}
-                onChange={setLanguages}
-                direction="column"
-              />
-            </div>
-
-            <div className="FlowGeneralSettings__toggleRow">
-              <span>Voice to text response</span>
-              <SwitchInput
-                size={SwitchInputSize.SMALL}
-                value={voiceToText}
-                onChange={setVoiceToText}
-                name="voiceToText"
-              />
-            </div>
-          </>
-        )}
-
-        {activeSection === "ai-behaviour" && (
-          <>
-            <CheckboxGroupCard
-              title="Conversation Memory"
-              options={CONVERSATION_MEMORY_OPTIONS}
-              selected={conversationMemory}
-              onChange={setConversationMemory}
-            />
-
-            <div className="FlowGeneralSettings__memoryCard">
-              <p
-                style={{
-                  fontSize: "0.9375rem",
-                  fontWeight: 500,
-                  marginBottom: "1rem",
-                }}
-              >
-                Memory retention period
-              </p>
-              <div className="FlowGeneralSettings__memoryFields">
-                <FormInput
-                  label="Duration"
-                  name="memoryDuration"
-                  value={memoryDuration}
-                  onChange={(e) => setMemoryDuration(e.target.value)}
-                  placeholder="2"
-                />
+            {activeSection === "setup" && (
+              <>
                 <SelectInput
-                  label="Unit"
-                  placeholder="Select unit"
-                  options={MEMORY_UNIT_OPTIONS}
-                  value={memoryUnit}
+                  label="Tone"
+                  placeholder="Select tone"
+                  options={toneOptions}
+                  value={tone}
                   onChange={(val: string | { value: string }) =>
-                    handleSelectValue(setMemoryUnit, val)
+                    handleSelectValue(setTone, val)
                   }
                 />
-              </div>
-            </div>
 
-            <CheckboxGroupCard
-              title="Proactive Assistance"
-              options={PROACTIVE_ASSISTANCE_OPTIONS}
-              selected={proactiveAssistance}
-              onChange={setProactiveAssistance}
-            />
-
-            <CheckboxGroupCard
-              title="Escalation Intelligence"
-              options={ESCALATION_INTELLIGENCE_OPTIONS}
-              selected={escalationIntelligence}
-              onChange={setEscalationIntelligence}
-            />
-
-            <div className="FlowGeneralSettings__responseStyleCard">
-              <div className="FlowGeneralSettings__responseStyleCard-header">
-                <span>Response style</span>
-              </div>
-              {RESPONSE_STYLE_OPTIONS.map((option) => (
-                <div
-                  key={option.key}
-                  className="FlowGeneralSettings__responseStyleCard-row"
-                >
-                  <span>{option.label}</span>
-                  <SwitchInput
-                    size={SwitchInputSize.SMALL}
-                    value={responseStyle[option.key]}
-                    onChange={(checked) =>
-                      setResponseStyle((prev) => ({
-                        ...prev,
-                        [option.key]: checked,
-                      }))
-                    }
-                    name={option.key}
+                <div className="FlowGeneralSettings__languageCard">
+                  <div className="FlowGeneralSettings__languageCard-header">
+                    <span>Language</span>
+                    <button
+                      type="button"
+                      className="FlowGeneralSettings__languageCard-selectAll"
+                      onClick={handleSelectAllLanguages}
+                    >
+                      {allLanguagesSelected ? "Clear" : "Select all"}
+                    </button>
+                  </div>
+                  <CheckboxInput
+                    name="languages"
+                    options={languageOptions}
+                    value={languages}
+                    onChange={setLanguages}
+                    direction="column"
                   />
                 </div>
-              ))}
-            </div>
-          </>
-        )}
 
-        {activeSection === "guardrails" && (
-          <>
-            <CheckboxGroupCard
-              title="Restricted topics"
-              options={RESTRICTED_TOPICS_OPTIONS}
-              selected={restrictedTopics}
-              onChange={setRestrictedTopics}
-            />
+                <div className="FlowGeneralSettings__toggleRow">
+                  <span>Voice to text response</span>
+                  <SwitchInput
+                    size={SwitchInputSize.SMALL}
+                    value={voiceToText}
+                    onChange={setVoiceToText}
+                    name="voiceToText"
+                  />
+                </div>
+              </>
+            )}
 
-            <CheckboxGroupCard
-              title="Escalation conditions"
-              options={ESCALATION_CONDITIONS_OPTIONS}
-              selected={escalationConditions}
-              onChange={setEscalationConditions}
-            />
+            {activeSection === "ai-behaviour" && (
+              <>
+                <CheckboxGroupCard
+                  title="Conversation Memory"
+                  options={CONVERSATION_MEMORY_OPTIONS}
+                  selected={conversationMemory}
+                  onChange={setConversationMemory}
+                />
 
-            <CheckboxGroupCard
-              title="Require approval for"
-              options={REQUIRE_APPROVAL_OPTIONS}
-              selected={requireApproval}
-              onChange={setRequireApproval}
-            />
-
-            <CheckboxGroupCard
-              title="Response restrictions"
-              options={RESPONSE_RESTRICTIONS_OPTIONS}
-              selected={responseRestrictions}
-              onChange={setResponseRestrictions}
-            />
-
-            <CheckboxGroupCard
-              title="Behavior detection"
-              options={BEHAVIOR_DETECTION_OPTIONS}
-              selected={behaviorDetection}
-              onChange={setBehaviorDetection}
-            />
-          </>
-        )}
-
-        {activeSection === "knowledge" &&
-          (knowledgeItems.length === 0 ? (
-            <EmptyState
-              className="FlowGeneralSettings__knowledgeEmpty"
-              title="No knowledge added yet."
-              message="Added knowledge will be listed here"
-              icon={<Icon icon="fluent:brain-32-filled" width={30} height={30} />}
-            />
-          ) : (
-            <>
-              <div className="FlowGeneralSettings__knowledgeTableHeader">
-                <span>Name</span>
-                <span>Date added</span>
-              </div>
-              <div className="FlowGeneralSettings__knowledgeList">
-                {knowledgeItems.map((item) => (
-                  <div key={item.id} className="FlowGeneralSettings__knowledgeRow">
-                    <div className="FlowGeneralSettings__knowledgeRow-main">
-                      <span className="FlowGeneralSettings__knowledgeRow-icon">
-                        <Icon
-                          icon={
-                            item.type === "file"
-                              ? "basil:document-solid"
-                              : "clarity:note-solid"
-                          }
-                          width={30}
-                          height={30}
-                          color={item.type === "file" ? "#3B82F6" : "#F59E0B"}
-                        />
-                      </span>
-                      <div className="FlowGeneralSettings__knowledgeRow-text">
-                        <span className="FlowGeneralSettings__knowledgeRow-name">
-                          {item.name}
-                        </span>
-                        <span className="FlowGeneralSettings__knowledgeRow-subtitle">
-                          {item.subtitle}
-                        </span>
-                      </div>
-                    </div>
-                    <Flex align="center" gap="0.5rem">
-                      <span className="FlowGeneralSettings__knowledgeRow-date">
-                        {item.dateAdded}
-                      </span>
-                      <ActionMenu
-                        positions={["bottom", "left"]}
-                        actionItemWidth="13.6875rem"
-                        children={
-                          <Button
-                            classes={[ButtonClass.ICON_ONLY]}
-                            style={{ height: "2.5rem" }}
-                          >
-                            <Icon icon="pepicons-pencil:dots-y" width={20} height={20} />
-                          </Button>
-                        }
-                        actions={[
-                          {
-                            title: "Edit",
-                            hidden: item.type === "file",
-                            onClick: () => openEditNoteModal(item),
-                          },
-                          {
-                            title: "Delete",
-                            classes: "delete-action",
-                            onClick: () => openDeleteKnowledgeModal(item),
-                          },
-                        ]}
-                      />
-                    </Flex>
+                <div className="FlowGeneralSettings__memoryCard">
+                  <p
+                    style={{
+                      fontSize: "0.9375rem",
+                      fontWeight: 500,
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    Memory retention period
+                  </p>
+                  <div className="FlowGeneralSettings__memoryFields">
+                    <FormInput
+                      label="Duration"
+                      name="memoryDuration"
+                      value={memoryDuration}
+                      onChange={(e) => setMemoryDuration(e.target.value)}
+                      placeholder="2"
+                    />
+                    <SelectInput
+                      label="Unit"
+                      placeholder="Select unit"
+                      options={memoryUnitOptions}
+                      value={memoryUnit}
+                      onChange={(val: string | { value: string }) =>
+                        handleSelectValue(setMemoryUnit, val)
+                      }
+                    />
                   </div>
+                </div>
+
+                <CheckboxGroupCard
+                  title="Proactive Assistance"
+                  options={PROACTIVE_ASSISTANCE_OPTIONS}
+                  selected={proactiveAssistance}
+                  onChange={setProactiveAssistance}
+                />
+
+                <CheckboxGroupCard
+                  title="Escalation Intelligence"
+                  options={ESCALATION_INTELLIGENCE_OPTIONS}
+                  selected={escalationIntelligence}
+                  onChange={setEscalationIntelligence}
+                />
+
+                <SelectInput
+                  label="Response style"
+                  placeholder="Select response style"
+                  options={responseStyleOptions}
+                  value={selectedResponseStyle}
+                  onChange={(val: string | { value: string }) => {
+                    const value =
+                      val && typeof val === "object" && "value" in val
+                        ? String(val.value)
+                        : String(val ?? "");
+                    setResponseStyle(responseStyleFromBackend(value));
+                  }}
+                />
+              </>
+            )}
+
+            {activeSection === "guardrails" && (
+              <>
+                {guardrailSections.map((section) => (
+                  <CheckboxGroupCard
+                    key={section.field}
+                    title={section.label}
+                    options={section.options}
+                    selected={section.selected}
+                    onChange={section.onChange}
+                  />
                 ))}
-              </div>
-            </>
-          ))}
+              </>
+            )}
 
-      </section>
+            {activeSection === "knowledge" &&
+              (knowledgeItems.length === 0 ? (
+                <EmptyState
+                  className="FlowGeneralSettings__knowledgeEmpty"
+                  title="No knowledge added yet."
+                  message="Added knowledge will be listed here"
+                  icon={<Icon icon="fluent:brain-32-filled" width={30} height={30} />}
+                />
+              ) : (
+                <>
+                  <div className="FlowGeneralSettings__knowledgeTableHeader">
+                    <span>Name</span>
+                    <span>Date added</span>
+                  </div>
+                  <div className="FlowGeneralSettings__knowledgeList">
+                    {knowledgeItems.map((item) => (
+                      <div key={item.id} className="FlowGeneralSettings__knowledgeRow">
+                        <div className="FlowGeneralSettings__knowledgeRow-main">
+                          <span className="FlowGeneralSettings__knowledgeRow-icon">
+                            <Icon
+                              icon={
+                                item.type === "file"
+                                  ? "basil:document-solid"
+                                  : "clarity:note-solid"
+                              }
+                              width={30}
+                              height={30}
+                              color={item.type === "file" ? "#3B82F6" : "#F59E0B"}
+                            />
+                          </span>
+                          <div className="FlowGeneralSettings__knowledgeRow-text">
+                            <span className="FlowGeneralSettings__knowledgeRow-name">
+                              {item.name}
+                            </span>
+                            <span className="FlowGeneralSettings__knowledgeRow-subtitle">
+                              {item.subtitle}
+                            </span>
+                          </div>
+                        </div>
+                        <Flex align="center" gap="0.5rem">
+                          <span className="FlowGeneralSettings__knowledgeRow-date">
+                            {item.dateAdded}
+                          </span>
+                          <ActionMenu
+                            positions={["bottom", "left"]}
+                            actionItemWidth="13.6875rem"
+                            children={
+                              <Button
+                                classes={[ButtonClass.ICON_ONLY]}
+                                style={{ height: "2.5rem" }}
+                              >
+                                <Icon icon="pepicons-pencil:dots-y" width={20} height={20} />
+                              </Button>
+                            }
+                            actions={[
+                              {
+                                title: "Edit",
+                                hidden: item.type === "file",
+                                onClick: () => openEditNoteModal(item),
+                              },
+                              {
+                                title: "Delete",
+                                classes: "delete-action",
+                                onClick: () => openDeleteKnowledgeModal(item),
+                              },
+                            ]}
+                          />
+                        </Flex>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ))}
 
-      {showAddNoteModal && (
-        <Modal title="Add note" onClose={closeAddNoteModal}>
-          <Flex direction="column" gap="1.5rem">
-            <FormInput
-              label="Title"
-              name="noteTitle"
-              value={noteTitle}
-              onChange={(e) => setNoteTitle(e.target.value)}
-              placeholder="Enter title"
-            />
-            <FormTextarea
-              label="Note"
-              name="noteContent"
-              value={noteContent}
-              onChange={(e) => setNoteContent(e.target.value)}
-              placeholder="Write something here....."
-              rows={12}
-            />
-            <Flex justify="flex-end" gap="0.75rem" style={{ marginTop: "1.5rem" }}>
-              <Button
-                classes={[ButtonClass.OUTLINED]}
-                size={ButtonSize.WIDTH_140}
-                type="button"
-                onClick={closeAddNoteModal}
-              >
-                Cancel
-              </Button>
-              <Button
-                classes={[ButtonClass.SOLID]}
-                size={ButtonSize.WIDTH_140}
-                type="button"
-                onClick={handleAddNote}
-                disabled={!noteTitle.trim()}
-              >
-                Add
-              </Button>
-            </Flex>
-          </Flex>
-        </Modal>
-      )}
+          </section>
 
-      {showEditNoteModal && selectedKnowledgeItem && (
-        <Modal title="Edit note" onClose={closeEditNoteModal}>
-          <Flex direction="column" gap="1.5rem">
-            <FormInput
-              label="Title"
-              name="editNoteTitle"
-              value={editNoteTitle}
-              onChange={(e) => setEditNoteTitle(e.target.value)}
-              placeholder="Enter title"
-            />
-            <FormTextarea
-              label="Note"
-              name="editNoteContent"
-              value={editNoteContent}
-              onChange={(e) => setEditNoteContent(e.target.value)}
-              placeholder="Write something here....."
-              rows={12}
-            />
-            <Flex justify="flex-end" gap="0.75rem" style={{ marginTop: "1.5rem" }}>
-              <Button
-                classes={[ButtonClass.OUTLINED]}
-                size={ButtonSize.WIDTH_140}
-                type="button"
-                onClick={closeEditNoteModal}
-              >
-                Cancel
-              </Button>
-              <Button
-                classes={[ButtonClass.SOLID]}
-                size={ButtonSize.WIDTH_140}
-                type="button"
-                onClick={handleEditNote}
-                disabled={!editNoteTitle.trim()}
-              >
-                Save
-              </Button>
-            </Flex>
-          </Flex>
-        </Modal>
-      )}
+          {showAddNoteModal && (
+            <Modal title="Add note" onClose={closeAddNoteModal}>
+              <Flex direction="column" gap="1.5rem">
+                <FormInput
+                  label="Title"
+                  name="noteTitle"
+                  value={noteTitle}
+                  onChange={(e) => setNoteTitle(e.target.value)}
+                  placeholder="Enter title"
+                />
+                <FormTextarea
+                  label="Note"
+                  name="noteContent"
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  placeholder="Write something here....."
+                  rows={12}
+                />
+                <Flex justify="flex-end" gap="0.75rem" style={{ marginTop: "1.5rem" }}>
+                  <Button
+                    classes={[ButtonClass.OUTLINED]}
+                    size={ButtonSize.WIDTH_140}
+                    type="button"
+                    onClick={closeAddNoteModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    classes={[ButtonClass.SOLID]}
+                    size={ButtonSize.WIDTH_140}
+                    type="button"
+                    onClick={handleAddNote}
+                    disabled={!noteTitle.trim()}
+                  >
+                    Add
+                  </Button>
+                </Flex>
+              </Flex>
+            </Modal>
+          )}
 
-      {showDeleteKnowledgeModal && selectedKnowledgeItem && (
-        <ConfirmationModal
-          title="Delete knowledge"
-          confirmButtonText="Delete"
-          cancelButtonText="Cancel"
-          confirmButtonClasses={[ButtonClass.SOLID_RED]}
-          onClose={closeDeleteKnowledgeModal}
-          onCancel={closeDeleteKnowledgeModal}
-          onConfirm={handleDeleteKnowledge}
-        >
-          <p style={{ textAlign: "center", margin: 0 }}>
-            Are you sure you want to delete{" "}
-            <strong>{selectedKnowledgeItem.name}</strong>? This action cannot be
-            undone.
-          </p>
-        </ConfirmationModal>
+          {showEditNoteModal && selectedKnowledgeItem && (
+            <Modal title="Edit note" onClose={closeEditNoteModal}>
+              <Flex direction="column" gap="1.5rem">
+                <FormInput
+                  label="Title"
+                  name="editNoteTitle"
+                  value={editNoteTitle}
+                  onChange={(e) => setEditNoteTitle(e.target.value)}
+                  placeholder="Enter title"
+                />
+                <FormTextarea
+                  label="Note"
+                  name="editNoteContent"
+                  value={editNoteContent}
+                  onChange={(e) => setEditNoteContent(e.target.value)}
+                  placeholder="Write something here....."
+                  rows={12}
+                />
+                <Flex justify="flex-end" gap="0.75rem" style={{ marginTop: "1.5rem" }}>
+                  <Button
+                    classes={[ButtonClass.OUTLINED]}
+                    size={ButtonSize.WIDTH_140}
+                    type="button"
+                    onClick={closeEditNoteModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    classes={[ButtonClass.SOLID]}
+                    size={ButtonSize.WIDTH_140}
+                    type="button"
+                    onClick={handleEditNote}
+                    disabled={!editNoteTitle.trim()}
+                  >
+                    Save
+                  </Button>
+                </Flex>
+              </Flex>
+            </Modal>
+          )}
+
+          {showDeleteKnowledgeModal && selectedKnowledgeItem && (
+            <ConfirmationModal
+              title="Delete knowledge"
+              confirmButtonText="Delete"
+              cancelButtonText="Cancel"
+              confirmButtonClasses={[ButtonClass.SOLID_RED]}
+              onClose={closeDeleteKnowledgeModal}
+              onCancel={closeDeleteKnowledgeModal}
+              onConfirm={handleDeleteKnowledge}
+            >
+              <p style={{ textAlign: "center", margin: 0 }}>
+                Are you sure you want to delete{" "}
+                <strong>{selectedKnowledgeItem.name}</strong>? This action cannot be
+                undone.
+              </p>
+            </ConfirmationModal>
+          )}
+        </>
       )}
     </FlowGeneralSettingsContainer>
   );

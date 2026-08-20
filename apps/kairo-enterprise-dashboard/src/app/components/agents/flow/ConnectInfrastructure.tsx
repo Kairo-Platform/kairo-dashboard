@@ -7,6 +7,8 @@ import { FormInput } from "@kairo/ui/inputs";
 import { z } from "zod";
 import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
+import { FALLBACK_INFRASTRUCTURES } from "./resources";
+import type { FlowInfrastructure } from "./types";
 
 const INFRASTRUCTURE_ICON = "bitcoin-icons:coins-filled";
 
@@ -72,26 +74,10 @@ const ConnectInfrastructureContainer = styled.div`
   }
 `;
 
-type Infrastructure = {
-  id: string;
-  name: string;
-  description?: string;
-  isConnected: boolean;
-};
-
 type ConnectInfrastructureProps = {
-  infrastructures?: Infrastructure[];
+  infrastructures?: FlowInfrastructure[];
   onContinue: () => void;
 };
-
-const DUMMY_INFRASTRUCTURES: Infrastructure[] = [
-  {
-    id: "orange",
-    name: "Orange",
-    description: "Payment system",
-    isConnected: false,
-  },
-];
 
 const connectSchema = z.object({
   publicKey: z.string().min(1, "Public key is required"),
@@ -113,12 +99,12 @@ export const ConnectInfrastructure = ({
   onContinue,
 }: ConnectInfrastructureProps) => {
   const initialInfrastructures = useMemo(
-    () => (infrastructures?.length ? infrastructures : DUMMY_INFRASTRUCTURES),
+    () => (infrastructures?.length ? infrastructures : FALLBACK_INFRASTRUCTURES),
     [infrastructures],
   );
 
   const [localInfrastructures, setLocalInfrastructures] = useState<
-    Infrastructure[]
+    FlowInfrastructure[]
   >(initialInfrastructures);
   const [selectedInfrastructureId, setSelectedInfrastructureId] = useState<
     string | null
@@ -153,7 +139,7 @@ export const ConnectInfrastructure = ({
   const firstNotConnected =
     localInfrastructures.find((item) => !item.isConnected) ?? null;
 
-  const openConnectModal = (item: Infrastructure) => {
+  const openConnectModal = (item: FlowInfrastructure) => {
     if (item.isConnected) return;
     setSelectedInfrastructureId(item.id);
     setFormErrors({});
@@ -203,7 +189,7 @@ export const ConnectInfrastructure = ({
   return (
     <ConnectInfrastructureContainer>
       <Flex direction="column" gap="2rem">
-        <h2>Connect Infrastructure</h2>
+        <h2>Connect FlowInfrastructure</h2>
 
         <div className="ConnectInfrastructure_list">
           {localInfrastructures.map((item) => {

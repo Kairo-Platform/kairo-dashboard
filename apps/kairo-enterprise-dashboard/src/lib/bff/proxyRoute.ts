@@ -4,7 +4,7 @@ import {
   type ProxyServiceOptions,
   type ProxyServiceResult,
 } from "@kairo/services";
-import { getServerGat } from "@/lib/auth/server";
+import { getServerAuthSession } from "@/lib/auth/server";
 import { enterpriseAuthConfig } from "@/lib/auth/config";
 
 export const X_API_ENV_KEY = "KAIRO_X_API_URL";
@@ -38,14 +38,21 @@ export function resolveXApiBaseUrl() {
   );
 }
 
-/** Proxies to the xApi backend (user-facing endpoints). Sends GAT when present; always includes service credentials. */
+// When a session token exists, forwards as Bearer. Otherwise falls back to service Basic auth.
 export async function proxyXApiRequest(
-  options: Omit<ProxyServiceOptions, "gat" | "auth">,
+  options: Omit<ProxyServiceOptions, "gat" | "auth" | "headers"> & {
+    headers?: Record<string, string>;
+  },
 ) {
-  const gat = await getServerGat(enterpriseAuthConfig);
+  const session = await getServerAuthSession(enterpriseAuthConfig);
+  const bearerToken = session.accessToken ?? session.gat;
+
+  if (bearerToken) {
+    return proxyXApiBearerRequest(bearerToken, options);
+  }
+
   const result = await proxyServiceRequest({
     ...options,
-    gat,
     auth: getXApiBasicAuth(),
     baseUrl: resolveXApiBaseUrl(),
     baseUrlEnvKey: options.baseUrlEnvKey ?? X_API_ENV_KEY,
@@ -54,10 +61,6 @@ export async function proxyXApiRequest(
   return toNextResponse(result);
 }
 
-/**
- * Proxies to xApi with `Authorization: Bearer <token>` only (no Basic / x-gat).
- * Used for endpoints that require a user bearer token (e.g. `/v1/me/:userId`).
- */
 export async function proxyXApiBearerRequest(
   bearerToken: string,
   options: Omit<ProxyServiceOptions, "gat" | "auth" | "headers"> & {

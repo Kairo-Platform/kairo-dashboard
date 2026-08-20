@@ -1,3 +1,5 @@
+import { hasApiError } from "@/lib/utils/apiResponse";
+
 type BffRequestOptions = {
   method?: string;
   query?: Record<string, string | number | boolean>;
@@ -26,7 +28,13 @@ export async function bffRequest<T>(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  return (await response.json()) as T;
+  const json = (await response.json()) as unknown;
+
+  if (!response.ok || hasApiError(json)) {
+    throw json;
+  }
+
+  return json as T;
 }
 
 export const xApiBff = {

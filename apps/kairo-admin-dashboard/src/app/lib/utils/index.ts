@@ -13,7 +13,6 @@ export * from "./isBrowser";
 export * from "./isValidDate";
 export * from "./mapPricing";
 export * from "./mapSelectOptions";
-export * from "./parseErrorsFromApi";
 export * from "./parseApiError";
 export * from "./printDomElement";
 export * from "./reactSelectUtil";

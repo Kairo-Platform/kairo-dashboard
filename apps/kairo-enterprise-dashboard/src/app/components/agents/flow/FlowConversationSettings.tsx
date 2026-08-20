@@ -7,6 +7,7 @@ import {
   ButtonSize,
   Flex,
   InitialsAvatar,
+  Loading,
   Modal,
   ModalSize,
   Tabs,
@@ -21,506 +22,78 @@ import {
   SwitchInput,
   SwitchInputSize,
 } from "@kairo/ui/inputs";
+import { getOrgId } from "@/lib/auth/client";
+import {
+  flow,
+  findConversationSchema,
+  fromBackendTypeId,
+  getTemplateDefaultsFromSchema,
+  mergeBuiltInCatalogWithSchema,
+  toBackendTypeId,
+  toMessageVariables,
+  toSelectOptions,
+  unwrapFlowResponse,
+  type BackendConversationType,
+} from "@/services/Flow";
+import { fetchFlowSchema, fetchFlowSettings, flowStore } from "@/app/store/flow";
+import { useEntity } from "simpler-state";
 import {
   forwardRef,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from "react";
 import styled from "styled-components";
-// Local defaults / option catalogs for conversation settings UI
-export type ConversationStatus = "DRAFT" | "ACTIVE" | "INACTIVE";
-
-export type BuiltInConversationTypeId =
-  | "onboarding"
-  | "welcome"
-  | "checkup"
-  | "birthday"
-  | "reward"
-  | "transaction"
-  | "analytics"
-  | "financial-advice"
-  | "advertisement";
-
-export type ConversationTypeId = BuiltInConversationTypeId | string;
-
-export type SelectOption = {
-  label: string;
-  value: string;
-};
-
-export type MessageVariable = {
-  token: string;
-  description: string;
-  example?: string;
-};
-
-export type TemplateButtonPayload = {
-  url?: string;
-  replyText?: string;
-  phoneNumber?: string;
-};
-
-export type TemplateButton = {
-  id: string;
-  label: string;
-  action: string;
-  buttonType: string;
-  payload: TemplateButtonPayload;
-};
-
-export type MessageTemplate = {
-  id: string;
-  name: string;
-  trigger: string;
-  triggerConditions: string[];
-  intent: string;
-  templateType: string;
-  message: string;
-  buttons: TemplateButton[];
-  fallbackLanguage: string;
-  expanded: boolean;
-};
-
-export type AutomationSettings = {
-  retryEnabled: boolean;
-  retryDuration: string;
-  retryUnit: string;
-  retryLimit: string;
-  followUpEnabled: boolean;
-  followUpType: string;
-  followUpFrequency: string;
-  followUpUnit: string;
-  stopAutomation: string[];
-};
-
-export type ConversationTypeMeta = {
-  id: ConversationTypeId;
-  title: string;
-  description: string;
-  icon: string;
-  conversationsTitle: string;
-  kind: "built-in" | "custom";
-};
-
-export type ConversationTypeConfig = {
-  status: ConversationStatus;
-  kind: "built-in" | "custom";
-  title?: string;
-  description?: string;
-  templates: MessageTemplate[];
-  automation: AutomationSettings;
-  customTriggers: SelectOption[];
-  customVariables: MessageVariable[];
-};
-
-export type ConversationSettingsMap = Record<
+import {
+  cloneTypeConfig,
+  countWords,
+  createDefaultTemplate,
+  createDefaultTypeConfig,
+  createEmptyButton,
+  createInitialSettingsMap,
+  fromBackendConversationType,
+  interpolatePreviewMessage,
+  serializeTypeConfig,
+  toBackendConversationsMap,
+  toConversationSettingsSavePayload,
+  wrapWhatsAppMarkdown,
+} from "./helpers";
+import {
+  BUILT_IN_CONVERSATION_TYPES,
+  COMMON_EMOJIS,
+  CUSTOM_CONVERSATION_ICON,
+  FALLBACK_BUTTON_ACTION_OPTIONS,
+  FALLBACK_BUTTON_TYPE_OPTIONS,
+  FALLBACK_FOLLOW_UP_TYPE_OPTIONS,
+  FALLBACK_INTENT_OPTIONS,
+  FALLBACK_LANGUAGE_OPTIONS,
+  FALLBACK_MESSAGE_VARIABLES,
+  FALLBACK_QUICK_REPLY_PAYLOAD_OPTIONS,
+  FALLBACK_STOP_AUTOMATION_OPTIONS,
+  FALLBACK_TIME_UNIT_OPTIONS,
+  FALLBACK_TRIGGER_CONDITION_OPTIONS,
+  FALLBACK_TRIGGER_OPTIONS,
+  RETRY_LIMIT_OPTIONS,
+  STATUS_OPTIONS,
+  TEMPLATE_TYPE_OPTIONS,
+} from "./resources";
+import type {
+  AutomationSettings,
+  ConversationSettingsMap,
+  ConversationStatus,
+  ConversationTypeConfig,
   ConversationTypeId,
-  ConversationTypeConfig
->;
+  ConversationTypeMeta,
+  FlowConversationSettingsHandle,
+  MessageTemplate,
+  MessageVariable,
+  SelectOption,
+  TemplateButton,
+} from "./types";
 
-export const STATUS_OPTIONS: SelectOption[] = [
-  { label: "Draft", value: "DRAFT" },
-  { label: "Active", value: "ACTIVE" },
-  { label: "Inactive", value: "INACTIVE" },
-];
-
-export const TRIGGER_OPTIONS: SelectOption[] = [
-  { label: "User signup", value: "user-signup" },
-  { label: "KYC submitted", value: "kyc-submitted" },
-  { label: "Wallet funded", value: "wallet-funded" },
-];
-
-export const TRIGGER_CONDITION_OPTIONS: SelectOption[] = [
-  { value: "first-time-user", label: "First-time user" },
-  { value: "referred-user", label: "Referred user" },
-  { value: "kyc-incomplete", label: "KYC incomplete" },
-];
-
-export const INTENT_OPTIONS: SelectOption[] = [
-  { label: "Onboarding", value: "onboarding" },
-  { label: "Engagement", value: "engagement" },
-  { label: "Support", value: "support" },
-];
-
-export const TEMPLATE_TYPE_OPTIONS: SelectOption[] = [
-  { label: "Text", value: "text" },
-  { label: "Interactive", value: "interactive" },
-  { label: "Media", value: "media" },
-];
-
-export const BUTTON_ACTION_OPTIONS: SelectOption[] = [
-  { label: "Open URL", value: "open-url" },
-  { label: "Quick reply", value: "quick-reply" },
-  { label: "Call phone", value: "call-phone" },
-];
-
-/** Payload options when button action is quick-reply */
-export const QUICK_REPLY_PAYLOAD_OPTIONS: SelectOption[] = [
-  { label: "Get started", value: "GET_STARTED" },
-  { label: "Continue", value: "CONTINUE" },
-  { label: "Yes", value: "YES" },
-  { label: "No", value: "NO" },
-  { label: "Learn more", value: "LEARN_MORE" },
-  { label: "Talk to agent", value: "TALK_TO_AGENT" },
-  { label: "Opt out", value: "OPT_OUT" },
-];
-
-export const BUTTON_TYPE_OPTIONS: SelectOption[] = [
-  { label: "Primary", value: "primary" },
-  { label: "Secondary", value: "secondary" },
-];
-
-export const FALLBACK_LANGUAGE_OPTIONS: SelectOption[] = [
-  { label: "English", value: "english" },
-  { label: "Igbo", value: "igbo" },
-  { label: "Yoruba", value: "yoruba" },
-  { label: "Hausa", value: "hausa" },
-];
-
-export const DEFAULT_MESSAGE_VARIABLES: MessageVariable[] = [
-  {
-    token: "{{first_name}}",
-    description: "User's first name",
-    example: "Chinedu",
-  },
-  {
-    token: "{{business_name}}",
-    description: "Business name",
-    example: "Kairo",
-  },
-  {
-    token: "{{wallet_balance}}",
-    description: "Current wallet balance",
-    example: "₦142,500.00",
-  },
-  {
-    token: "{{last_transaction}}",
-    description: "Last transaction amount",
-    example: "₦15,000",
-  },
-  {
-    token: "{{referral_code}}",
-    description: "Referral code",
-    example: "KAIRO20",
-  },
-];
-
-export const TIME_UNIT_OPTIONS: SelectOption[] = [
-  { label: "Days", value: "days" },
-  { label: "Weeks", value: "weeks" },
-  { label: "Months", value: "months" },
-  { label: "Years", value: "years" },
-];
-
-export const RETRY_LIMIT_OPTIONS: SelectOption[] = [
-  { label: "1", value: "1" },
-  { label: "2", value: "2" },
-  { label: "3", value: "3" },
-  { label: "5", value: "5" },
-];
-
-export const FOLLOW_UP_TYPE_OPTIONS: SelectOption[] = [
-  { label: "KYC reminder", value: "kyc-reminder" },
-  { label: "Wallet funding prompt", value: "wallet-funding-prompt" },
-];
-
-export const STOP_AUTOMATION_OPTIONS: SelectOption[] = [
-  { value: "onboarding-completed", label: "Onboarding completed" },
-  { value: "user-opts-out", label: "User opts out" },
-  { value: "account-suspended", label: "Account suspended" },
-  { value: "fraud-detected", label: "Fraud detected" },
-];
-
-export const BUILT_IN_CONVERSATION_TYPES: ConversationTypeMeta[] = [
-  {
-    id: "onboarding",
-    title: "Onboarding",
-    description: "New user registration flow",
-    icon: "material-symbols:person-add-outline",
-    conversationsTitle: "Onboarding conversations",
-    kind: "built-in",
-  },
-  {
-    id: "welcome",
-    title: "Welcome",
-    description: "Returning user greeting",
-    icon: "tdesign:wave-bye",
-    conversationsTitle: "Welcome conversations",
-    kind: "built-in",
-  },
-  {
-    id: "checkup",
-    title: "Checkup",
-    description: "Periodic engagement checkup",
-    icon: "solar:heart-pulse-linear",
-    conversationsTitle: "Checkup conversations",
-    kind: "built-in",
-  },
-  {
-    id: "birthday",
-    title: "Birthday",
-    description: "Birthday wishes & offers",
-    icon: "mynaui:confetti",
-    conversationsTitle: "Birthday conversations",
-    kind: "built-in",
-  },
-  {
-    id: "reward",
-    title: "Reward",
-    description: "Milestone & cashback alert",
-    icon: "solar:gift-linear",
-    conversationsTitle: "Reward conversations",
-    kind: "built-in",
-  },
-  {
-    id: "transaction",
-    title: "Transaction",
-    description: "Transaction event notifications",
-    icon: "majesticons:coins-line",
-    conversationsTitle: "Transaction conversations",
-    kind: "built-in",
-  },
-  {
-    id: "analytics",
-    title: "Analytics",
-    description: "Spend insights alerts",
-    icon: "solar:chart-2-linear",
-    conversationsTitle: "Analytics conversations",
-    kind: "built-in",
-  },
-  {
-    id: "financial-advice",
-    title: "Financial advice",
-    description: "AI advice and guidance",
-    icon: "mingcute:ai-fill",
-    conversationsTitle: "Financial advice conversations",
-    kind: "built-in",
-  },
-  {
-    id: "advertisement",
-    title: "Advertisement",
-    description: "Promotional campaigns",
-    icon: "solar:megaphone-linear",
-    conversationsTitle: "Advertisement conversations",
-    kind: "built-in",
-  },
-];
-
-export const CUSTOM_CONVERSATION_ICON = "fluent:chat-32-regular";
-
-export const COMMON_EMOJIS = [
-  "😀",
-  "😁",
-  "😂",
-  "🙂",
-  "😉",
-  "😍",
-  "🙌",
-  "👍",
-  "🎉",
-  "🔥",
-  "💯",
-  "✨",
-  "🙏",
-  "💪",
-  "🤝",
-  "💙",
-  "🧡",
-  "✅",
-  "📌",
-  "💬",
-];
-
-export const createDefaultAutomation = (): AutomationSettings => ({
-  retryEnabled: false,
-  retryDuration: "",
-  retryUnit: "",
-  retryLimit: "",
-  followUpEnabled: false,
-  followUpType: "",
-  followUpFrequency: "",
-  followUpUnit: "",
-  stopAutomation: [],
-});
-
-export const createEmptyButton = (): TemplateButton => ({
-  id: crypto.randomUUID(),
-  label: "",
-  action: "",
-  buttonType: "",
-  payload: {},
-});
-
-export const createDefaultTemplate = (index: number): MessageTemplate => ({
-  id: crypto.randomUUID(),
-  name: `Template ${index}`,
-  trigger: "user-signup",
-  triggerConditions: ["first-time-user"],
-  intent: "onboarding",
-  templateType: "interactive",
-  message: "Hi {{first_name}}, welcome to {{business_name}}!",
-  buttons: [
-    {
-      id: crypto.randomUUID(),
-      label: "Get started",
-      action: "quick-reply",
-      buttonType: "primary",
-      payload: { replyText: "GET_STARTED" },
-    },
-    createEmptyButton(),
-  ],
-  fallbackLanguage: "english",
-  expanded: true,
-});
-
-export const createDefaultTypeConfig = (
-  kind: "built-in" | "custom" = "built-in",
-  status: ConversationStatus = "DRAFT",
-): ConversationTypeConfig => ({
-  status,
-  kind,
-  templates: [createDefaultTemplate(1)],
-  automation: createDefaultAutomation(),
-  customTriggers: [],
-  customVariables: [],
-});
-
-export const createInitialSettingsMap = (): ConversationSettingsMap => {
-  const map: ConversationSettingsMap = {};
-  for (const type of BUILT_IN_CONVERSATION_TYPES) {
-    map[type.id] = createDefaultTypeConfig("built-in", "DRAFT");
-  }
-  return map;
-};
-
-export const cloneTypeConfig = (
-  config: ConversationTypeConfig,
-): ConversationTypeConfig => ({
-  ...config,
-  templates: config.templates.map((template) => ({
-    ...template,
-    triggerConditions: [...template.triggerConditions],
-    buttons: template.buttons.map((button) => ({
-      ...button,
-      payload: { ...button.payload },
-    })),
-  })),
-  automation: {
-    ...config.automation,
-    stopAutomation: [...config.automation.stopAutomation],
-  },
-  customTriggers: config.customTriggers.map((option) => ({ ...option })),
-  customVariables: config.customVariables.map((variable) => ({ ...variable })),
-});
-
-export const serializeTypeConfig = (config: ConversationTypeConfig) =>
-  JSON.stringify({
-    status: config.status,
-    kind: config.kind,
-    title: config.title,
-    description: config.description,
-    templates: config.templates.map(({ expanded: _expanded, ...template }) => ({
-      ...template,
-      triggerConditions: [...template.triggerConditions].sort(),
-      buttons: template.buttons.map((button) => ({
-        ...button,
-        payload: { ...button.payload },
-      })),
-    })),
-    automation: {
-      ...config.automation,
-      stopAutomation: [...config.automation.stopAutomation].sort(),
-    },
-    customTriggers: [...config.customTriggers]
-      .map((option) => option.value)
-      .sort(),
-    customVariables: [...config.customVariables]
-      .map((variable) => variable.token)
-      .sort(),
-  });
-
-/** API-ready type config (strips UI-only fields like `expanded`). */
-export const toApiTypeConfig = (config: ConversationTypeConfig) => ({
-  status: config.status,
-  kind: config.kind,
-  ...(config.title !== undefined ? { title: config.title } : {}),
-  ...(config.description !== undefined
-    ? { description: config.description }
-    : {}),
-  templates: config.templates.map(({ expanded: _expanded, ...template }) => ({
-    ...template,
-    buttons: template.buttons.map((button) => ({
-      ...button,
-      payload: { ...button.payload },
-    })),
-  })),
-  automation: {
-    ...config.automation,
-    stopAutomation: [...config.automation.stopAutomation],
-  },
-  customTriggers: config.customTriggers.map((option) => ({ ...option })),
-  customVariables: config.customVariables.map((variable) => ({ ...variable })),
-});
-
-export type ConversationSettingsSavePayload = {
-  settings: Record<ConversationTypeId, ReturnType<typeof toApiTypeConfig>>;
-};
-
-export const toConversationSettingsSavePayload = (
-  settings: ConversationSettingsMap,
-): ConversationSettingsSavePayload => ({
-  settings: Object.fromEntries(
-    Object.entries(settings).map(([id, config]) => [
-      id,
-      toApiTypeConfig(config),
-    ]),
-  ),
-});
-
-export const interpolatePreviewMessage = (
-  message: string,
-  variables: MessageVariable[],
-) => {
-  let result = message;
-  for (const variable of variables) {
-    const sample = variable.example ?? variable.token.replace(/[{}]/g, "");
-    result = result.split(variable.token).join(sample);
-  }
-  return result;
-};
-
-export const wrapWhatsAppMarkdown = (
-  text: string,
-  selectionStart: number,
-  selectionEnd: number,
-  wrapper: "*" | "_" | "~" | "```",
-) => {
-  const selected = text.slice(selectionStart, selectionEnd) || "text";
-  const before = text.slice(0, selectionStart);
-  const after = text.slice(selectionEnd);
-  const wrapped =
-    wrapper === "```"
-      ? `${wrapper}${selected}${wrapper}`
-      : `${wrapper}${selected}${wrapper}`;
-  return {
-    value: `${before}${wrapped}${after}`,
-    cursorStart: before.length + wrapper.length,
-    cursorEnd: before.length + wrapper.length + selected.length,
-  };
-};
-
-export const countWords = (text: string) =>
-  text.trim() ? text.trim().split(/\s+/).length : 0;
-
-
-export type FlowConversationSettingsHandle = {
-  /** Returns API-shaped settings map for the parent Save settings CTA. */
-  getSavePayload: () => ConversationSettingsSavePayload;
-  /** Commits local draft snapshot and returns the same payload. */
-  save: () => ConversationSettingsSavePayload;
-};
+export type { FlowConversationSettingsHandle };
 
 type CustomConversationForm = {
   name: string;
@@ -1438,15 +1011,17 @@ const handleSelectValue = (value: string | { value: string }): string =>
     ? String(value.value)
     : String(value ?? "");
 
+const isReplyAction = (action: string) => action === "REPLY";
+
 const buttonPayloadPlaceholder = (action: string) => {
-  if (action === "open-url") return "https://example.com";
-  if (action === "call-phone") return "+2348000000000";
+  if (action === "OPEN_LINK") return "https://example.com";
+  if (action === "CALL_PHONE") return "+2348000000000";
   return "Select reply";
 };
 
 const buttonPayloadValue = (button: TemplateButton) => {
-  if (button.action === "open-url") return button.payload.url ?? "";
-  if (button.action === "call-phone") return button.payload.phoneNumber ?? "";
+  if (button.action === "OPEN_LINK") return button.payload.url ?? "";
+  if (button.action === "CALL_PHONE") return button.payload.phoneNumber ?? "";
   return button.payload.replyText ?? "";
 };
 
@@ -1454,8 +1029,8 @@ const payloadFromAction = (
   action: string,
   value: string,
 ): TemplateButton["payload"] => {
-  if (action === "open-url") return { url: value };
-  if (action === "call-phone") return { phoneNumber: value };
+  if (action === "OPEN_LINK") return { url: value };
+  if (action === "CALL_PHONE") return { phoneNumber: value };
   return { replyText: value };
 };
 
@@ -1500,45 +1075,208 @@ export const FlowConversationSettings = forwardRef<
   const nameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const settingsHydratedRef = useRef(false);
 
   const activeType =
-    typeCatalog.find((type) => type.id === activeTypeId) ?? typeCatalog[0];
+    typeCatalog.find((type) => type.id === activeTypeId) ??
+    typeCatalog[0] ??
+    BUILT_IN_CONVERSATION_TYPES[0];
   const activeConfig =
-    settings[activeTypeId] ?? createDefaultTypeConfig(activeType.kind);
+    settings[activeTypeId] ??
+    createDefaultTypeConfig(activeType?.kind ?? "built-in");
+  const activeTypeTitle =
+    activeType?.title ?? activeConfig.title ?? activeType?.id ?? "conversation";
+
+  const { flowSettings, fetchingFlowSettings, flowSchema, fetchingFlowSchema } =
+    useEntity(flowStore);
+
+  useEffect(() => {
+    fetchFlowSettings().catch(() => {});
+    fetchFlowSchema().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const data = flowSettings?.conversations;
+    if (!data || settingsHydratedRef.current) return;
+    settingsHydratedRef.current = true;
+
+    const backendConversations = data;
+    const newSettings: ConversationSettingsMap = {};
+    const newCatalog = mergeBuiltInCatalogWithSchema(
+      BUILT_IN_CONVERSATION_TYPES,
+      flowSchema,
+    );
+
+    for (const meta of BUILT_IN_CONVERSATION_TYPES) {
+      const backendId = toBackendTypeId(meta.id);
+      const backendType = backendConversations[backendId] ?? backendConversations[meta.id];
+      const conversationSchema = findConversationSchema(flowSchema, meta.id);
+      const templateDefaults = getTemplateDefaultsFromSchema(
+        conversationSchema,
+        flowSchema,
+      );
+      if (backendType) {
+        newSettings[meta.id] = fromBackendConversationType(backendType, "built-in");
+      } else {
+        newSettings[meta.id] = createDefaultTypeConfig(
+          "built-in",
+          "DRAFT",
+          templateDefaults,
+        );
+      }
+    }
+
+    for (const [backendId, backendType] of Object.entries(backendConversations)) {
+      if (!(backendType as BackendConversationType).custom) continue;
+      const frontendId = fromBackendTypeId(backendId);
+      if (newSettings[frontendId]) continue;
+      const title =
+        (backendType as BackendConversationType).displayName ?? frontendId;
+      newCatalog.push({
+        id: frontendId,
+        title,
+        description: "Custom conversation",
+        icon: CUSTOM_CONVERSATION_ICON,
+        conversationsTitle: title,
+        kind: "custom",
+      });
+      newSettings[frontendId] = fromBackendConversationType(
+        backendType as BackendConversationType,
+        "custom",
+      );
+      newSettings[frontendId].title = title;
+    }
+
+    setTypeCatalog(newCatalog);
+    setSettings(newSettings);
+    setSavedSettings(
+      Object.fromEntries(
+        Object.entries(newSettings).map(([id, cfg]) => [id, cloneTypeConfig(cfg)]),
+      ),
+    );
+    const firstTpl = newSettings[activeTypeId]?.templates?.[0];
+    if (firstTpl) setPreviewTemplateId(firstTpl.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flowSettings, flowSchema]);
+
+  useEffect(() => {
+    if (!flowSchema?.conversations?.length) return;
+    setTypeCatalog((prev) =>
+      mergeBuiltInCatalogWithSchema(
+        BUILT_IN_CONVERSATION_TYPES,
+        flowSchema,
+        prev,
+      ),
+    );
+  }, [flowSchema]);
 
   useImperativeHandle(ref, () => ({
     getSavePayload: () =>
       toConversationSettingsSavePayload(settingsRef.current),
-    save: () => {
+    save: async () => {
+      const orgId = getOrgId();
+      if (!orgId) {
+        throw new Error("Organization not found");
+      }
+
+      const conversations = toBackendConversationsMap(settingsRef.current);
+      await flow.saveSettings(orgId, { conversations });
+
       const snapshot: Record<string, ConversationTypeConfig> = {};
       for (const [id, config] of Object.entries(settingsRef.current)) {
         snapshot[id] = cloneTypeConfig(config);
       }
       setSavedSettings(snapshot);
+
       return toConversationSettingsSavePayload(settingsRef.current);
     },
   }));
 
-  const messageVariables = useMemo(
-    () => [...DEFAULT_MESSAGE_VARIABLES, ...activeConfig.customVariables],
-    [activeConfig.customVariables],
+  const activeConversationSchema = useMemo(
+    () => findConversationSchema(flowSchema, activeTypeId),
+    [flowSchema, activeTypeId],
   );
 
   const triggerOptions = useMemo(
-    () => [...TRIGGER_OPTIONS, ...activeConfig.customTriggers],
-    [activeConfig.customTriggers],
+    () => [
+      ...toSelectOptions(
+        activeConversationSchema?.triggers,
+        FALLBACK_TRIGGER_OPTIONS,
+      ),
+      ...activeConfig.customTriggers,
+    ],
+    [activeConversationSchema, activeConfig.customTriggers],
   );
 
   const triggerConditionOptions = useMemo(
     () => [
-      ...TRIGGER_CONDITION_OPTIONS,
+      ...toSelectOptions(
+        activeConversationSchema?.triggerConditions,
+        FALLBACK_TRIGGER_CONDITION_OPTIONS,
+      ),
       ...activeConfig.customTriggers.map((option) => ({
         value: option.value,
         label: option.label,
       })),
     ],
-    [activeConfig.customTriggers],
+    [activeConversationSchema, activeConfig.customTriggers],
   );
+
+  const intentOptions = useMemo(
+    () =>
+      toSelectOptions(activeConversationSchema?.intents, FALLBACK_INTENT_OPTIONS),
+    [activeConversationSchema],
+  );
+
+  const buttonActionOptions = useMemo(
+    () => toSelectOptions(flowSchema?.buttonActions, FALLBACK_BUTTON_ACTION_OPTIONS),
+    [flowSchema],
+  );
+
+  const quickReplyPayloadOptions = useMemo(
+    () =>
+      toSelectOptions(flowSchema?.buttonActions, FALLBACK_QUICK_REPLY_PAYLOAD_OPTIONS),
+    [flowSchema],
+  );
+
+  const buttonTypeOptions = useMemo(
+    () => toSelectOptions(flowSchema?.buttonTypes, FALLBACK_BUTTON_TYPE_OPTIONS),
+    [flowSchema],
+  );
+
+  const fallbackLanguageOptions = useMemo(
+    () => toSelectOptions(flowSchema?.languages, FALLBACK_LANGUAGE_OPTIONS),
+    [flowSchema],
+  );
+
+  const messageVariables = useMemo(
+    () => [
+      ...toMessageVariables(flowSchema?.commonVariables, FALLBACK_MESSAGE_VARIABLES),
+      ...activeConfig.customVariables,
+    ],
+    [flowSchema, activeConfig.customVariables],
+  );
+
+  const timeUnitOptions = useMemo(
+    () => toSelectOptions(flowSchema?.retentionUnits, FALLBACK_TIME_UNIT_OPTIONS),
+    [flowSchema],
+  );
+
+  const followUpTypeOptions = useMemo(
+    () => FALLBACK_FOLLOW_UP_TYPE_OPTIONS,
+    [],
+  );
+
+  const stopAutomationOptions = useMemo(
+    () =>
+      toSelectOptions(
+        activeConversationSchema?.automation,
+        FALLBACK_STOP_AUTOMATION_OPTIONS,
+      ),
+    [activeConversationSchema],
+  );
+
+  const isLoadingSettings = fetchingFlowSettings || fetchingFlowSchema;
 
   const previewTemplate =
     activeConfig.templates.find((template) => template.id === previewTemplateId) ??
@@ -1610,31 +1348,57 @@ export const FlowConversationSettings = forwardRef<
 
     const title = customForm.name.trim();
     const description = customForm.description.trim() || "Custom conversation";
-    const id = `cnv_custom_${crypto.randomUUID()}`;
     const status: ConversationStatus = customForm.enableOnCreate
       ? "ACTIVE"
       : "DRAFT";
 
-    const meta: ConversationTypeMeta = {
-      id,
-      title,
-      description,
-      icon: CUSTOM_CONVERSATION_ICON,
-      conversationsTitle: title,
-      kind: "custom",
+    const addToState = (id: string) => {
+      const meta: ConversationTypeMeta = {
+        id,
+        title,
+        description,
+        icon: CUSTOM_CONVERSATION_ICON,
+        conversationsTitle: title,
+        kind: "custom",
+      };
+      const config = createDefaultTypeConfig(
+        "custom",
+        status,
+        getTemplateDefaultsFromSchema(
+          findConversationSchema(flowSchema, id),
+          flowSchema,
+        ),
+      );
+      config.title = title;
+      config.description = description;
+
+      setTypeCatalog((prev) => [...prev, meta]);
+      setSettings((prev) => ({ ...prev, [id]: config }));
+      setSavedSettings((prev) => ({ ...prev, [id]: cloneTypeConfig(config) }));
+      setActiveTypeId(id);
+      setActiveTabIndex(0);
+      setPreviewTemplateId(config.templates[0]?.id ?? null);
     };
 
-    const config = createDefaultTypeConfig("custom", status);
-    config.title = title;
-    config.description = description;
-
-    setTypeCatalog((prev) => [...prev, meta]);
-    setSettings((prev) => ({ ...prev, [id]: config }));
-    setSavedSettings((prev) => ({ ...prev, [id]: cloneTypeConfig(config) }));
-    setActiveTypeId(id);
-    setActiveTabIndex(0);
-    setPreviewTemplateId(config.templates[0]?.id ?? null);
     closeAddCustomModal();
+
+    const orgId = getOrgId();
+    if (orgId) {
+      flow
+        .createCustomConversation(orgId, title)
+        .then((res) => {
+          const data = unwrapFlowResponse<{ type?: string }>(res);
+          const backendId = data?.type ?? `cnv_custom_${crypto.randomUUID()}`;
+          // Use backend-generated slug as the frontend id (converted to kebab if needed)
+          addToState(fromBackendTypeId(backendId));
+        })
+        .catch(() => {
+          // API call failed — still add locally with a UUID-based id
+          addToState(`cnv_custom_${crypto.randomUUID()}`);
+        });
+    } else {
+      addToState(`cnv_custom_${crypto.randomUUID()}`);
+    }
   };
 
   const handleSelectConversationType = (typeId: ConversationTypeId) => {
@@ -1654,7 +1418,10 @@ export const FlowConversationSettings = forwardRef<
   };
 
   const handleAddTemplate = () => {
-    const next = createDefaultTemplate(activeConfig.templates.length + 1);
+    const next = createDefaultTemplate(
+      activeConfig.templates.length + 1,
+      getTemplateDefaultsFromSchema(activeConversationSchema, flowSchema),
+    );
     updateActiveConfig((config) => ({
       ...config,
       templates: [
@@ -1818,14 +1585,15 @@ export const FlowConversationSettings = forwardRef<
   };
 
   const allStopAutomationSelected =
+    stopAutomationOptions.length > 0 &&
     activeConfig.automation.stopAutomation.length ===
-    STOP_AUTOMATION_OPTIONS.length;
+      stopAutomationOptions.length;
 
   const handleSelectAllStopAutomation = () => {
     updateAutomation({
       stopAutomation: allStopAutomationSelected
         ? []
-        : STOP_AUTOMATION_OPTIONS.map((option) => option.value),
+        : stopAutomationOptions.map((option) => option.value),
     });
   };
 
@@ -1946,7 +1714,7 @@ export const FlowConversationSettings = forwardRef<
             <SelectInput
               label="Intent"
               placeholder="Select intent"
-              options={INTENT_OPTIONS}
+              options={intentOptions}
               value={template.intent}
               onChange={(val: string | { value: string }) =>
                 updateTemplateById(template.id, {
@@ -2149,7 +1917,7 @@ export const FlowConversationSettings = forwardRef<
                     <SelectInput
                       label={index === 0 ? "Action" : undefined}
                       placeholder="Select action"
-                      options={BUTTON_ACTION_OPTIONS}
+                      options={buttonActionOptions}
                       value={button.action}
                       onChange={(val: string | { value: string }) => {
                         const action = handleSelectValue(val);
@@ -2158,10 +1926,10 @@ export const FlowConversationSettings = forwardRef<
                           action,
                         });
                         const nextValue =
-                          action === "quick-reply"
+                          isReplyAction(action)
                             ? previous ||
-                            QUICK_REPLY_PAYLOAD_OPTIONS[0]?.value ||
-                            "GET_STARTED"
+                              quickReplyPayloadOptions[0]?.value ||
+                              "GET_STARTED"
                             : previous;
                         updateTemplateButton(template.id, button.id, {
                           action,
@@ -2172,7 +1940,7 @@ export const FlowConversationSettings = forwardRef<
                     <SelectInput
                       label={index === 0 ? "Button type" : undefined}
                       placeholder="Select type"
-                      options={BUTTON_TYPE_OPTIONS}
+                      options={buttonTypeOptions}
                       value={button.buttonType}
                       onChange={(val: string | { value: string }) =>
                         updateTemplateButton(template.id, button.id, {
@@ -2180,11 +1948,11 @@ export const FlowConversationSettings = forwardRef<
                         })
                       }
                     />
-                    {button.action === "quick-reply" ? (
+                    {isReplyAction(button.action) ? (
                       <SelectInput
                         label={index === 0 ? "Payload" : undefined}
                         placeholder="Select reply"
-                        options={QUICK_REPLY_PAYLOAD_OPTIONS}
+                        options={quickReplyPayloadOptions}
                         value={buttonPayloadValue(button)}
                         onChange={(val: string | { value: string }) =>
                           updateTemplateButton(template.id, button.id, {
@@ -2234,7 +2002,7 @@ export const FlowConversationSettings = forwardRef<
               <SelectInput
                 label="Fall back language"
                 placeholder="Select language"
-                options={FALLBACK_LANGUAGE_OPTIONS}
+                options={fallbackLanguageOptions}
                 value={template.fallbackLanguage}
                 onChange={(val: string | { value: string }) =>
                   updateTemplateById(template.id, {
@@ -2255,6 +2023,12 @@ export const FlowConversationSettings = forwardRef<
 
   return (
     <FlowConversationSettingsContainer>
+      {isLoadingSettings ? (
+        <Flex align="center" justify="center" style={{ height: "10rem" }}>
+          <Loading>Loading settings ...</Loading>
+        </Flex>
+      ) : (
+        <>
       <aside>
         <p className="FlowConversationSettings__navLabel">Conversation types</p>
         <nav
@@ -2302,12 +2076,12 @@ export const FlowConversationSettings = forwardRef<
             <Flex align="flex-start" gap="0.75rem">
               <div>
                 <h3 className="FlowConversationSettings__conversationTitle">
-                  {activeType.kind === "custom"
-                    ? activeType.title
-                    : activeType.conversationsTitle}
+                  {activeType?.kind === "custom"
+                    ? activeTypeTitle
+                    : (activeType?.conversationsTitle ?? activeTypeTitle)}
                 </h3>
                 <p className="FlowConversationSettings__conversationDescription">
-                  {activeType.description}
+                  {activeType?.description ?? ""}
                 </p>
               </div>
               <Tag
@@ -2338,7 +2112,7 @@ export const FlowConversationSettings = forwardRef<
                   <>
                     <div className="FlowConversationSettings__sectionHeader">
                       <h4 className="FlowConversationSettings__sectionTitle">
-                        Setup {activeType.title.toLowerCase()} template
+                        Setup {activeTypeTitle.toLowerCase()} template
                       </h4>
                       <button
                         type="button"
@@ -2395,7 +2169,7 @@ export const FlowConversationSettings = forwardRef<
                             <SelectInput
                               label="Unit"
                               placeholder="Select unit"
-                              options={TIME_UNIT_OPTIONS}
+                              options={timeUnitOptions}
                               value={activeConfig.automation.retryUnit}
                               onChange={(val: string | { value: string }) =>
                                 updateAutomation({
@@ -2442,7 +2216,7 @@ export const FlowConversationSettings = forwardRef<
                           <SelectInput
                             label="Follow-up type"
                             placeholder="Select type"
-                            options={FOLLOW_UP_TYPE_OPTIONS}
+                            options={followUpTypeOptions}
                             value={activeConfig.automation.followUpType}
                             onChange={(val: string | { value: string }) =>
                               updateAutomation({
@@ -2465,7 +2239,7 @@ export const FlowConversationSettings = forwardRef<
                             <SelectInput
                               label="Unit"
                               placeholder="Select unit"
-                              options={TIME_UNIT_OPTIONS}
+                              options={timeUnitOptions}
                               value={activeConfig.automation.followUpUnit}
                               onChange={(val: string | { value: string }) =>
                                 updateAutomation({
@@ -2491,7 +2265,7 @@ export const FlowConversationSettings = forwardRef<
                       </div>
                       <CheckboxInput
                         name="stopAutomation"
-                        options={STOP_AUTOMATION_OPTIONS}
+                        options={stopAutomationOptions}
                         value={activeConfig.automation.stopAutomation}
                         onChange={(values) =>
                           updateAutomation({ stopAutomation: values })
@@ -2765,6 +2539,8 @@ export const FlowConversationSettings = forwardRef<
             )}
           </Flex>
         </Modal>
+      )}
+        </>
       )}
     </FlowConversationSettingsContainer>
   );

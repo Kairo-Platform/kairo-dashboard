@@ -3,14 +3,27 @@
 import { FlowConversationsPage } from "@/app/components/agents/flow";
 import ConnectChannels from "@/app/components/agents/flow/ConnectChannels";
 import ConnectInfrastructure from "@/app/components/agents/flow/ConnectInfrastructure";
+import {
+  FALLBACK_CHANNELS,
+  FALLBACK_INFRASTRUCTURES,
+} from "@/app/components/agents/flow/resources";
 import { AskKairoAI } from "@/app/components/ask-kairo";
 import DashboardLayout from "@/app/components/dashboard/DashboardLayout";
 import { URL } from "@/lib/constants";
+import { fetchFlowChannels, flowStore } from "@/app/store/flow";
+import { useEntity } from "simpler-state";
 import { Icon } from "@iconify/react";
-import { ICONS } from "@kairo/lib/utils";
-import { ActionMenu, Button, ButtonClass, ButtonSize, EmptyState, Flex } from "@kairo/ui";
+import {
+  ActionMenu,
+  Button,
+  ButtonClass,
+  ButtonSize,
+  EmptyState,
+  Flex,
+  Loading
+} from "@kairo/ui";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styled from "styled-components";
 
 const FlowPageContainer = styled.div`
@@ -32,27 +45,48 @@ const FlowPageContainer = styled.div`
   }
 `;
 
+type FlowView = "dashboard" | "add-channel";
+
 export default function FlowPage() {
   const router = useRouter();
 
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const [flowSetupCompleted, setFlowSetupCompleted] = useState<boolean>(false)
+  const [flowSetupCompleted, setFlowSetupCompleted] = useState<boolean>(false);
+  const [view, setView] = useState<FlowView>("dashboard");
+  const [channels, setChannels] = useState(FALLBACK_CHANNELS);
 
-  const dummyChannels = [
-    { id: "whatsapp", name: "WhatsApp", icon: ICONS.WHATSAPP, isConnected: false },
-    { id: "telegram", name: "Telegram", icon: ICONS.TELEGRAM, isConnected: false },
-    { id: "instagram", name: "Instagram", icon: ICONS.INSTAGRAM, isConnected: false },
-    { id: "twitter", name: "X/Twitter", icon: ICONS.TWITTER, isConnected: false },
-  ];
+  const { flowChannels, fetchingFlowChannels } = useEntity(flowStore);
 
-  const dummyInfrastructures = [
-    {
-      id: "orange",
-      name: "Orange",
-      description: "Payment system",
-      isConnected: false,
-    },
-  ];
+  useEffect(() => {
+    fetchFlowChannels().catch(() => { });
+  }, []);
+
+  useEffect(() => {
+    if (!Array.isArray(flowChannels) || flowChannels.length === 0) return;
+
+    const mapped = FALLBACK_CHANNELS.map((fc) => {
+      const match = flowChannels.find(
+        (bc) => bc.channel?.toUpperCase() === fc.id.toUpperCase(),
+      );
+      return match ? { ...fc, isConnected: match.status === "CONNECTED" } : fc;
+    });
+    setChannels(mapped);
+
+    if (mapped.some((c) => c.isConnected)) {
+      setFlowSetupCompleted(true);
+    }
+  }, [flowChannels]);
+
+  const handleChannelConnected = (id: string) => {
+    setChannels((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, isConnected: true } : c)),
+    );
+    fetchFlowChannels().catch(() => { });
+  };
+
+  const infrastructures = FALLBACK_INFRASTRUCTURES.map((item) =>
+    item.id === "orange" ? { ...item, isConnected: true } : item,
+  );
 
   const breadcrumbs = [
     {
@@ -90,8 +124,7 @@ export default function FlowPage() {
               }
               actions={[{
                 title: "Add channel",
-                onClick: () => {
-                },
+                onClick: () => setView("add-channel"),
               },
               {
                 title: "Send broadcast",
@@ -107,7 +140,11 @@ export default function FlowPage() {
       }
     >
       <FlowPageContainer>
-        {!flowSetupCompleted ? (
+        {fetchingFlowChannels ? (
+          <Flex align="center" justify="center" style={{ height: "10rem" }}>
+            <Loading>Loading channels ...</Loading>
+          </Flex>
+        ) : !flowSetupCompleted ? (
           <>
             {currentStep === 1 && (
               <Flex align="center" justify="center" style={{ height: "100%" }}>
@@ -131,17 +168,25 @@ export default function FlowPage() {
             )}
             {currentStep === 2 && (
               <ConnectChannels
-                channels={dummyChannels}
+                channels={channels}
+                onChannelConnected={handleChannelConnected}
                 onContinue={() => setCurrentStep(3)}
               />
             )}
             {currentStep === 3 && (
               <ConnectInfrastructure
-                infrastructures={dummyInfrastructures}
+                infrastructures={infrastructures}
                 onContinue={() => setFlowSetupCompleted(true)}
               />
             )}
           </>
+        ) : view === "add-channel" ? (
+          <ConnectChannels
+            channels={channels}
+            variant="standalone"
+            onBack={() => setView("dashboard")}
+            onChannelConnected={handleChannelConnected}
+          />
         ) : (
           <FlowConversationsPage />
         )}

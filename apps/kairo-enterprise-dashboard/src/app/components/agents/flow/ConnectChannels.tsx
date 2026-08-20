@@ -1,13 +1,21 @@
 "use client";
 
+import { getOrgId } from "@/lib/auth/client";
+import {
+  flow,
+  unwrapFlowResponse,
+  type BackendWhatsAppConnectResponse,
+} from "@/services/Flow";
 import { Icon } from "@iconify/react";
 import { useModal } from "@kairo/hooks";
 import { Button, ButtonClass, ButtonSize, Flex, Modal } from "@kairo/ui";
 import { FileInput, FormInput } from "@kairo/ui/inputs";
-import { z } from "zod";
 import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
-import { ICONS } from "@kairo/lib/utils";
+import { z } from "zod";
+import { getChannelBrandColor, isWhatsAppChannel } from "./helpers";
+import { FALLBACK_CHANNELS } from "./resources";
+import type { FlowChannel } from "./types";
 
 const ConnectChannelsContainer = styled.div`
   max-width: 50rem;
@@ -253,62 +261,13 @@ const ConnectChannelsContainer = styled.div`
   }
 `;
 
-type Channel = {
-  id: string;
-  name: string;
-  icon: string | React.ReactNode;
-  isConnected: boolean;
-  brandColor?: string;
-};
-
 type ConnectChannelsProps = {
-  channels: Channel[];
-  onContinue: () => void;
+  channels: FlowChannel[];
+  onContinue?: () => void;
+  onChannelConnected?: (channelId: string) => void;
+  variant?: "setup" | "standalone";
+  onBack?: () => void;
 };
-
-const CHANNEL_BRAND_COLORS: Record<string, string> = {
-  whatsapp: "#1FAF38",
-  telegram: "#2AABEE",
-  instagram: "#C837AB",
-  twitter: "#000000",
-};
-
-const getChannelBrandColor = (channel: Channel) =>
-  channel.brandColor ?? CHANNEL_BRAND_COLORS[channel.id] ?? "#46AE70";
-
-const DUMMY_CHANNELS: Channel[] = [
-  {
-    id: "whatsapp",
-    name: "WhatsApp",
-    icon: ICONS.WHATSAPP,
-    isConnected: false,
-    brandColor: CHANNEL_BRAND_COLORS.whatsapp,
-  },
-  {
-    id: "telegram",
-    name: "Telegram",
-    icon: ICONS.TELEGRAM,
-    isConnected: false,
-    brandColor: CHANNEL_BRAND_COLORS.telegram,
-  },
-  {
-    id: "instagram",
-    name: "Instagram",
-    icon: ICONS.INSTAGRAM,
-    isConnected: false,
-    brandColor: CHANNEL_BRAND_COLORS.instagram,
-  },
-  {
-    id: "twitter",
-    name: "X/Twitter",
-    icon: ICONS.TWITTER,
-    isConnected: false,
-    brandColor: CHANNEL_BRAND_COLORS.twitter,
-  },
-];
-
-const isWhatsAppChannel = (channel: Channel | null) =>
-  channel?.id === "whatsapp" || channel?.name.toLowerCase() === "whatsapp";
 
 const connectSchema = z.object({
   businessName: z.string().min(2, "Business name is required"),
@@ -372,22 +331,25 @@ const EMPTY_WHATSAPP_FORM: WhatsAppFormData = {
   verificationToken: "",
 };
 
-const WHATSAPP_SUCCESS_CREDENTIALS = {
-  callbackUrl: "https://api.usekairo.co/webhooks/whatsapp",
-  verificationToken: "kairo_verify_token_2026",
-  publicKey: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQE...",
-} as const;
+type WhatsAppSuccessCredentials = {
+  callbackUrl: string;
+  verificationToken: string;
+  publicKey: string;
+};
 
 export const ConnectChannels = ({
   channels,
   onContinue,
+  onChannelConnected,
+  variant = "setup",
+  onBack,
 }: ConnectChannelsProps) => {
   const initialChannels = useMemo(
-    () => (channels?.length ? channels : DUMMY_CHANNELS),
+    () => (channels?.length ? channels : FALLBACK_CHANNELS),
     [channels],
   );
 
-  const [localChannels, setLocalChannels] = useState<Channel[]>(initialChannels);
+  const [localChannels, setLocalChannels] = useState<FlowChannel[]>(initialChannels);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null,
   );
@@ -420,14 +382,17 @@ export const ConnectChannels = ({
   const [whatsAppFormErrors, setWhatsAppFormErrors] =
     useState<WhatsAppFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successChannel, setSuccessChannel] = useState<Channel | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [successChannel, setSuccessChannel] = useState<FlowChannel | null>(null);
+  const [whatsAppCredentials, setWhatsAppCredentials] =
+    useState<WhatsAppSuccessCredentials | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const hasConnected = localChannels.some((c) => c.isConnected);
   const firstNotConnected = localChannels.find((c) => !c.isConnected) ?? null;
   const isWhatsApp = isWhatsAppChannel(selectedChannel);
 
-  const openConnectModal = (channel: Channel) => {
+  const openConnectModal = (channel: FlowChannel) => {
     if (channel.isConnected) return;
     setSelectedChannelId(channel.id);
     setFormErrors({});
@@ -463,37 +428,36 @@ export const ConnectChannels = ({
   };
 
   const copyAllCredentials = () => {
+    if (!whatsAppCredentials) return;
     const all = [
-      `Callback URL: ${WHATSAPP_SUCCESS_CREDENTIALS.callbackUrl}`,
-      `Verification Token: ${WHATSAPP_SUCCESS_CREDENTIALS.verificationToken}`,
-      `Public Key: ${WHATSAPP_SUCCESS_CREDENTIALS.publicKey}`,
+      `Callback URL: ${whatsAppCredentials.callbackUrl}`,
+      `Verification Token: ${whatsAppCredentials.verificationToken}`,
+      `Public Key: ${whatsAppCredentials.publicKey}`,
     ].join("\n");
     void copyValue("all", all);
   };
 
-  const markChannelConnected = () => {
-    if (!selectedChannel) return;
-    const connectedChannel = selectedChannel;
-    const showWhatsAppSuccess = isWhatsAppChannel(connectedChannel);
+  const markChannelConnected = (
+    connectedChannel: FlowChannel,
+    credentials?: WhatsAppSuccessCredentials,
+  ) => {
+    setLocalChannels((prev) =>
+      prev.map((c) =>
+        c.id === connectedChannel.id ? { ...c, isConnected: true } : c,
+      ),
+    );
+    onChannelConnected?.(connectedChannel.id);
+    setFormErrors({});
+    setWhatsAppFormErrors({});
+    setSubmitError(null);
+    setSelectedChannelId(null);
+    toggleConnectChannelModal();
 
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setLocalChannels((prev) =>
-        prev.map((c) =>
-          c.id === connectedChannel.id ? { ...c, isConnected: true } : c,
-        ),
-      );
-      setIsSubmitting(false);
-      setFormErrors({});
-      setWhatsAppFormErrors({});
-      setSelectedChannelId(null);
-      toggleConnectChannelModal();
-
-      if (showWhatsAppSuccess) {
-        setSuccessChannel(connectedChannel);
-        toggleSuccessModal();
-      }
-    }, 300);
+    if (isWhatsAppChannel(connectedChannel) && credentials) {
+      setWhatsAppCredentials(credentials);
+      setSuccessChannel(connectedChannel);
+      toggleSuccessModal();
+    }
   };
 
   const handleWhatsAppSubmit = (e: React.FormEvent) => {
@@ -525,7 +489,41 @@ export const ConnectChannels = ({
       return;
     }
 
-    markChannelConnected();
+    const orgId = getOrgId();
+    if (!orgId) {
+      setSubmitError("Session expired. Please sign in again.");
+      return;
+    }
+
+    const connectedChannel = selectedChannel;
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    flow
+      .connectWhatsApp(orgId, {
+        phoneNumberId: whatsAppFormData.phoneId,
+        phoneNumber: "",
+        whatsappBusinessAccountId: whatsAppFormData.businessId,
+        accessToken: whatsAppFormData.accessToken,
+        appSecret: whatsAppFormData.appSecrets,
+        verifyToken: whatsAppFormData.verificationToken || undefined,
+      })
+      .then((res) => {
+        const data = unwrapFlowResponse<BackendWhatsAppConnectResponse>(res);
+        markChannelConnected(connectedChannel, {
+          callbackUrl: data.webhookUrl,
+          verificationToken: data.verifyToken,
+          publicKey: data.publicKey,
+        });
+      })
+      .catch((err: unknown) => {
+        const message =
+          err instanceof Error ? err.message : "Failed to connect WhatsApp.";
+        setSubmitError(message);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -561,7 +559,13 @@ export const ConnectChannels = ({
       return;
     }
 
-    markChannelConnected();
+    // Non-WhatsApp channels: no API yet — simulate connection locally
+    const connectedChannel = selectedChannel;
+    setIsSubmitting(true);
+    setTimeout(() => {
+      markChannelConnected(connectedChannel);
+      setIsSubmitting(false);
+    }, 300);
   };
 
   return (
@@ -577,7 +581,7 @@ export const ConnectChannels = ({
             disabled={!firstNotConnected}
           >
             <Icon icon="ri:add-line" width={24} height={24} />
-            Add Channel
+            Add FlowChannel
           </Button>
         </Flex>
 
@@ -622,15 +626,26 @@ export const ConnectChannels = ({
         </div>
 
         <Flex justify="flex-end" style={{ marginTop: "2rem" }}>
-          <Button
-            classes={[ButtonClass.SOLID]}
-            size={ButtonSize.WIDTH_140}
-            disabled={!hasConnected}
-            onClick={onContinue}
-            style={{ width: "140px" }}
-          >
-            Continue
-          </Button>
+          {variant === "setup" ? (
+            <Button
+              classes={[ButtonClass.SOLID]}
+              size={ButtonSize.WIDTH_140}
+              disabled={!hasConnected}
+              onClick={onContinue}
+              style={{ width: "140px" }}
+            >
+              Continue
+            </Button>
+          ) : (
+            <Button
+              classes={[ButtonClass.SOLID]}
+              size={ButtonSize.WIDTH_140}
+              onClick={onBack}
+              style={{ width: "140px" }}
+            >
+              Done
+            </Button>
+          )}
         </Flex>
       </Flex>
 
@@ -856,36 +871,42 @@ export const ConnectChannels = ({
                 </>
               )}
 
-              <Flex
-                justify="flex-end"
-                align="center"
-                gap="0.75rem"
-                style={{ marginTop: "2rem" }}
-              >
-                <Button
-                  classes={[ButtonClass.OUTLINED]}
-                  size={ButtonSize.WIDTH_140}
-                  type="button"
-                  onClick={closeConnectModal}
+                {submitError && (
+                  <p style={{ color: "var(--color-error, #e53935)", fontSize: "0.875rem", margin: 0 }}>
+                    {submitError}
+                  </p>
+                )}
+
+                <Flex
+                  justify="flex-end"
+                  align="center"
+                  gap="0.75rem"
+                  style={{ marginTop: "2rem" }}
                 >
-                  Cancel
-                </Button>
-                <Button
-                  classes={[ButtonClass.SOLID]}
-                  size={ButtonSize.WIDTH_140}
-                  type="submit"
-                  disabled={isSubmitting}
-                  loading={isSubmitting}
-                >
-                  {isWhatsApp ? "Connect" : "Continue"}
-                </Button>
-              </Flex>
+                  <Button
+                    classes={[ButtonClass.OUTLINED]}
+                    size={ButtonSize.WIDTH_140}
+                    type="button"
+                    onClick={closeConnectModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    classes={[ButtonClass.SOLID]}
+                    size={ButtonSize.WIDTH_140}
+                    type="submit"
+                    disabled={isSubmitting}
+                    loading={isSubmitting}
+                  >
+                    {isWhatsApp ? "Connect" : "Continue"}
+                  </Button>
+                </Flex>
             </Flex>
           </form>
         </Modal>
       )}
 
-      {showSuccessModal && successChannel && (
+      {showSuccessModal && successChannel && whatsAppCredentials && (
         <Modal
           onClose={closeSuccessModal}
           showModalHeader={false}
@@ -923,7 +944,7 @@ export const ConnectChannels = ({
                 </button>
               </div>
 
-              <div className="ConnectChannels__credentialList">
+                  <div className="ConnectChannels__credentialList">
                 <div className="ConnectChannels__credentialRow">
                   <p className="ConnectChannels__credentialLabel">Callback URL</p>
                   <div className="ConnectChannels__credentialValue">
@@ -934,16 +955,13 @@ export const ConnectChannels = ({
                         height={20}
                         className="ConnectChannels__credentialLinkIcon"
                       />
-                      <span>{WHATSAPP_SUCCESS_CREDENTIALS.callbackUrl}</span>
+                      <span>{whatsAppCredentials.callbackUrl}</span>
                     </div>
                     <button
                       type="button"
                       className="ConnectChannels__copyButton"
                       onClick={() =>
-                        void copyValue(
-                          "callbackUrl",
-                          WHATSAPP_SUCCESS_CREDENTIALS.callbackUrl,
-                        )
+                        void copyValue("callbackUrl", whatsAppCredentials.callbackUrl)
                       }
                     >
                       <Icon icon="tabler:copy" width={20} height={20} />
@@ -958,9 +976,7 @@ export const ConnectChannels = ({
                   </p>
                   <div className="ConnectChannels__credentialValue">
                     <div className="ConnectChannels__credentialText">
-                      <span>
-                        {WHATSAPP_SUCCESS_CREDENTIALS.verificationToken}
-                      </span>
+                      <span>{whatsAppCredentials.verificationToken}</span>
                     </div>
                     <button
                       type="button"
@@ -968,7 +984,7 @@ export const ConnectChannels = ({
                       onClick={() =>
                         void copyValue(
                           "verificationToken",
-                          WHATSAPP_SUCCESS_CREDENTIALS.verificationToken,
+                          whatsAppCredentials.verificationToken,
                         )
                       }
                     >
@@ -982,16 +998,13 @@ export const ConnectChannels = ({
                   <p className="ConnectChannels__credentialLabel">Public Key</p>
                   <div className="ConnectChannels__credentialValue">
                     <div className="ConnectChannels__credentialText">
-                      <span>{WHATSAPP_SUCCESS_CREDENTIALS.publicKey}</span>
+                      <span>{whatsAppCredentials.publicKey}</span>
                     </div>
                     <button
                       type="button"
                       className="ConnectChannels__copyButton"
                       onClick={() =>
-                        void copyValue(
-                          "publicKey",
-                          WHATSAPP_SUCCESS_CREDENTIALS.publicKey,
-                        )
+                        void copyValue("publicKey", whatsAppCredentials.publicKey)
                       }
                     >
                       <Icon icon="tabler:copy" width={20} height={20} />
