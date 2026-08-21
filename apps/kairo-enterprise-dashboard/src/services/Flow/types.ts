@@ -117,12 +117,20 @@ export type BackendSchemaOption = {
   label: string;
 };
 
-export type BackendGuardrailField = {
+export type BackendSchemaField = {
   field: string;
   label: string;
-  kind: "MULTI_SELECT" | string;
+  kind: "MULTI_SELECT" | "SELECT" | "TOGGLE" | "TIME" | string;
   options: BackendSchemaOption[];
   allowsCustom: boolean;
+};
+
+export type BackendGuardrailField = BackendSchemaField;
+
+export type BackendSchemaVariable = {
+  token: string;
+  description: string;
+  sample: string;
 };
 
 export type BackendConversationSchemaMeta = {
@@ -132,14 +140,18 @@ export type BackendConversationSchemaMeta = {
   label?: string;
   name?: string;
   displayName?: string;
+  description?: string;
   triggers?: BackendSchemaOption[];
   triggerConditions?: BackendSchemaOption[];
   intents?: BackendSchemaOption[];
-  variables?: BackendSchemaOption[];
-  automation?: BackendSchemaOption[];
+  templateTypes?: BackendSchemaOption[];
+  variables?: BackendSchemaVariable[];
+  automation?: BackendSchemaField[];
 };
 
 export type BackendSettingsSchema = {
+  schemaVersion?: number;
+  messageWordLimit?: number;
   tones: BackendSchemaOption[];
   responseStyles: BackendSchemaOption[];
   retentionUnits: BackendSchemaOption[];
@@ -147,6 +159,6 @@ export type BackendSettingsSchema = {
   guardrails: BackendGuardrailField[];
   buttonActions: BackendSchemaOption[];
   buttonTypes: BackendSchemaOption[];
-  commonVariables: { token: string; description: string; sample: string }[];
+  commonVariables: BackendSchemaVariable[];
   conversations: BackendConversationSchemaMeta[];
 };

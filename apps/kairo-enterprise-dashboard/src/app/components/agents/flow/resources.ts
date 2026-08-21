@@ -66,34 +66,35 @@ export const FALLBACK_RESPONSE_STYLE_OPTIONS: SelectOption[] = [
   { label: "Detailed guidance", value: "DETAILED_GUIDANCE" },
 ];
 
-export const FALLBACK_GUARDRAIL_OPTIONS: Record<string, FlowCheckboxOption[]> = {
-  restrictedTopics: [
-    { value: "INVESTMENT_ADVICE", label: "Investment advice" },
-    { value: "LOAN_APPROVALS", label: "Loan approvals" },
-  ],
-  escalationConditions: [
-    { value: "FRAUD_DETECTED", label: "Fraud detected" },
-    { value: "HUMAN_AGENT", label: "User requests human agent" },
-  ],
-  requireApprovalFor: [
-    { value: "REFUNDS", label: "Refund requests" },
-    { value: "REVERSALS", label: "Transaction reversals" },
-  ],
-  responseRestrictions: [
-    { value: "OFFENSIVE_LANGUAGE", label: "Prevent offensive language" },
-    { value: "HALLUCINATED_ANSWERS", label: "Prevent hallucinated answers" },
-  ],
-  behaviorDetection: [
-    {
-      value: "SUSPICIOUS_PATTERNS",
-      label: "Detect suspicious transaction patterns",
-    },
-    {
-      value: "ACCOUNT_TAKEOVER",
-      label: "Detect account takeover attempts",
-    },
-  ],
-};
+export const FALLBACK_GUARDRAIL_OPTIONS: Record<string, FlowCheckboxOption[]> =
+  {
+    restrictedTopics: [
+      { value: "INVESTMENT_ADVICE", label: "Investment advice" },
+      { value: "LOAN_APPROVALS", label: "Loan approvals" },
+    ],
+    escalationConditions: [
+      { value: "FRAUD_DETECTED", label: "Fraud detected" },
+      { value: "HUMAN_AGENT", label: "User requests human agent" },
+    ],
+    requireApprovalFor: [
+      { value: "REFUNDS", label: "Refund requests" },
+      { value: "REVERSALS", label: "Transaction reversals" },
+    ],
+    responseRestrictions: [
+      { value: "OFFENSIVE_LANGUAGE", label: "Prevent offensive language" },
+      { value: "HALLUCINATED_ANSWERS", label: "Prevent hallucinated answers" },
+    ],
+    behaviorDetection: [
+      {
+        value: "SUSPICIOUS_PATTERNS",
+        label: "Detect suspicious transaction patterns",
+      },
+      {
+        value: "ACCOUNT_TAKEOVER",
+        label: "Detect account takeover attempts",
+      },
+    ],
+  };
 
 export const GUARDRAIL_STATE_KEYS = {
   restrictedTopics: "restrictedTopics",
@@ -299,7 +300,7 @@ export const BUILT_IN_CONVERSATION_TYPES: ConversationTypeMeta[] = [
     id: "advertisement",
     title: "Advertisement",
     description: "Promotional campaigns",
-    icon: "solar:megaphone-linear",
+    icon: "material-symbols:campaign-outline-rounded",
     conversationsTitle: "Advertisement conversations",
     kind: "built-in",
   },

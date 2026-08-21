@@ -6,10 +6,7 @@ import {
   toBackendTypeId,
   type BackendConversationType,
 } from "@/services/Flow";
-import {
-  BUILT_IN_CONVERSATION_TYPES,
-  CHANNEL_BRAND_COLORS,
-} from "./resources";
+import { BUILT_IN_CONVERSATION_TYPES, CHANNEL_BRAND_COLORS } from "./resources";
 import type {
   AutomationSettings,
   ConversationSettingsMap,
@@ -58,8 +55,8 @@ export const createDefaultTemplate = (
   trigger: defaults?.trigger ?? "FIRST_TIME_USER",
   triggerConditions: defaults?.triggerCondition
     ? [defaults.triggerCondition]
-    : ["FIRST_TIME_USER"],
-  intent: defaults?.intent ?? "WELCOME",
+    : [],
+  intent: defaults?.intent ?? "",
   templateType: "interactive",
   message: "Hi {{first_name}}, welcome to {{business_name}}!",
   buttons: [
@@ -72,7 +69,10 @@ export const createDefaultTemplate = (
         "OPEN_ONBOARDING",
       buttonType: defaults?.buttonType ?? "REPLY",
       payload: {
-        replyText: defaults?.quickReplyAction ?? "GET_STARTED",
+        replyText:
+          defaults?.quickReplyAction ??
+          defaults?.buttonAction ??
+          "OPEN_ONBOARDING",
       },
     },
     createEmptyButton(),
@@ -90,6 +90,7 @@ export const createDefaultTypeConfig = (
   kind,
   templates: [createDefaultTemplate(1, templateDefaults)],
   automation: createDefaultAutomation(),
+  backendAutomation: undefined,
   customTriggers: [],
   customVariables: [],
 });
@@ -118,6 +119,9 @@ export const cloneTypeConfig = (
     ...config.automation,
     stopAutomation: [...config.automation.stopAutomation],
   },
+  backendAutomation: config.backendAutomation
+    ? { ...config.backendAutomation }
+    : undefined,
   customTriggers: config.customTriggers.map((option) => ({ ...option })),
   customVariables: config.customVariables.map((variable) => ({ ...variable })),
 });
@@ -184,16 +188,25 @@ export const toConversationSettingsSavePayload = (
 export function fromBackendConversationType(
   backendType: BackendConversationType,
   kind: "built-in" | "custom" = "built-in",
+  templateDefaults?: TemplateDefaults,
 ): ConversationTypeConfig {
+  const mappedTemplates = (backendType.templates ?? []).map(
+    (t) => fromBackendTemplate(t) as MessageTemplate,
+  );
+
   return {
     status: backendType.active ? "ACTIVE" : "INACTIVE",
     kind,
     title: backendType.displayName,
     description: undefined,
-    templates: (backendType.templates ?? []).map((t) =>
-      fromBackendTemplate(t) as MessageTemplate,
-    ),
+    templates:
+      mappedTemplates.length > 0
+        ? mappedTemplates
+        : [createDefaultTemplate(1, templateDefaults)],
     automation: fromBackendAutomation(backendType.automation),
+    backendAutomation: backendType.automation
+      ? { ...backendType.automation }
+      : undefined,
     customTriggers: [],
     customVariables: [],
   };
@@ -206,7 +219,10 @@ export function toBackendConversationType(
     active: config.status === "ACTIVE",
     custom: config.kind === "custom",
     templates: config.templates.map((t) => toBackendTemplate(t)),
-    automation: toBackendAutomation(config.automation),
+    automation: toBackendAutomation(
+      config.automation,
+      config.backendAutomation,
+    ),
     ...(config.kind === "custom" && config.title
       ? { displayName: config.title }
       : {}),

@@ -27,6 +27,7 @@ import {
   flow,
   findConversationSchema,
   fromBackendTypeId,
+  getAutomationFieldOptions,
   getTemplateDefaultsFromSchema,
   mergeBuiltInCatalogWithSchema,
   toBackendTypeId,
@@ -1076,6 +1077,7 @@ export const FlowConversationSettings = forwardRef<
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const settingsHydratedRef = useRef(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   const activeType =
     typeCatalog.find((type) => type.id === activeTypeId) ??
@@ -1087,42 +1089,69 @@ export const FlowConversationSettings = forwardRef<
   const activeTypeTitle =
     activeType?.title ?? activeConfig.title ?? activeType?.id ?? "conversation";
 
-  const { flowSettings, fetchingFlowSettings, flowSchema, fetchingFlowSchema } =
-    useEntity(flowStore);
+  const { flowSettings, flowSchema } = useEntity(flowStore);
 
   useEffect(() => {
-    fetchFlowSettings().catch(() => {});
-    fetchFlowSchema().catch(() => {});
+    let cancelled = false;
+
+    const load = async () => {
+      setIsBootstrapping(true);
+      try {
+        await fetchFlowSchema();
+        if (cancelled) return;
+        await fetchFlowSettings();
+      } catch {
+        // Store actions already surface toast errors.
+      } finally {
+        if (!cancelled) setIsBootstrapping(false);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    const data = flowSettings?.conversations;
-    if (!data || settingsHydratedRef.current) return;
+    if (isBootstrapping) return;
+    if (!flowSchema || !flowSettings?.conversations) return;
+    if (settingsHydratedRef.current) return;
     settingsHydratedRef.current = true;
 
-    const backendConversations = data;
-    const newSettings: ConversationSettingsMap = {};
+    const backendConversations = flowSettings.conversations;
     const newCatalog = mergeBuiltInCatalogWithSchema(
       BUILT_IN_CONVERSATION_TYPES,
       flowSchema,
     );
+    const newSettings: ConversationSettingsMap = {};
 
-    for (const meta of BUILT_IN_CONVERSATION_TYPES) {
+    for (const meta of newCatalog.filter((entry) => entry.kind === "built-in")) {
       const backendId = toBackendTypeId(meta.id);
-      const backendType = backendConversations[backendId] ?? backendConversations[meta.id];
+      const backendType =
+        backendConversations[backendId] ?? backendConversations[meta.id];
       const conversationSchema = findConversationSchema(flowSchema, meta.id);
       const templateDefaults = getTemplateDefaultsFromSchema(
         conversationSchema,
         flowSchema,
       );
+
       if (backendType) {
-        newSettings[meta.id] = fromBackendConversationType(backendType, "built-in");
+        newSettings[meta.id] = fromBackendConversationType(
+          backendType,
+          "built-in",
+          templateDefaults,
+        );
       } else {
         newSettings[meta.id] = createDefaultTypeConfig(
           "built-in",
           "DRAFT",
           templateDefaults,
         );
+      }
+
+      if (conversationSchema?.description) {
+        newSettings[meta.id].description = conversationSchema.description;
       }
     }
 
@@ -1132,6 +1161,11 @@ export const FlowConversationSettings = forwardRef<
       if (newSettings[frontendId]) continue;
       const title =
         (backendType as BackendConversationType).displayName ?? frontendId;
+      const conversationSchema = findConversationSchema(flowSchema, frontendId);
+      const templateDefaults = getTemplateDefaultsFromSchema(
+        conversationSchema,
+        flowSchema,
+      );
       newCatalog.push({
         id: frontendId,
         title,
@@ -1143,6 +1177,7 @@ export const FlowConversationSettings = forwardRef<
       newSettings[frontendId] = fromBackendConversationType(
         backendType as BackendConversationType,
         "custom",
+        templateDefaults,
       );
       newSettings[frontendId].title = title;
     }
@@ -1154,13 +1189,23 @@ export const FlowConversationSettings = forwardRef<
         Object.entries(newSettings).map(([id, cfg]) => [id, cloneTypeConfig(cfg)]),
       ),
     );
-    const firstTpl = newSettings[activeTypeId]?.templates?.[0];
+
+    const preferredTypeId =
+      newCatalog.find((type) => type.id === activeTypeId)?.id ??
+      newCatalog[0]?.id;
+    if (preferredTypeId && preferredTypeId !== activeTypeId) {
+      setActiveTypeId(preferredTypeId);
+    }
+
+    const firstTpl = newSettings[preferredTypeId ?? activeTypeId]?.templates?.[0];
     if (firstTpl) setPreviewTemplateId(firstTpl.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flowSettings, flowSchema]);
+  }, [flowSettings, flowSchema, isBootstrapping]);
 
   useEffect(() => {
-    if (!flowSchema?.conversations?.length) return;
+    if (!flowSchema?.conversations?.length || !settingsHydratedRef.current) {
+      return;
+    }
     setTypeCatalog((prev) =>
       mergeBuiltInCatalogWithSchema(
         BUILT_IN_CONVERSATION_TYPES,
@@ -1201,7 +1246,7 @@ export const FlowConversationSettings = forwardRef<
     () => [
       ...toSelectOptions(
         activeConversationSchema?.triggers,
-        FALLBACK_TRIGGER_OPTIONS,
+        activeConversationSchema ? [] : FALLBACK_TRIGGER_OPTIONS,
       ),
       ...activeConfig.customTriggers,
     ],
@@ -1212,7 +1257,7 @@ export const FlowConversationSettings = forwardRef<
     () => [
       ...toSelectOptions(
         activeConversationSchema?.triggerConditions,
-        FALLBACK_TRIGGER_CONDITION_OPTIONS,
+        activeConversationSchema ? [] : FALLBACK_TRIGGER_CONDITION_OPTIONS,
       ),
       ...activeConfig.customTriggers.map((option) => ({
         value: option.value,
@@ -1224,7 +1269,10 @@ export const FlowConversationSettings = forwardRef<
 
   const intentOptions = useMemo(
     () =>
-      toSelectOptions(activeConversationSchema?.intents, FALLBACK_INTENT_OPTIONS),
+      toSelectOptions(
+        activeConversationSchema?.intents,
+        activeConversationSchema ? [] : FALLBACK_INTENT_OPTIONS,
+      ),
     [activeConversationSchema],
   );
 
@@ -1250,11 +1298,30 @@ export const FlowConversationSettings = forwardRef<
   );
 
   const messageVariables = useMemo(
-    () => [
-      ...toMessageVariables(flowSchema?.commonVariables, FALLBACK_MESSAGE_VARIABLES),
-      ...activeConfig.customVariables,
+    () => {
+      const common = toMessageVariables(
+        flowSchema?.commonVariables,
+        FALLBACK_MESSAGE_VARIABLES,
+      );
+      const conversationSpecific = toMessageVariables(
+        activeConversationSchema?.variables,
+        [],
+      );
+      const byToken = new Map<string, MessageVariable>();
+      for (const variable of [
+        ...common,
+        ...conversationSpecific,
+        ...activeConfig.customVariables,
+      ]) {
+        byToken.set(variable.token, variable);
+      }
+      return Array.from(byToken.values());
+    },
+    [
+      flowSchema,
+      activeConversationSchema,
+      activeConfig.customVariables,
     ],
-    [flowSchema, activeConfig.customVariables],
   );
 
   const timeUnitOptions = useMemo(
@@ -1269,14 +1336,20 @@ export const FlowConversationSettings = forwardRef<
 
   const stopAutomationOptions = useMemo(
     () =>
-      toSelectOptions(
+      getAutomationFieldOptions(
         activeConversationSchema?.automation,
+        "stopWhen",
         FALLBACK_STOP_AUTOMATION_OPTIONS,
       ),
     [activeConversationSchema],
   );
 
-  const isLoadingSettings = fetchingFlowSettings || fetchingFlowSchema;
+  const messageWordLimit =
+    flowSchema?.messageWordLimit && flowSchema.messageWordLimit > 0
+      ? flowSchema.messageWordLimit
+      : MESSAGE_WORD_LIMIT;
+
+  const isLoadingSettings = isBootstrapping;
 
   const previewTemplate =
     activeConfig.templates.find((template) => template.id === previewTemplateId) ??
@@ -1587,7 +1660,7 @@ export const FlowConversationSettings = forwardRef<
   const allStopAutomationSelected =
     stopAutomationOptions.length > 0 &&
     activeConfig.automation.stopAutomation.length ===
-      stopAutomationOptions.length;
+    stopAutomationOptions.length;
 
   const handleSelectAllStopAutomation = () => {
     updateAutomation({
@@ -1830,7 +1903,7 @@ export const FlowConversationSettings = forwardRef<
                       </div>
                     </div>
                     <span className="FlowConversationSettings__wordCount">
-                      {wordCount}/{MESSAGE_WORD_LIMIT} words
+                      {wordCount}/{messageWordLimit} words
                     </span>
                   </div>
 
@@ -1928,8 +2001,8 @@ export const FlowConversationSettings = forwardRef<
                         const nextValue =
                           isReplyAction(action)
                             ? previous ||
-                              quickReplyPayloadOptions[0]?.value ||
-                              "GET_STARTED"
+                            quickReplyPayloadOptions[0]?.value ||
+                            "GET_STARTED"
                             : previous;
                         updateTemplateButton(template.id, button.id, {
                           action,
@@ -2029,517 +2102,517 @@ export const FlowConversationSettings = forwardRef<
         </Flex>
       ) : (
         <>
-      <aside>
-        <p className="FlowConversationSettings__navLabel">Conversation types</p>
-        <nav
-          className="FlowConversationSettings__nav"
-          aria-label="Conversation types"
-        >
-          {typeCatalog.map((type) => (
-            <button
-              key={type.id}
-              type="button"
-              className={`FlowConversationSettings__navItem${activeTypeId === type.id ? " is-active" : ""
-                }`}
-              onClick={() => handleSelectConversationType(type.id)}
+          <aside>
+            <p className="FlowConversationSettings__navLabel">Conversation types</p>
+            <nav
+              className="FlowConversationSettings__nav"
+              aria-label="Conversation types"
             >
-              <span className="FlowConversationSettings__navItem-icon">
-                <Icon icon={type.icon} width={20} height={20} />
-              </span>
-              <span className="FlowConversationSettings__navItem-text">
-                <span className="FlowConversationSettings__navItem-title">
-                  {type.title}
-                </span>
-                <span className="FlowConversationSettings__navItem-description">
-                  {type.description}
-                </span>
-              </span>
-            </button>
-          ))}
-          <button
-            type="button"
-            className="FlowConversationSettings__addConversation"
-            onClick={openAddCustomModal}
-          >
-            <Icon icon="basil:plus-solid" width={16} height={16} />
-            Add custom conversation
-          </button>
-        </nav>
-      </aside>
-
-      <div
-        className={`FlowConversationSettings__workspace${activeTabIndex === 1 ? " is-full-width" : ""
-          }`}
-      >
-        <div className="FlowConversationSettings__main">
-          <div className="FlowConversationSettings__conversationHeader">
-            <Flex align="flex-start" gap="0.75rem">
-              <div>
-                <h3 className="FlowConversationSettings__conversationTitle">
-                  {activeType?.kind === "custom"
-                    ? activeTypeTitle
-                    : (activeType?.conversationsTitle ?? activeTypeTitle)}
-                </h3>
-                <p className="FlowConversationSettings__conversationDescription">
-                  {activeType?.description ?? ""}
-                </p>
-              </div>
-              <Tag
-                type={statusTagType(activeConfig.status)}
-                style={{ height: "1.5625rem" }}
-              >
-                {statusLabel(activeConfig.status)}
-              </Tag>
-            </Flex>
-            <div className="FlowConversationSettings__headerActions">
-              <SwitchInput
-                size={SwitchInputSize.SMALL}
-                value={activeConfig.status === "ACTIVE"}
-                onChange={handleEnabledToggle}
-                name="conversationActive"
-              />
-            </div>
-          </div>
-
-          <Tabs
-            tabsWrapperClassName="FlowConversationSettings__tabsWrapper"
-            activeTabIndex={activeTabIndex}
-            onActiveTabChange={setActiveTabIndex}
-            tabs={[
-              {
-                title: "Messaging setup",
-                content: (
-                  <>
-                    <div className="FlowConversationSettings__sectionHeader">
-                      <h4 className="FlowConversationSettings__sectionTitle">
-                        Setup {activeTypeTitle.toLowerCase()} template
-                      </h4>
-                      <button
-                        type="button"
-                        className="FlowConversationSettings__ghostButton"
-                        onClick={handleAddTemplate}
-                      >
-                        <Icon icon="basil:plus-solid" width={16} height={16} />
-                        Add template
-                      </button>
-                    </div>
-
-                    <div className="FlowConversationSettings__templatesList">
-                      {activeConfig.templates.map((template) =>
-                        renderMessageEditor(template),
-                      )}
-                    </div>
-                  </>
-                ),
-              },
-              {
-                title: "Automation",
-                content: (
-                  <div className="FlowConversationSettings__automation">
-                    <div className="FlowConversationSettings__automationCard">
-                      <div className="FlowConversationSettings__automationCard-header">
-                        <span>Retry unanswered messages</span>
-                        <SwitchInput
-                          size={SwitchInputSize.SMALL}
-                          value={activeConfig.automation.retryEnabled}
-                          onChange={(value) =>
-                            updateAutomation({ retryEnabled: value })
-                          }
-                          name="retryEnabled"
-                        />
-                      </div>
-
-                      {activeConfig.automation.retryEnabled && (
-                        <div className="FlowConversationSettings__automationCard-fields">
-                          <p className="FlowConversationSettings__automationCard-sectionTitle">
-                            Retry period
-                          </p>
-                          <div className="FlowConversationSettings__automationCard-row">
-                            <FormInput
-                              label="Duration"
-                              name="retryDuration"
-                              value={activeConfig.automation.retryDuration}
-                              onChange={(event) =>
-                                updateAutomation({
-                                  retryDuration: event.target.value,
-                                })
-                              }
-                              placeholder="Enter duration"
-                            />
-                            <SelectInput
-                              label="Unit"
-                              placeholder="Select unit"
-                              options={timeUnitOptions}
-                              value={activeConfig.automation.retryUnit}
-                              onChange={(val: string | { value: string }) =>
-                                updateAutomation({
-                                  retryUnit: handleSelectValue(val),
-                                })
-                              }
-                            />
-                          </div>
-                          <SelectInput
-                            label="Retry Limit"
-                            placeholder="Enter limit"
-                            options={RETRY_LIMIT_OPTIONS}
-                            value={activeConfig.automation.retryLimit}
-                            onChange={(val: string | { value: string }) =>
-                              updateAutomation({
-                                retryLimit: handleSelectValue(val),
-                              })
-                            }
-                          />
-                          <div className="FlowConversationSettings__automationHint">
-                            <Icon icon="si:warning-line" width={16} height={16} />
-                            This does not apply to WhatsApp; it only applies to
-                            other social media channels.
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="FlowConversationSettings__automationCard">
-                      <div className="FlowConversationSettings__automationCard-header">
-                        <span>Automated Follow-Ups</span>
-                        <SwitchInput
-                          size={SwitchInputSize.SMALL}
-                          value={activeConfig.automation.followUpEnabled}
-                          onChange={(value) =>
-                            updateAutomation({ followUpEnabled: value })
-                          }
-                          name="followUpEnabled"
-                        />
-                      </div>
-
-                      {activeConfig.automation.followUpEnabled && (
-                        <div className="FlowConversationSettings__automationCard-fields">
-                          <SelectInput
-                            label="Follow-up type"
-                            placeholder="Select type"
-                            options={followUpTypeOptions}
-                            value={activeConfig.automation.followUpType}
-                            onChange={(val: string | { value: string }) =>
-                              updateAutomation({
-                                followUpType: handleSelectValue(val),
-                              })
-                            }
-                          />
-                          <div className="FlowConversationSettings__automationCard-row">
-                            <FormInput
-                              label="Frequency"
-                              name="followUpFrequency"
-                              value={activeConfig.automation.followUpFrequency}
-                              onChange={(event) =>
-                                updateAutomation({
-                                  followUpFrequency: event.target.value,
-                                })
-                              }
-                              placeholder="Enter frequency"
-                            />
-                            <SelectInput
-                              label="Unit"
-                              placeholder="Select unit"
-                              options={timeUnitOptions}
-                              value={activeConfig.automation.followUpUnit}
-                              onChange={(val: string | { value: string }) =>
-                                updateAutomation({
-                                  followUpUnit: handleSelectValue(val),
-                                })
-                              }
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="FlowConversationSettings__checkboxCard">
-                      <div className="FlowConversationSettings__checkboxCard-header">
-                        <span>Stop automation when</span>
-                        <button
-                          type="button"
-                          className="FlowConversationSettings__checkboxCard-selectAll"
-                          onClick={handleSelectAllStopAutomation}
-                        >
-                          {allStopAutomationSelected ? "Clear" : "Select all"}
-                        </button>
-                      </div>
-                      <CheckboxInput
-                        name="stopAutomation"
-                        options={stopAutomationOptions}
-                        value={activeConfig.automation.stopAutomation}
-                        onChange={(values) =>
-                          updateAutomation({ stopAutomation: values })
-                        }
-                        direction="column"
-                      />
-                    </div>
-                  </div>
-                ),
-              },
-            ]}
-          />
-        </div>
-
-        {activeTabIndex === 0 && (
-          <aside className="FlowConversationSettings__preview">
-            <div className="FlowConversationSettings__previewHeader">
-              <span>Live preview</span>
-              <Icon
-                icon="fluent:window-column-one-fourth-left-20-regular"
-                width={20}
-                height={20}
-              />
-            </div>
-
-            <div className="FlowConversationSettings__phone">
-              <div className="FlowConversationSettings__phoneStatusBar">
-                <span>9:41</span>
-                <div className="FlowConversationSettings__phoneStatusIcons">
-                  <Icon icon="mdi:signal-cellular-3" width={16} height={16} />
-                  <Icon icon="mdi:wifi" width={16} height={16} />
-                  <Icon icon="mdi:battery" width={18} height={18} />
-                </div>
-              </div>
-
-              <div className="FlowConversationSettings__phoneHeader">
-                <div className="FlowConversationSettings__phoneContact">
-                  <Icon icon="mdi:chevron-left" width={20} height={20} />
-                  <span className="FlowConversationSettings__phoneAvatar">
-                    <InitialsAvatar
-                      name="Kairo"
-                      avatarUrl="/kairo-assets/kairo-icon-white.svg"
-                    />
+              {typeCatalog.map((type) => (
+                <button
+                  key={type.id}
+                  type="button"
+                  className={`FlowConversationSettings__navItem${activeTypeId === type.id ? " is-active" : ""
+                    }`}
+                  onClick={() => handleSelectConversationType(type.id)}
+                >
+                  <span className="FlowConversationSettings__navItem-icon">
+                    <Icon icon={type.icon} width={20} height={20} />
                   </span>
+                  <span className="FlowConversationSettings__navItem-text">
+                    <span className="FlowConversationSettings__navItem-title">
+                      {type.title}
+                    </span>
+                    <span className="FlowConversationSettings__navItem-description">
+                      {type.description}
+                    </span>
+                  </span>
+                </button>
+              ))}
+              <button
+                type="button"
+                className="FlowConversationSettings__addConversation"
+                onClick={openAddCustomModal}
+              >
+                <Icon icon="basil:plus-solid" width={16} height={16} />
+                Add custom conversation
+              </button>
+            </nav>
+          </aside>
+
+          <div
+            className={`FlowConversationSettings__workspace${activeTabIndex === 1 ? " is-full-width" : ""
+              }`}
+          >
+            <div className="FlowConversationSettings__main">
+              <div className="FlowConversationSettings__conversationHeader">
+                <Flex align="flex-start" gap="0.75rem">
                   <div>
-                    <p className="FlowConversationSettings__phoneName">Kairo</p>
-                    <p className="FlowConversationSettings__phoneSubtext">
-                      tap here for contact info
+                    <h3 className="FlowConversationSettings__conversationTitle">
+                      {activeType?.kind === "custom"
+                        ? activeTypeTitle
+                        : (activeType?.conversationsTitle ?? activeTypeTitle)}
+                    </h3>
+                    <p className="FlowConversationSettings__conversationDescription">
+                      {activeType?.description ?? ""}
                     </p>
                   </div>
-                </div>
-                <div className="FlowConversationSettings__phoneActions">
-                  <Icon icon="mdi:video-outline" width={20} height={20} />
-                  <Icon icon="mdi:phone-outline" width={20} height={20} />
+                  <Tag
+                    type={statusTagType(activeConfig.status)}
+                    style={{ height: "1.5625rem" }}
+                  >
+                    {statusLabel(activeConfig.status)}
+                  </Tag>
+                </Flex>
+                <div className="FlowConversationSettings__headerActions">
+                  <SwitchInput
+                    size={SwitchInputSize.SMALL}
+                    value={activeConfig.status === "ACTIVE"}
+                    onChange={handleEnabledToggle}
+                    name="conversationActive"
+                  />
                 </div>
               </div>
 
-              <div className="FlowConversationSettings__phoneBody">
-                <div className="FlowConversationSettings__phoneDate">Today</div>
-                {previewTemplate?.message.trim() ? (
-                  <div>
-                    <div className="FlowConversationSettings__phoneBubble">
-                      <div className="FlowConversationSettings__phoneBubbleText">
-                        {previewMessage}
-                      </div>
-                      {previewButtons.length > 0 && (
-                        <div
-                          className={`FlowConversationSettings__phoneBubbleActions${previewButtons.length === 1
-                              ? " FlowConversationSettings__phoneBubbleActions--single"
-                              : ""
-                            }${previewButtons.length > 1 &&
-                              previewButtons.length % 2 === 1
-                              ? " FlowConversationSettings__phoneBubbleActions--odd"
-                              : ""
-                            }`}
-                        >
-                          {previewButtons.map((button) => (
-                            <div
-                              key={button.id}
-                              className="FlowConversationSettings__phoneBubbleAction"
-                            >
-                              {button.label}
-                            </div>
-                          ))}
+              <Tabs
+                tabsWrapperClassName="FlowConversationSettings__tabsWrapper"
+                activeTabIndex={activeTabIndex}
+                onActiveTabChange={setActiveTabIndex}
+                tabs={[
+                  {
+                    title: "Messaging setup",
+                    content: (
+                      <>
+                        <div className="FlowConversationSettings__sectionHeader">
+                          <h4 className="FlowConversationSettings__sectionTitle">
+                            Setup {activeTypeTitle.toLowerCase()} template
+                          </h4>
+                          <button
+                            type="button"
+                            className="FlowConversationSettings__ghostButton"
+                            onClick={handleAddTemplate}
+                          >
+                            <Icon icon="basil:plus-solid" width={16} height={16} />
+                            Add template
+                          </button>
                         </div>
-                      )}
-                    </div>
-                    <div className="FlowConversationSettings__phoneBubbleMeta">
-                      17:47
+
+                        <div className="FlowConversationSettings__templatesList">
+                          {activeConfig.templates.map((template) =>
+                            renderMessageEditor(template),
+                          )}
+                        </div>
+                      </>
+                    ),
+                  },
+                  {
+                    title: "Automation",
+                    content: (
+                      <div className="FlowConversationSettings__automation">
+                        <div className="FlowConversationSettings__automationCard">
+                          <div className="FlowConversationSettings__automationCard-header">
+                            <span>Retry unanswered messages</span>
+                            <SwitchInput
+                              size={SwitchInputSize.SMALL}
+                              value={activeConfig.automation.retryEnabled}
+                              onChange={(value) =>
+                                updateAutomation({ retryEnabled: value })
+                              }
+                              name="retryEnabled"
+                            />
+                          </div>
+
+                          {activeConfig.automation.retryEnabled && (
+                            <div className="FlowConversationSettings__automationCard-fields">
+                              <p className="FlowConversationSettings__automationCard-sectionTitle">
+                                Retry period
+                              </p>
+                              <div className="FlowConversationSettings__automationCard-row">
+                                <FormInput
+                                  label="Duration"
+                                  name="retryDuration"
+                                  value={activeConfig.automation.retryDuration}
+                                  onChange={(event) =>
+                                    updateAutomation({
+                                      retryDuration: event.target.value,
+                                    })
+                                  }
+                                  placeholder="Enter duration"
+                                />
+                                <SelectInput
+                                  label="Unit"
+                                  placeholder="Select unit"
+                                  options={timeUnitOptions}
+                                  value={activeConfig.automation.retryUnit}
+                                  onChange={(val: string | { value: string }) =>
+                                    updateAutomation({
+                                      retryUnit: handleSelectValue(val),
+                                    })
+                                  }
+                                />
+                              </div>
+                              <SelectInput
+                                label="Retry Limit"
+                                placeholder="Enter limit"
+                                options={RETRY_LIMIT_OPTIONS}
+                                value={activeConfig.automation.retryLimit}
+                                onChange={(val: string | { value: string }) =>
+                                  updateAutomation({
+                                    retryLimit: handleSelectValue(val),
+                                  })
+                                }
+                              />
+                              <div className="FlowConversationSettings__automationHint">
+                                <Icon icon="si:warning-line" width={16} height={16} />
+                                This does not apply to WhatsApp; it only applies to
+                                other social media channels.
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="FlowConversationSettings__automationCard">
+                          <div className="FlowConversationSettings__automationCard-header">
+                            <span>Automated Follow-Ups</span>
+                            <SwitchInput
+                              size={SwitchInputSize.SMALL}
+                              value={activeConfig.automation.followUpEnabled}
+                              onChange={(value) =>
+                                updateAutomation({ followUpEnabled: value })
+                              }
+                              name="followUpEnabled"
+                            />
+                          </div>
+
+                          {activeConfig.automation.followUpEnabled && (
+                            <div className="FlowConversationSettings__automationCard-fields">
+                              <SelectInput
+                                label="Follow-up type"
+                                placeholder="Select type"
+                                options={followUpTypeOptions}
+                                value={activeConfig.automation.followUpType}
+                                onChange={(val: string | { value: string }) =>
+                                  updateAutomation({
+                                    followUpType: handleSelectValue(val),
+                                  })
+                                }
+                              />
+                              <div className="FlowConversationSettings__automationCard-row">
+                                <FormInput
+                                  label="Frequency"
+                                  name="followUpFrequency"
+                                  value={activeConfig.automation.followUpFrequency}
+                                  onChange={(event) =>
+                                    updateAutomation({
+                                      followUpFrequency: event.target.value,
+                                    })
+                                  }
+                                  placeholder="Enter frequency"
+                                />
+                                <SelectInput
+                                  label="Unit"
+                                  placeholder="Select unit"
+                                  options={timeUnitOptions}
+                                  value={activeConfig.automation.followUpUnit}
+                                  onChange={(val: string | { value: string }) =>
+                                    updateAutomation({
+                                      followUpUnit: handleSelectValue(val),
+                                    })
+                                  }
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="FlowConversationSettings__checkboxCard">
+                          <div className="FlowConversationSettings__checkboxCard-header">
+                            <span>Stop automation when</span>
+                            <button
+                              type="button"
+                              className="FlowConversationSettings__checkboxCard-selectAll"
+                              onClick={handleSelectAllStopAutomation}
+                            >
+                              {allStopAutomationSelected ? "Clear" : "Select all"}
+                            </button>
+                          </div>
+                          <CheckboxInput
+                            name="stopAutomation"
+                            options={stopAutomationOptions}
+                            value={activeConfig.automation.stopAutomation}
+                            onChange={(values) =>
+                              updateAutomation({ stopAutomation: values })
+                            }
+                            direction="column"
+                          />
+                        </div>
+                      </div>
+                    ),
+                  },
+                ]}
+              />
+            </div>
+
+            {activeTabIndex === 0 && (
+              <aside className="FlowConversationSettings__preview">
+                <div className="FlowConversationSettings__previewHeader">
+                  <span>Live preview</span>
+                  <Icon
+                    icon="fluent:window-column-one-fourth-left-20-regular"
+                    width={20}
+                    height={20}
+                  />
+                </div>
+
+                <div className="FlowConversationSettings__phone">
+                  <div className="FlowConversationSettings__phoneStatusBar">
+                    <span>9:41</span>
+                    <div className="FlowConversationSettings__phoneStatusIcons">
+                      <Icon icon="mdi:signal-cellular-3" width={16} height={16} />
+                      <Icon icon="mdi:wifi" width={16} height={16} />
+                      <Icon icon="mdi:battery" width={18} height={18} />
                     </div>
                   </div>
-                ) : null}
-              </div>
 
-              <div className="FlowConversationSettings__phoneComposer">
-                <Icon icon="mdi:plus" width={18} height={18} color="#8e8e93" />
-                <div className="FlowConversationSettings__phoneInput" />
-                <Icon
-                  icon="mdi:sticker-emoji"
-                  width={18}
-                  height={18}
-                  color="#8e8e93"
-                />
-                <Icon
-                  icon="mdi:camera-outline"
-                  width={20}
-                  height={20}
-                  color="#8e8e93"
-                />
-                <Icon
-                  icon="mdi:microphone-outline"
-                  width={20}
-                  height={20}
-                  color="#8e8e93"
-                />
-              </div>
+                  <div className="FlowConversationSettings__phoneHeader">
+                    <div className="FlowConversationSettings__phoneContact">
+                      <Icon icon="mdi:chevron-left" width={20} height={20} />
+                      <span className="FlowConversationSettings__phoneAvatar">
+                        <InitialsAvatar
+                          name="Kairo"
+                          avatarUrl="/kairo-assets/kairo-icon-white.svg"
+                        />
+                      </span>
+                      <div>
+                        <p className="FlowConversationSettings__phoneName">Kairo</p>
+                        <p className="FlowConversationSettings__phoneSubtext">
+                          tap here for contact info
+                        </p>
+                      </div>
+                    </div>
+                    <div className="FlowConversationSettings__phoneActions">
+                      <Icon icon="mdi:video-outline" width={20} height={20} />
+                      <Icon icon="mdi:phone-outline" width={20} height={20} />
+                    </div>
+                  </div>
 
-              <div className="FlowConversationSettings__phoneHomeIndicator">
-                <span />
-              </div>
-            </div>
-          </aside>
-        )}
-      </div>
+                  <div className="FlowConversationSettings__phoneBody">
+                    <div className="FlowConversationSettings__phoneDate">Today</div>
+                    {previewTemplate?.message.trim() ? (
+                      <div>
+                        <div className="FlowConversationSettings__phoneBubble">
+                          <div className="FlowConversationSettings__phoneBubbleText">
+                            {previewMessage}
+                          </div>
+                          {previewButtons.length > 0 && (
+                            <div
+                              className={`FlowConversationSettings__phoneBubbleActions${previewButtons.length === 1
+                                ? " FlowConversationSettings__phoneBubbleActions--single"
+                                : ""
+                                }${previewButtons.length > 1 &&
+                                  previewButtons.length % 2 === 1
+                                  ? " FlowConversationSettings__phoneBubbleActions--odd"
+                                  : ""
+                                }`}
+                            >
+                              {previewButtons.map((button) => (
+                                <div
+                                  key={button.id}
+                                  className="FlowConversationSettings__phoneBubbleAction"
+                                >
+                                  {button.label}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="FlowConversationSettings__phoneBubbleMeta">
+                          17:47
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
 
-      {showAddCustomModal && (
-        <Modal
-          title="Add custom conversation"
-          onClose={closeAddCustomModal}
-          size={ModalSize.MEDIUM}
-          Footer={() => (
-            <Flex
-              gap="0.75rem"
-              align="center"
-              justify="flex-end"
-              style={{ marginTop: "1rem" }}
-            >
-              <Button
-                classes={[ButtonClass.OUTLINED]}
-                size={ButtonSize.WIDTH_140}
-                type="button"
-                onClick={closeAddCustomModal}
-              >
-                Cancel
-              </Button>
-              <Button
-                classes={[ButtonClass.SOLID]}
-                size={ButtonSize.WIDTH_140}
-                type="button"
-                onClick={handleAddCustomConversation}
-                disabled={!canAddCustomConversation}
-              >
-                Add
-              </Button>
-            </Flex>
-          )}
-        >
-          <Flex direction="column" gap="1rem">
-            <FormInput
-              label="Conversation name"
-              name="customConversationName"
-              placeholder="Enter conversation name"
-              value={customForm.name}
-              onChange={(event) =>
-                setCustomForm((prev) => ({ ...prev, name: event.target.value }))
-              }
-              required
-            />
+                  <div className="FlowConversationSettings__phoneComposer">
+                    <Icon icon="mdi:plus" width={18} height={18} color="#8e8e93" />
+                    <div className="FlowConversationSettings__phoneInput" />
+                    <Icon
+                      icon="mdi:sticker-emoji"
+                      width={18}
+                      height={18}
+                      color="#8e8e93"
+                    />
+                    <Icon
+                      icon="mdi:camera-outline"
+                      width={20}
+                      height={20}
+                      color="#8e8e93"
+                    />
+                    <Icon
+                      icon="mdi:microphone-outline"
+                      width={20}
+                      height={20}
+                      color="#8e8e93"
+                    />
+                  </div>
 
-            <div>
-              <FormInput
-                label="Description"
-                name="customConversationDescription"
-                placeholder="Enter description"
-                value={customForm.description}
-                onChange={(event) =>
-                  setCustomForm((prev) => ({
-                    ...prev,
-                    description: event.target.value,
-                  }))
-                }
-              />
-              <p className="FlowConversationSettings__fieldHint">
-                {DESCRIPTION_WORD_LIMIT} words max
-                {customDescriptionWordCount > DESCRIPTION_WORD_LIMIT
-                  ? ` · ${customDescriptionWordCount}/${DESCRIPTION_WORD_LIMIT}`
-                  : ""}
-              </p>
-            </div>
-
-            <Flex
-              justify="space-between"
-              align="center"
-              gap="1rem"
-              style={{ marginTop: "0.5rem" }}
-              className="FlowConversationSettings__modalEnable"
-            >
-              <span>Enable conversation upon creation</span>
-              <SwitchInput
-                size={SwitchInputSize.SMALL}
-                value={customForm.enableOnCreate}
-                onChange={(value) =>
-                  setCustomForm((prev) => ({
-                    ...prev,
-                    enableOnCreate: value,
-                  }))
-                }
-                name="enableCustomConversation"
-              />
-            </Flex>
-          </Flex>
-        </Modal>
-      )}
-
-      {catalogModal && (
-        <Modal
-          title={
-            catalogModal === "trigger"
-              ? "Add custom trigger"
-              : "Add custom variable"
-          }
-          onClose={closeCatalogModal}
-          size={ModalSize.SMALL}
-          Footer={() => (
-            <Flex
-              gap="0.75rem"
-              align="center"
-              justify="flex-end"
-              style={{ marginTop: "1rem" }}
-            >
-              <Button
-                classes={[ButtonClass.OUTLINED]}
-                size={ButtonSize.WIDTH_140}
-                type="button"
-                onClick={closeCatalogModal}
-              >
-                Cancel
-              </Button>
-              <Button
-                classes={[ButtonClass.SOLID]}
-                size={ButtonSize.WIDTH_140}
-                type="button"
-                onClick={handleAddCatalogItem}
-                disabled={!catalogLabel.trim()}
-              >
-                Add
-              </Button>
-            </Flex>
-          )}
-        >
-          <Flex direction="column" gap="1rem">
-            <FormInput
-              label={catalogModal === "trigger" ? "Trigger label" : "Description"}
-              name="catalogLabel"
-              placeholder={
-                catalogModal === "trigger"
-                  ? "e.g. Chargeback opened"
-                  : "e.g. Support ticket id"
-              }
-              value={catalogLabel}
-              onChange={(event) => setCatalogLabel(event.target.value)}
-            />
-            {catalogModal === "variable" && (
-              <FormInput
-                label="Token (optional)"
-                name="catalogToken"
-                placeholder="ticket_id"
-                value={catalogToken}
-                onChange={(event) => setCatalogToken(event.target.value)}
-              />
+                  <div className="FlowConversationSettings__phoneHomeIndicator">
+                    <span />
+                  </div>
+                </div>
+              </aside>
             )}
-          </Flex>
-        </Modal>
-      )}
+          </div>
+
+          {showAddCustomModal && (
+            <Modal
+              title="Add custom conversation"
+              onClose={closeAddCustomModal}
+              size={ModalSize.MEDIUM}
+              Footer={() => (
+                <Flex
+                  gap="0.75rem"
+                  align="center"
+                  justify="flex-end"
+                  style={{ marginTop: "1rem" }}
+                >
+                  <Button
+                    classes={[ButtonClass.OUTLINED]}
+                    size={ButtonSize.WIDTH_140}
+                    type="button"
+                    onClick={closeAddCustomModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    classes={[ButtonClass.SOLID]}
+                    size={ButtonSize.WIDTH_140}
+                    type="button"
+                    onClick={handleAddCustomConversation}
+                    disabled={!canAddCustomConversation}
+                  >
+                    Add
+                  </Button>
+                </Flex>
+              )}
+            >
+              <Flex direction="column" gap="1rem">
+                <FormInput
+                  label="Conversation name"
+                  name="customConversationName"
+                  placeholder="Enter conversation name"
+                  value={customForm.name}
+                  onChange={(event) =>
+                    setCustomForm((prev) => ({ ...prev, name: event.target.value }))
+                  }
+                  required
+                />
+
+                <div>
+                  <FormInput
+                    label="Description"
+                    name="customConversationDescription"
+                    placeholder="Enter description"
+                    value={customForm.description}
+                    onChange={(event) =>
+                      setCustomForm((prev) => ({
+                        ...prev,
+                        description: event.target.value,
+                      }))
+                    }
+                  />
+                  <p className="FlowConversationSettings__fieldHint">
+                    {DESCRIPTION_WORD_LIMIT} words max
+                    {customDescriptionWordCount > DESCRIPTION_WORD_LIMIT
+                      ? ` · ${customDescriptionWordCount}/${DESCRIPTION_WORD_LIMIT}`
+                      : ""}
+                  </p>
+                </div>
+
+                <Flex
+                  justify="space-between"
+                  align="center"
+                  gap="1rem"
+                  style={{ marginTop: "0.5rem" }}
+                  className="FlowConversationSettings__modalEnable"
+                >
+                  <span>Enable conversation upon creation</span>
+                  <SwitchInput
+                    size={SwitchInputSize.SMALL}
+                    value={customForm.enableOnCreate}
+                    onChange={(value) =>
+                      setCustomForm((prev) => ({
+                        ...prev,
+                        enableOnCreate: value,
+                      }))
+                    }
+                    name="enableCustomConversation"
+                  />
+                </Flex>
+              </Flex>
+            </Modal>
+          )}
+
+          {catalogModal && (
+            <Modal
+              title={
+                catalogModal === "trigger"
+                  ? "Add custom trigger"
+                  : "Add custom variable"
+              }
+              onClose={closeCatalogModal}
+              size={ModalSize.SMALL}
+              Footer={() => (
+                <Flex
+                  gap="0.75rem"
+                  align="center"
+                  justify="flex-end"
+                  style={{ marginTop: "1rem" }}
+                >
+                  <Button
+                    classes={[ButtonClass.OUTLINED]}
+                    size={ButtonSize.WIDTH_140}
+                    type="button"
+                    onClick={closeCatalogModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    classes={[ButtonClass.SOLID]}
+                    size={ButtonSize.WIDTH_140}
+                    type="button"
+                    onClick={handleAddCatalogItem}
+                    disabled={!catalogLabel.trim()}
+                  >
+                    Add
+                  </Button>
+                </Flex>
+              )}
+            >
+              <Flex direction="column" gap="1rem">
+                <FormInput
+                  label={catalogModal === "trigger" ? "Trigger label" : "Description"}
+                  name="catalogLabel"
+                  placeholder={
+                    catalogModal === "trigger"
+                      ? "e.g. Chargeback opened"
+                      : "e.g. Support ticket id"
+                  }
+                  value={catalogLabel}
+                  onChange={(event) => setCatalogLabel(event.target.value)}
+                />
+                {catalogModal === "variable" && (
+                  <FormInput
+                    label="Token (optional)"
+                    name="catalogToken"
+                    placeholder="ticket_id"
+                    value={catalogToken}
+                    onChange={(event) => setCatalogToken(event.target.value)}
+                  />
+                )}
+              </Flex>
+            </Modal>
+          )}
         </>
       )}
     </FlowConversationSettingsContainer>

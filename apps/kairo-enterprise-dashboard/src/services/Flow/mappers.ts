@@ -168,7 +168,7 @@ export function fromBackendAutomation(
 ): FrontendAutomationSettings {
   if (!raw) return createDefaultAutomation();
 
-  const stopRaw = raw.stopAutomation ?? raw.stopConditions;
+  const stopRaw = raw.stopAutomation ?? raw.stopWhen ?? raw.stopConditions;
   const retryPeriod = raw.retryPeriod as
     | { duration?: unknown; unit?: unknown }
     | undefined;
@@ -181,10 +181,10 @@ export function fromBackendAutomation(
     retryDuration: String(raw.retryDuration ?? retryPeriod?.duration ?? ""),
     retryUnit: String(raw.retryUnit ?? retryPeriod?.unit ?? ""),
     retryLimit: String(raw.retryLimit ?? ""),
-    followUpEnabled: Boolean(raw.followUpEnabled),
+    followUpEnabled: Boolean(raw.followUpEnabled ?? raw.enabled),
     followUpType: String(raw.followUpType ?? ""),
     followUpFrequency: String(
-      raw.followUpFrequency ?? followUpPeriod?.duration ?? "",
+      raw.followUpFrequency ?? followUpPeriod?.duration ?? raw.frequency ?? "",
     ),
     followUpUnit: String(raw.followUpUnit ?? followUpPeriod?.unit ?? ""),
     stopAutomation: Array.isArray(stopRaw) ? stopRaw.map(String) : [],
@@ -193,18 +193,51 @@ export function fromBackendAutomation(
 
 export function toBackendAutomation(
   settings: FrontendAutomationSettings,
+  existing?: Record<string, unknown>,
 ): Record<string, unknown> {
-  return {
-    retryEnabled: settings.retryEnabled,
-    retryDuration: settings.retryDuration,
-    retryUnit: settings.retryUnit,
-    retryLimit: settings.retryLimit,
-    followUpEnabled: settings.followUpEnabled,
-    followUpType: settings.followUpType,
-    followUpFrequency: settings.followUpFrequency,
-    followUpUnit: settings.followUpUnit,
-    stopAutomation: settings.stopAutomation,
-  };
+  const next: Record<string, unknown> = { ...(existing ?? {}) };
+  const usesStopWhen =
+    existing == null ||
+    "stopWhen" in next ||
+    Array.isArray(next.stopWhen) ||
+    !("stopAutomation" in next);
+
+  if (usesStopWhen) {
+    next.stopWhen = settings.stopAutomation;
+  } else {
+    next.stopAutomation = settings.stopAutomation;
+  }
+
+  if ("enabled" in next || settings.followUpEnabled) {
+    next.enabled = settings.followUpEnabled;
+  }
+
+  if (
+    settings.retryEnabled ||
+    settings.retryDuration ||
+    settings.retryUnit ||
+    settings.retryLimit ||
+    "retryEnabled" in next
+  ) {
+    next.retryEnabled = settings.retryEnabled;
+    next.retryDuration = settings.retryDuration;
+    next.retryUnit = settings.retryUnit;
+    next.retryLimit = settings.retryLimit;
+  }
+
+  if (
+    settings.followUpType ||
+    settings.followUpFrequency ||
+    settings.followUpUnit ||
+    "followUpType" in next
+  ) {
+    next.followUpEnabled = settings.followUpEnabled;
+    next.followUpType = settings.followUpType;
+    next.followUpFrequency = settings.followUpFrequency;
+    next.followUpUnit = settings.followUpUnit;
+  }
+
+  return next;
 }
 
 export function fromBackendTemplate(t: BackendTemplate): {

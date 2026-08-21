@@ -787,16 +787,34 @@ export const FlowGeneralSettings = ({
   const [editNoteContent, setEditNoteContent] = useState("");
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
 
-  const { flowSettings, fetchingFlowSettings, flowSchema, fetchingFlowSchema } =
-    useEntity(flowStore);
+  const { flowSettings, flowSchema } = useEntity(flowStore);
 
   useEffect(() => {
-    fetchFlowSettings().catch(() => { });
-    fetchFlowSchema().catch(() => { });
+    let cancelled = false;
+
+    const load = async () => {
+      setIsBootstrapping(true);
+      try {
+        await fetchFlowSchema();
+        if (cancelled) return;
+        await fetchFlowSettings();
+      } catch {
+        // Store actions already surface toast errors.
+      } finally {
+        if (!cancelled) setIsBootstrapping(false);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
+    if (isBootstrapping) return;
     if (!flowSettings?.general) return;
     const mapped = fromBackendGeneral(flowSettings.general);
     const mappedKnowledgeItems = fromBackendKnowledgeItems(flowSettings.general);
@@ -834,7 +852,7 @@ export const FlowGeneralSettings = ({
       mappedKnowledgeItems.map((item) => ({ ...item })),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flowSettings]);
+  }, [flowSettings, isBootstrapping]);
 
   const activeMeta = useMemo(
     () =>
@@ -957,7 +975,7 @@ export const FlowGeneralSettings = ({
     behaviorDetection,
   ]);
 
-  const isLoadingSettings = fetchingFlowSettings || fetchingFlowSchema;
+  const isLoadingSettings = isBootstrapping;
 
   const currentSettings = useMemo<EditableSettingsState>(
     () => ({

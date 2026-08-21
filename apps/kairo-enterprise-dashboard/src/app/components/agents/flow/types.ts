@@ -123,6 +123,7 @@ export type ConversationTypeConfig = {
   description?: string;
   templates: MessageTemplate[];
   automation: AutomationSettings;
+  backendAutomation?: Record<string, unknown>;
   customTriggers: SelectOption[];
   customVariables: MessageVariable[];
 };
