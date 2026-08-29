@@ -5,8 +5,14 @@ import type {
   BackendSchemaOption,
   BackendSchemaVariable,
   BackendSettingsSchema,
+  BackendTemplate,
 } from "./types";
-import { fromBackendTypeId, toBackendTypeId } from "./mappers";
+import {
+  fromBackendTypeId,
+  labelToBackendEnumValue,
+  toBackendTemplate,
+  toBackendTypeId,
+} from "./mappers";
 
 export type SchemaSelectOption = {
   label: string;
@@ -35,6 +41,15 @@ export function getSchemaDefaultValue(
   fallback = "",
 ): string {
   return options?.[0]?.value ?? fallback;
+}
+
+export function getSchemaOptionLabel(
+  options: BackendSchemaOption[] | undefined,
+  value: string,
+  fallback = "",
+): string {
+  const match = options?.find((option) => option.value === value);
+  return match?.label ?? fallback;
 }
 
 export function resolveConversationSchemaTypeId(
@@ -112,6 +127,224 @@ export function getAutomationFieldOptions(
   return toSelectOptions(getAutomationField(automation, field)?.options, fallback);
 }
 
+function automationFieldDefault(field: BackendSchemaField): unknown {
+  switch (field.kind) {
+    case "TOGGLE":
+      return false;
+    case "MULTI_SELECT":
+      return [];
+    case "SELECT":
+      return field.options[0]?.value ?? "";
+    case "TIME":
+      return "";
+    default:
+      return undefined;
+  }
+}
+
+export function getSchemaOptionValues(
+  options: BackendSchemaOption[] | undefined,
+): Set<string> {
+  return new Set(
+    (options ?? [])
+      .map((option) => option.value)
+      .filter((value) => typeof value === "string" && value.trim()),
+  );
+}
+
+function sanitizeEnumValue(
+  value: unknown,
+  options: BackendSchemaOption[] | undefined,
+  fallback = "",
+): string {
+  const normalized = String(value ?? "").trim();
+  const allowed = getSchemaOptionValues(options);
+  if (!allowed.size) return normalized || fallback;
+  if (normalized && allowed.has(normalized)) return normalized;
+  return fallback || options?.[0]?.value || "";
+}
+
+function sanitizeMultiSelectValue(
+  value: unknown,
+  field: BackendSchemaField,
+): string[] {
+  const selected = Array.isArray(value) ? value.map(String) : [];
+  const allowed = getSchemaOptionValues(field.options);
+
+  if (!allowed.size) {
+    return field.allowsCustom
+      ? selected.filter((entry) => entry.trim())
+      : [];
+  }
+
+  return selected.filter((entry) => allowed.has(entry));
+}
+
+export function sanitizeAutomationFieldValue(
+  field: BackendSchemaField,
+  value: unknown,
+): unknown {
+  switch (field.kind) {
+    case "TOGGLE":
+      return Boolean(value);
+    case "SELECT":
+      return sanitizeEnumValue(value, field.options);
+    case "MULTI_SELECT":
+      return sanitizeMultiSelectValue(value, field);
+    case "TIME":
+      return String(value ?? "").trim();
+    default:
+      return value;
+  }
+}
+
+export function getDefaultAutomationFromSchema(
+  schemaFields: BackendSchemaField[] | undefined,
+): Record<string, unknown> {
+  if (!schemaFields?.length) return {};
+
+  return Object.fromEntries(
+    schemaFields.map((field) => [
+      field.field,
+      sanitizeAutomationFieldValue(field, automationFieldDefault(field)),
+    ]),
+  );
+}
+
+export function initAutomationValues(
+  existing: Record<string, unknown> | undefined,
+  schemaFields: BackendSchemaField[] | undefined,
+): Record<string, unknown> {
+  const defaults = getDefaultAutomationFromSchema(schemaFields);
+  if (!schemaFields?.length) return { ...(existing ?? {}) };
+
+  return Object.fromEntries(
+    schemaFields.map((field) => [
+      field.field,
+      sanitizeAutomationFieldValue(
+        field,
+        existing?.[field.field] ?? defaults[field.field],
+      ),
+    ]),
+  );
+}
+
+export function buildBackendAutomation(
+  automationValues: Record<string, unknown> | undefined,
+  schemaFields: BackendSchemaField[] | undefined,
+): Record<string, unknown> | undefined {
+  if (!schemaFields?.length) {
+    return undefined;
+  }
+
+  return Object.fromEntries(
+    schemaFields.map((field) => [
+      field.field,
+      sanitizeAutomationFieldValue(field, automationValues?.[field.field]),
+    ]),
+  );
+}
+
+export function mergeConversationMessageVariables(
+  flowSchema: BackendSettingsSchema | null | undefined,
+  conversationSchema: BackendConversationSchemaMeta | undefined,
+  customVariables: SchemaMessageVariable[] = [],
+): SchemaMessageVariable[] {
+  const byToken = new Map<string, SchemaMessageVariable>();
+
+  for (const variable of toMessageVariables(flowSchema?.commonVariables, [])) {
+    byToken.set(variable.token, variable);
+  }
+
+  for (const variable of toMessageVariables(conversationSchema?.variables, [])) {
+    byToken.set(variable.token, variable);
+  }
+
+  for (const variable of customVariables) {
+    byToken.set(variable.token, variable);
+  }
+
+  return Array.from(byToken.values());
+}
+
+export function getAllowedTriggerConditionValues(
+  conversationSchema: BackendConversationSchemaMeta | undefined,
+  customTriggerConditions: SchemaSelectOption[] = [],
+): Set<string> {
+  const allowed = getSchemaOptionValues(conversationSchema?.triggerConditions);
+  for (const option of customTriggerConditions) {
+    if (option.value.trim()) allowed.add(option.value);
+  }
+  return allowed;
+}
+
+export function createCustomTriggerConditionOption(
+  label: string,
+): SchemaSelectOption {
+  return {
+    label,
+    value: labelToBackendEnumValue(label),
+  };
+}
+
+type SaveableTemplate = {
+  id: string;
+  name: string;
+  trigger: string;
+  triggerConditions: string[];
+  intent: string;
+  message: string;
+  buttons: {
+    label: string;
+    action: string;
+    buttonType: string;
+    payload?: Record<string, unknown>;
+  }[];
+  fallbackLanguage: string;
+};
+
+export function normalizeTemplateForSave(
+  template: SaveableTemplate,
+  conversationSchema?: BackendConversationSchemaMeta,
+  customTriggerConditions: SchemaSelectOption[] = [],
+): BackendTemplate {
+  const allowedTriggers = getSchemaOptionValues(conversationSchema?.triggers);
+  const allowedIntents = getSchemaOptionValues(conversationSchema?.intents);
+  const allowedConditions = getAllowedTriggerConditionValues(
+    conversationSchema,
+    customTriggerConditions,
+  );
+
+  const trigger = sanitizeEnumValue(
+    template.trigger,
+    conversationSchema?.triggers,
+    getSchemaDefaultValue(conversationSchema?.triggers, ""),
+  );
+
+  const intent =
+    allowedIntents.size > 0
+      ? sanitizeEnumValue(
+          template.intent,
+          conversationSchema?.intents,
+          getSchemaDefaultValue(conversationSchema?.intents, ""),
+        )
+      : "";
+
+  const triggerConditions = template.triggerConditions
+    .filter((value) => value.trim() && allowedConditions.has(value))
+    .filter((value, index, list) => list.indexOf(value) === index);
+
+  const sanitizedTrigger =
+    !allowedTriggers.size || allowedTriggers.has(trigger) ? trigger : "";
+
+  return toBackendTemplate({
+    ...template,
+    trigger: sanitizedTrigger,
+    intent,
+    triggerConditions,
+  });
+}
+
 export function getTemplateDefaultsFromSchema(
   conversationSchema?: BackendConversationSchemaMeta,
   flowSchema?: BackendSettingsSchema | null,
@@ -124,15 +357,21 @@ export function getTemplateDefaultsFromSchema(
   return {
     trigger: getSchemaDefaultValue(
       conversationSchema?.triggers,
-      "FIRST_TIME_USER",
+      "",
     ),
     triggerCondition: getSchemaDefaultValue(
       conversationSchema?.triggerConditions,
       "",
     ),
     intent: getSchemaDefaultValue(conversationSchema?.intents, ""),
+    templateType: getSchemaDefaultValue(conversationSchema?.templateTypes, ""),
     fallbackLanguage: getSchemaDefaultValue(flowSchema?.languages, "en"),
     buttonAction: defaultButtonAction,
+    buttonActionLabel: getSchemaOptionLabel(
+      flowSchema?.buttonActions,
+      defaultButtonAction,
+      "",
+    ),
     buttonType: getSchemaDefaultValue(flowSchema?.buttonTypes, "REPLY"),
     quickReplyAction: defaultButtonAction,
   };

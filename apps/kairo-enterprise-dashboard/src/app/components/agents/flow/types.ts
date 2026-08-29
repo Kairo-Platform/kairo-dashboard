@@ -80,6 +80,8 @@ export type TemplateButton = {
   action: string;
   buttonType: string;
   payload: TemplateButtonPayload;
+  // When true, label is not auto-synced from the selected action
+  labelCustomized?: boolean;
 };
 
 export type MessageTemplate = {
@@ -122,9 +124,10 @@ export type ConversationTypeConfig = {
   title?: string;
   description?: string;
   templates: MessageTemplate[];
-  automation: AutomationSettings;
-  backendAutomation?: Record<string, unknown>;
-  customTriggers: SelectOption[];
+  // UI-only starter templates; omit from save until the user edits them
+  templatesSeededForUi?: boolean;
+  automationValues: Record<string, unknown>;
+  customTriggerConditions: SelectOption[];
   customVariables: MessageVariable[];
 };
 
@@ -137,9 +140,11 @@ export type TemplateDefaults = {
   trigger?: string;
   triggerCondition?: string;
   intent?: string;
+  templateType?: string;
   fallbackLanguage?: string;
   buttonAction?: string;
   buttonType?: string;
+  buttonActionLabel?: string;
   quickReplyAction?: string;
 };
 
@@ -152,8 +157,8 @@ export type ConversationSettingsSavePayload = {
       title?: string;
       description?: string;
       templates: Omit<MessageTemplate, "expanded">[];
-      automation: AutomationSettings;
-      customTriggers: SelectOption[];
+      automationValues: Record<string, unknown>;
+      customTriggerConditions: SelectOption[];
       customVariables: MessageVariable[];
     }
   >;
@@ -161,5 +166,7 @@ export type ConversationSettingsSavePayload = {
 
 export type FlowConversationSettingsHandle = {
   getSavePayload: () => ConversationSettingsSavePayload;
+  hasUnsavedChanges: () => boolean;
+  discardChanges: () => void;
   save: () => Promise<ConversationSettingsSavePayload>;
 };

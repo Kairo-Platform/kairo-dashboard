@@ -2,12 +2,20 @@
 
 import {
   FlowConversationSettings,
+  NO_CONVERSATION_SETTINGS_CHANGES_ERROR,
   type FlowConversationSettingsHandle,
 } from "@/app/components/agents/flow";
 import { DashboardLayout } from "@/app/components/dashboard";
 import { URL } from "@/lib/constants";
 import { parseApiError } from "@/lib/utils/parseApiError";
-import { Button, ButtonClass, ButtonSize, Flex } from "@kairo/ui";
+import { Icon } from "@iconify/react";
+import {
+  Button,
+  ButtonClass,
+  ButtonSize,
+  ConfirmationModal,
+  Flex,
+} from "@kairo/ui";
 import { showErrorNotification, showSuccessNotification } from "@kairo/utils";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -36,12 +44,18 @@ const FlowConversationSettingsPageContainer = styled.div`
       color: ${({ theme }) => theme.colors.text_02};
     }
   }
+
+  .FlowConversationSettingsPage__headerActions {
+    flex-shrink: 0;
+  }
 `;
 
 export default function FlowConversationsSettingsPage() {
   const router = useRouter();
   const conversationSettingsRef = useRef<FlowConversationSettingsHandle>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
 
   const breadcrumbs = [
     {
@@ -64,6 +78,13 @@ export default function FlowConversationsSettingsPage() {
   const handleSaveSettings = async () => {
     if (!conversationSettingsRef.current || isSaving) return;
 
+    if (!conversationSettingsRef.current.hasUnsavedChanges()) {
+      showErrorNotification({
+        message: NO_CONVERSATION_SETTINGS_CHANGES_ERROR,
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       await conversationSettingsRef.current.save();
@@ -75,6 +96,11 @@ export default function FlowConversationsSettingsPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleConfirmClearChanges = () => {
+    conversationSettingsRef.current?.discardChanges();
+    setShowClearConfirmModal(false);
   };
 
   return (
@@ -90,19 +116,56 @@ export default function FlowConversationsSettingsPage() {
             <h2>Conversation settings</h2>
             <p>Configure how Flow communicates with your users</p>
           </div>
-          <Button
-            classes={[ButtonClass.SOLID]}
-            size={ButtonSize.WIDTH_140}
-            type="button"
-            onClick={handleSaveSettings}
-            loading={isSaving}
-            disabled={isSaving}
-          >
-            Save settings
-          </Button>
+          {hasUnsavedChanges && (
+            <Flex
+              align="center"
+              gap="0.75rem"
+              className="FlowConversationSettingsPage__headerActions"
+            >
+              <Button
+                classes={[ButtonClass.ICON_ONLY, ButtonClass.OUTLINED]}
+                type="button"
+                onClick={() => setShowClearConfirmModal(true)}
+                disabled={isSaving}
+                aria-label="Clear changes"
+              >
+                <Icon icon="iconoir:cancel" width={20} height={20} />
+              </Button>
+              <Button
+                classes={[ButtonClass.SOLID]}
+                size={ButtonSize.WIDTH_140}
+                type="button"
+                onClick={handleSaveSettings}
+                loading={isSaving}
+                disabled={isSaving}
+              >
+                Save settings
+              </Button>
+            </Flex>
+          )}
         </Flex>
-        <FlowConversationSettings ref={conversationSettingsRef} />
+        <FlowConversationSettings
+          ref={conversationSettingsRef}
+          onUnsavedChangesChange={setHasUnsavedChanges}
+        />
       </FlowConversationSettingsPageContainer>
+
+      {showClearConfirmModal && (
+        <ConfirmationModal
+          title="Clear changes"
+          confirmButtonText="Clear changes"
+          cancelButtonText="Keep editing"
+          confirmButtonClasses={[ButtonClass.SOLID_RED]}
+          onClose={() => setShowClearConfirmModal(false)}
+          onCancel={() => setShowClearConfirmModal(false)}
+          onConfirm={handleConfirmClearChanges}
+        >
+          <p style={{ textAlign: "center", margin: 0 }}>
+            Discard your unsaved conversation settings changes? This cannot be
+            undone.
+          </p>
+        </ConfirmationModal>
+      )}
     </DashboardLayout>
   );
 }

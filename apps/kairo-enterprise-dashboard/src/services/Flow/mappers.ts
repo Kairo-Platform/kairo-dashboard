@@ -77,6 +77,15 @@ export function toBackendEnum(value: string): string {
   return value.toUpperCase().replace(/-/g, "_");
 }
 
+// "First chat" → "FIRST_CHAT"
+export function labelToBackendEnumValue(label: string): string {
+  return label
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+}
+
 export function fromBackendEnum(value: string): string {
   if (/^[a-z]{2}(-[A-Z]{2})?$/.test(value)) return value;
   return value.toLowerCase().replace(/_/g, "-");
@@ -106,6 +115,18 @@ export function responseStyleFromBackend(value: string): {
   };
 }
 
+function isValidBackendButton(button: {
+  label: string;
+  action: string;
+  buttonType: string;
+}): boolean {
+  return (
+    button.label.trim().length > 0 &&
+    button.action.trim().length > 0 &&
+    button.buttonType.trim().length > 0
+  );
+}
+
 // Strips expanded, templateType, buttons[].payload; renames buttonType → type
 export function toBackendTemplate(template: {
   id: string;
@@ -126,13 +147,13 @@ export function toBackendTemplate(template: {
     id: template.id,
     name: template.name,
     trigger: template.trigger,
-    triggerConditions: template.triggerConditions,
+    triggerConditions: template.triggerConditions.filter((value) => value.trim()),
     intent: template.intent,
     message: template.message,
-    buttons: template.buttons.map((btn) => ({
-      label: btn.label,
-      action: btn.action,
-      type: btn.buttonType,
+    buttons: template.buttons.filter(isValidBackendButton).map((btn) => ({
+      label: btn.label.trim(),
+      action: btn.action.trim(),
+      type: btn.buttonType.trim(),
     })),
     fallbackLanguage: template.fallbackLanguage,
   };
@@ -272,6 +293,7 @@ export function fromBackendTemplate(t: BackendTemplate): {
       action: btn.action,
       buttonType: btn.type,
       payload: {},
+      labelCustomized: true,
     })),
     fallbackLanguage: t.fallbackLanguage,
     expanded: true,

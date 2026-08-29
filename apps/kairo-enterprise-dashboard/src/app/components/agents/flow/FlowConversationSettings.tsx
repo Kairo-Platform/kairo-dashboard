@@ -25,13 +25,13 @@ import {
 import { getOrgId } from "@/lib/auth/client";
 import {
   flow,
+  createCustomTriggerConditionOption,
   findConversationSchema,
   fromBackendTypeId,
-  getAutomationFieldOptions,
   getTemplateDefaultsFromSchema,
   mergeBuiltInCatalogWithSchema,
+  mergeConversationMessageVariables,
   toBackendTypeId,
-  toMessageVariables,
   toSelectOptions,
   unwrapFlowResponse,
   type BackendConversationType,
@@ -55,33 +55,27 @@ import {
   createEmptyButton,
   createInitialSettingsMap,
   fromBackendConversationType,
+  getButtonActionLabel,
+  hasConversationSettingsChanges,
   interpolatePreviewMessage,
+  NO_CONVERSATION_SETTINGS_CHANGES_ERROR,
   serializeTypeConfig,
   toBackendConversationsMap,
   toConversationSettingsSavePayload,
   wrapWhatsAppMarkdown,
 } from "./helpers";
+import { FlowConversationAutomationFields } from "./FlowConversationAutomationFields";
 import {
   BUILT_IN_CONVERSATION_TYPES,
   COMMON_EMOJIS,
   CUSTOM_CONVERSATION_ICON,
   FALLBACK_BUTTON_ACTION_OPTIONS,
   FALLBACK_BUTTON_TYPE_OPTIONS,
-  FALLBACK_FOLLOW_UP_TYPE_OPTIONS,
-  FALLBACK_INTENT_OPTIONS,
   FALLBACK_LANGUAGE_OPTIONS,
-  FALLBACK_MESSAGE_VARIABLES,
   FALLBACK_QUICK_REPLY_PAYLOAD_OPTIONS,
-  FALLBACK_STOP_AUTOMATION_OPTIONS,
-  FALLBACK_TIME_UNIT_OPTIONS,
-  FALLBACK_TRIGGER_CONDITION_OPTIONS,
-  FALLBACK_TRIGGER_OPTIONS,
-  RETRY_LIMIT_OPTIONS,
   STATUS_OPTIONS,
-  TEMPLATE_TYPE_OPTIONS,
 } from "./resources";
 import type {
-  AutomationSettings,
   ConversationSettingsMap,
   ConversationStatus,
   ConversationTypeConfig,
@@ -1005,6 +999,7 @@ const FlowConversationSettingsContainer = styled.div`
 
 type FlowConversationSettingsProps = {
   initialConversationType?: ConversationTypeId;
+  onUnsavedChangesChange?: (hasChanges: boolean) => void;
 };
 
 const handleSelectValue = (value: string | { value: string }): string =>
@@ -1039,7 +1034,7 @@ export const FlowConversationSettings = forwardRef<
   FlowConversationSettingsHandle,
   FlowConversationSettingsProps
 >(function FlowConversationSettings(
-  { initialConversationType = "onboarding" },
+  { initialConversationType = "onboarding", onUnsavedChangesChange },
   ref,
 ) {
   const [typeCatalog, setTypeCatalog] = useState<ConversationTypeMeta[]>(
@@ -1076,6 +1071,8 @@ export const FlowConversationSettings = forwardRef<
   const nameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const savedSettingsRef = useRef(savedSettings);
+  savedSettingsRef.current = savedSettings;
   const settingsHydratedRef = useRef(false);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
 
@@ -1141,12 +1138,14 @@ export const FlowConversationSettings = forwardRef<
           backendType,
           "built-in",
           templateDefaults,
+          conversationSchema,
         );
       } else {
         newSettings[meta.id] = createDefaultTypeConfig(
           "built-in",
           "DRAFT",
           templateDefaults,
+          conversationSchema,
         );
       }
 
@@ -1178,6 +1177,7 @@ export const FlowConversationSettings = forwardRef<
         backendType as BackendConversationType,
         "custom",
         templateDefaults,
+        conversationSchema,
       );
       newSettings[frontendId].title = title;
     }
@@ -1215,16 +1215,56 @@ export const FlowConversationSettings = forwardRef<
     );
   }, [flowSchema]);
 
+  const hasUnsavedChanges = useMemo(
+    () =>
+      !isBootstrapping &&
+      hasConversationSettingsChanges(settings, savedSettings),
+    [settings, savedSettings, isBootstrapping],
+  );
+
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
+
   useImperativeHandle(ref, () => ({
     getSavePayload: () =>
       toConversationSettingsSavePayload(settingsRef.current),
+    hasUnsavedChanges: () =>
+      hasConversationSettingsChanges(
+        settingsRef.current,
+        savedSettingsRef.current,
+      ),
+    discardChanges: () => {
+      const restored: Record<string, ConversationTypeConfig> = {};
+      for (const [id, config] of Object.entries(savedSettingsRef.current)) {
+        restored[id] = cloneTypeConfig(config);
+      }
+      setSettings(restored);
+      setEditingTemplateId(null);
+      setEmojiOpenFor(null);
+      setActiveTabIndex(0);
+      const activeConfig = restored[activeTypeId] ?? Object.values(restored)[0];
+      setPreviewTemplateId(activeConfig?.templates[0]?.id ?? null);
+    },
     save: async () => {
+      if (
+        !hasConversationSettingsChanges(
+          settingsRef.current,
+          savedSettingsRef.current,
+        )
+      ) {
+        throw new Error(NO_CONVERSATION_SETTINGS_CHANGES_ERROR);
+      }
+
       const orgId = getOrgId();
       if (!orgId) {
         throw new Error("Organization not found");
       }
 
-      const conversations = toBackendConversationsMap(settingsRef.current);
+      const conversations = toBackendConversationsMap(
+        settingsRef.current,
+        flowSchema,
+      );
       await flow.saveSettings(orgId, { conversations });
 
       const snapshot: Record<string, ConversationTypeConfig> = {};
@@ -1242,39 +1282,52 @@ export const FlowConversationSettings = forwardRef<
     [flowSchema, activeTypeId],
   );
 
+  const schemaReady = Boolean(flowSchema?.conversations?.length);
+
   const triggerOptions = useMemo(
-    () => [
-      ...toSelectOptions(
-        activeConversationSchema?.triggers,
-        activeConversationSchema ? [] : FALLBACK_TRIGGER_OPTIONS,
-      ),
-      ...activeConfig.customTriggers,
-    ],
-    [activeConversationSchema, activeConfig.customTriggers],
+    () =>
+      schemaReady
+        ? toSelectOptions(activeConversationSchema?.triggers, [])
+        : [],
+    [schemaReady, activeConversationSchema],
   );
 
   const triggerConditionOptions = useMemo(
-    () => [
-      ...toSelectOptions(
-        activeConversationSchema?.triggerConditions,
-        activeConversationSchema ? [] : FALLBACK_TRIGGER_CONDITION_OPTIONS,
-      ),
-      ...activeConfig.customTriggers.map((option) => ({
-        value: option.value,
-        label: option.label,
-      })),
-    ],
-    [activeConversationSchema, activeConfig.customTriggers],
+    () =>
+      schemaReady
+        ? [
+            ...toSelectOptions(activeConversationSchema?.triggerConditions, []),
+            ...activeConfig.customTriggerConditions,
+          ]
+        : [],
+    [schemaReady, activeConversationSchema, activeConfig.customTriggerConditions],
   );
 
   const intentOptions = useMemo(
     () =>
-      toSelectOptions(
-        activeConversationSchema?.intents,
-        activeConversationSchema ? [] : FALLBACK_INTENT_OPTIONS,
-      ),
-    [activeConversationSchema],
+      schemaReady ? toSelectOptions(activeConversationSchema?.intents, []) : [],
+    [schemaReady, activeConversationSchema],
   );
+
+  const templateTypeOptions = useMemo(
+    () =>
+      schemaReady
+        ? toSelectOptions(activeConversationSchema?.templateTypes, [])
+        : [],
+    [schemaReady, activeConversationSchema],
+  );
+
+  const showTriggerConditions = schemaReady;
+  const showIntentField = intentOptions.length > 0;
+  const showTemplateTypeField = templateTypeOptions.length > 0;
+  const showAutomationTab =
+    (activeConversationSchema?.automation?.length ?? 0) > 0;
+
+  useEffect(() => {
+    if (!showAutomationTab && activeTabIndex > 0) {
+      setActiveTabIndex(0);
+    }
+  }, [activeTypeId, showAutomationTab, activeTabIndex]);
 
   const buttonActionOptions = useMemo(
     () => toSelectOptions(flowSchema?.buttonActions, FALLBACK_BUTTON_ACTION_OPTIONS),
@@ -1298,50 +1351,15 @@ export const FlowConversationSettings = forwardRef<
   );
 
   const messageVariables = useMemo(
-    () => {
-      const common = toMessageVariables(
-        flowSchema?.commonVariables,
-        FALLBACK_MESSAGE_VARIABLES,
-      );
-      const conversationSpecific = toMessageVariables(
-        activeConversationSchema?.variables,
-        [],
-      );
-      const byToken = new Map<string, MessageVariable>();
-      for (const variable of [
-        ...common,
-        ...conversationSpecific,
-        ...activeConfig.customVariables,
-      ]) {
-        byToken.set(variable.token, variable);
-      }
-      return Array.from(byToken.values());
-    },
-    [
-      flowSchema,
-      activeConversationSchema,
-      activeConfig.customVariables,
-    ],
-  );
-
-  const timeUnitOptions = useMemo(
-    () => toSelectOptions(flowSchema?.retentionUnits, FALLBACK_TIME_UNIT_OPTIONS),
-    [flowSchema],
-  );
-
-  const followUpTypeOptions = useMemo(
-    () => FALLBACK_FOLLOW_UP_TYPE_OPTIONS,
-    [],
-  );
-
-  const stopAutomationOptions = useMemo(
     () =>
-      getAutomationFieldOptions(
-        activeConversationSchema?.automation,
-        "stopWhen",
-        FALLBACK_STOP_AUTOMATION_OPTIONS,
-      ),
-    [activeConversationSchema],
+      schemaReady
+        ? mergeConversationMessageVariables(
+            flowSchema,
+            activeConversationSchema,
+            activeConfig.customVariables,
+          )
+        : [],
+    [schemaReady, flowSchema, activeConversationSchema, activeConfig.customVariables],
   );
 
   const messageWordLimit =
@@ -1362,9 +1380,7 @@ export const FlowConversationSettings = forwardRef<
   );
 
   const previewButtons =
-    previewTemplate?.templateType === "interactive"
-      ? previewTemplate.buttons.filter((button) => button.label.trim())
-      : [];
+    previewTemplate?.buttons.filter((button) => button.label.trim()) ?? [];
 
   const customDescriptionWordCount = countWords(customForm.description);
   const canAddCustomConversation =
@@ -1390,6 +1406,7 @@ export const FlowConversationSettings = forwardRef<
   ) => {
     updateActiveConfig((config) => ({
       ...config,
+      templatesSeededForUi: false,
       templates: config.templates.map((template) =>
         template.id === templateId ? { ...template, ...updates } : template,
       ),
@@ -1399,10 +1416,13 @@ export const FlowConversationSettings = forwardRef<
     }
   };
 
-  const updateAutomation = (updates: Partial<AutomationSettings>) => {
+  const updateAutomationField = (field: string, value: unknown) => {
     updateActiveConfig((config) => ({
       ...config,
-      automation: { ...config.automation, ...updates },
+      automationValues: {
+        ...config.automationValues,
+        [field]: value,
+      },
     }));
   };
 
@@ -1441,6 +1461,7 @@ export const FlowConversationSettings = forwardRef<
           findConversationSchema(flowSchema, id),
           flowSchema,
         ),
+        findConversationSchema(flowSchema, id),
       );
       config.title = title;
       config.description = description;
@@ -1497,6 +1518,7 @@ export const FlowConversationSettings = forwardRef<
     );
     updateActiveConfig((config) => ({
       ...config,
+      templatesSeededForUi: false,
       templates: [
         ...config.templates.map((template) => ({
           ...template,
@@ -1555,7 +1577,7 @@ export const FlowConversationSettings = forwardRef<
 
   const removeTemplateButton = (templateId: string, buttonId: string) => {
     const template = activeConfig.templates.find((item) => item.id === templateId);
-    if (!template || template.buttons.length <= 1) return;
+    if (!template) return;
     updateTemplateById(templateId, {
       buttons: template.buttons.filter((button) => button.id !== buttonId),
     });
@@ -1626,15 +1648,11 @@ export const FlowConversationSettings = forwardRef<
     if (!label) return;
 
     if (catalogModal === "trigger") {
-      const value = label
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
-      if (!value) return;
-      const option: SelectOption = { label, value };
+      const option = createCustomTriggerConditionOption(label);
+      if (!option.value) return;
       updateActiveConfig((config) => ({
         ...config,
-        customTriggers: [...config.customTriggers, option],
+        customTriggerConditions: [...config.customTriggerConditions, option],
       }));
       closeCatalogModal();
       return;
@@ -1655,19 +1673,6 @@ export const FlowConversationSettings = forwardRef<
       customVariables: [...config.customVariables, variable],
     }));
     closeCatalogModal();
-  };
-
-  const allStopAutomationSelected =
-    stopAutomationOptions.length > 0 &&
-    activeConfig.automation.stopAutomation.length ===
-    stopAutomationOptions.length;
-
-  const handleSelectAllStopAutomation = () => {
-    updateAutomation({
-      stopAutomation: allStopAutomationSelected
-        ? []
-        : stopAutomationOptions.map((option) => option.value),
-    });
   };
 
   const setMessageRef =
@@ -1733,80 +1738,88 @@ export const FlowConversationSettings = forwardRef<
 
         {template.expanded && (
           <>
-            <SelectInput
-              label="Trigger"
-              placeholder="Select trigger"
-              options={triggerOptions}
-              value={template.trigger}
-              onChange={(val: string | { value: string }) =>
-                updateTemplateById(template.id, {
-                  trigger: handleSelectValue(val),
-                })
-              }
-            />
-
-            <div className="FlowConversationSettings__checkboxCard">
-              <div className="FlowConversationSettings__checkboxCard-header">
-                <span>Trigger conditions</span>
-                <div className="FlowConversationSettings__checkboxCard-actions">
-                  <button
-                    type="button"
-                    className="FlowConversationSettings__ghostButton"
-                    onClick={() => openCatalogModal("trigger")}
-                  >
-                    Add custom trigger
-                  </button>
-                  <button
-                    type="button"
-                    className="FlowConversationSettings__checkboxCard-selectAll"
-                    onClick={() =>
-                      updateTemplateById(template.id, {
-                        triggerConditions: allTriggerConditionsSelected
-                          ? []
-                          : triggerConditionOptions.map((option) => option.value),
-                      })
-                    }
-                  >
-                    {allTriggerConditionsSelected ? "Clear" : "Select all"}
-                  </button>
-                </div>
-              </div>
-              <CheckboxInput
-                name={`triggerConditions-${template.id}`}
-                options={triggerConditionOptions}
-                value={template.triggerConditions}
-                onChange={(values) =>
+            {triggerOptions.length > 0 && (
+              <SelectInput
+                label="Trigger"
+                placeholder="Select trigger"
+                options={triggerOptions}
+                value={template.trigger}
+                onChange={(val: string | { value: string }) =>
                   updateTemplateById(template.id, {
-                    triggerConditions: values,
+                    trigger: handleSelectValue(val),
                   })
                 }
-                direction="column"
               />
-            </div>
+            )}
 
-            <SelectInput
-              label="Intent"
-              placeholder="Select intent"
-              options={intentOptions}
-              value={template.intent}
-              onChange={(val: string | { value: string }) =>
-                updateTemplateById(template.id, {
-                  intent: handleSelectValue(val),
-                })
-              }
-            />
+            {showTriggerConditions && (
+              <div className="FlowConversationSettings__checkboxCard">
+                <div className="FlowConversationSettings__checkboxCard-header">
+                  <span>Trigger conditions</span>
+                  <div className="FlowConversationSettings__checkboxCard-actions">
+                    <button
+                      type="button"
+                      className="FlowConversationSettings__ghostButton"
+                      onClick={() => openCatalogModal("trigger")}
+                    >
+                      Add custom condition
+                    </button>
+                    <button
+                      type="button"
+                      className="FlowConversationSettings__checkboxCard-selectAll"
+                      onClick={() =>
+                        updateTemplateById(template.id, {
+                          triggerConditions: allTriggerConditionsSelected
+                            ? []
+                            : triggerConditionOptions.map((option) => option.value),
+                        })
+                      }
+                    >
+                      {allTriggerConditionsSelected ? "Clear" : "Select all"}
+                    </button>
+                  </div>
+                </div>
+                <CheckboxInput
+                  name={`triggerConditions-${template.id}`}
+                  options={triggerConditionOptions}
+                  value={template.triggerConditions}
+                  onChange={(values) =>
+                    updateTemplateById(template.id, {
+                      triggerConditions: values,
+                    })
+                  }
+                  direction="column"
+                />
+              </div>
+            )}
 
-            <SelectInput
-              label="Template type"
-              placeholder="Select type"
-              options={TEMPLATE_TYPE_OPTIONS}
-              value={template.templateType}
-              onChange={(val: string | { value: string }) =>
-                updateTemplateById(template.id, {
-                  templateType: handleSelectValue(val),
-                })
-              }
-            />
+            {showIntentField && (
+              <SelectInput
+                label="Intent"
+                placeholder="Select intent"
+                options={intentOptions}
+                value={template.intent}
+                onChange={(val: string | { value: string }) =>
+                  updateTemplateById(template.id, {
+                    intent: handleSelectValue(val),
+                  })
+                }
+              />
+            )}
+
+            {showTemplateTypeField && (
+              <SelectInput
+                label="Template type"
+                placeholder="Select type"
+                options={templateTypeOptions}
+                value={template.templateType}
+                onChange={(val: string | { value: string }) =>
+                  updateTemplateById(template.id, {
+                    templateType: handleSelectValue(val),
+                  })
+                }
+              />
+            )}
 
             <div className="FlowConversationSettings__messageEditor">
               <div className="FlowConversationSettings__messageEditorHeader">
@@ -1983,6 +1996,7 @@ export const FlowConversationSettings = forwardRef<
                       onChange={(event) =>
                         updateTemplateButton(template.id, button.id, {
                           label: event.target.value,
+                          labelCustomized: true,
                         })
                       }
                       placeholder="Enter label"
@@ -2002,10 +2016,18 @@ export const FlowConversationSettings = forwardRef<
                           isReplyAction(action)
                             ? previous ||
                             quickReplyPayloadOptions[0]?.value ||
-                            "GET_STARTED"
+                            action
                             : previous;
                         updateTemplateButton(template.id, button.id, {
                           action,
+                          ...(!button.labelCustomized
+                            ? {
+                                label: getButtonActionLabel(
+                                  action,
+                                  buttonActionOptions,
+                                ),
+                              }
+                            : {}),
                           payload: payloadFromAction(action, nextValue),
                         });
                       }}
@@ -2205,150 +2227,20 @@ export const FlowConversationSettings = forwardRef<
                       </>
                     ),
                   },
-                  {
-                    title: "Automation",
-                    content: (
-                      <div className="FlowConversationSettings__automation">
-                        <div className="FlowConversationSettings__automationCard">
-                          <div className="FlowConversationSettings__automationCard-header">
-                            <span>Retry unanswered messages</span>
-                            <SwitchInput
-                              size={SwitchInputSize.SMALL}
-                              value={activeConfig.automation.retryEnabled}
-                              onChange={(value) =>
-                                updateAutomation({ retryEnabled: value })
-                              }
-                              name="retryEnabled"
+                  ...(showAutomationTab
+                    ? [
+                        {
+                          title: "Automation",
+                          content: (
+                            <FlowConversationAutomationFields
+                              fields={activeConversationSchema?.automation ?? []}
+                              values={activeConfig.automationValues}
+                              onFieldChange={updateAutomationField}
                             />
-                          </div>
-
-                          {activeConfig.automation.retryEnabled && (
-                            <div className="FlowConversationSettings__automationCard-fields">
-                              <p className="FlowConversationSettings__automationCard-sectionTitle">
-                                Retry period
-                              </p>
-                              <div className="FlowConversationSettings__automationCard-row">
-                                <FormInput
-                                  label="Duration"
-                                  name="retryDuration"
-                                  value={activeConfig.automation.retryDuration}
-                                  onChange={(event) =>
-                                    updateAutomation({
-                                      retryDuration: event.target.value,
-                                    })
-                                  }
-                                  placeholder="Enter duration"
-                                />
-                                <SelectInput
-                                  label="Unit"
-                                  placeholder="Select unit"
-                                  options={timeUnitOptions}
-                                  value={activeConfig.automation.retryUnit}
-                                  onChange={(val: string | { value: string }) =>
-                                    updateAutomation({
-                                      retryUnit: handleSelectValue(val),
-                                    })
-                                  }
-                                />
-                              </div>
-                              <SelectInput
-                                label="Retry Limit"
-                                placeholder="Enter limit"
-                                options={RETRY_LIMIT_OPTIONS}
-                                value={activeConfig.automation.retryLimit}
-                                onChange={(val: string | { value: string }) =>
-                                  updateAutomation({
-                                    retryLimit: handleSelectValue(val),
-                                  })
-                                }
-                              />
-                              <div className="FlowConversationSettings__automationHint">
-                                <Icon icon="si:warning-line" width={16} height={16} />
-                                This does not apply to WhatsApp; it only applies to
-                                other social media channels.
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="FlowConversationSettings__automationCard">
-                          <div className="FlowConversationSettings__automationCard-header">
-                            <span>Automated Follow-Ups</span>
-                            <SwitchInput
-                              size={SwitchInputSize.SMALL}
-                              value={activeConfig.automation.followUpEnabled}
-                              onChange={(value) =>
-                                updateAutomation({ followUpEnabled: value })
-                              }
-                              name="followUpEnabled"
-                            />
-                          </div>
-
-                          {activeConfig.automation.followUpEnabled && (
-                            <div className="FlowConversationSettings__automationCard-fields">
-                              <SelectInput
-                                label="Follow-up type"
-                                placeholder="Select type"
-                                options={followUpTypeOptions}
-                                value={activeConfig.automation.followUpType}
-                                onChange={(val: string | { value: string }) =>
-                                  updateAutomation({
-                                    followUpType: handleSelectValue(val),
-                                  })
-                                }
-                              />
-                              <div className="FlowConversationSettings__automationCard-row">
-                                <FormInput
-                                  label="Frequency"
-                                  name="followUpFrequency"
-                                  value={activeConfig.automation.followUpFrequency}
-                                  onChange={(event) =>
-                                    updateAutomation({
-                                      followUpFrequency: event.target.value,
-                                    })
-                                  }
-                                  placeholder="Enter frequency"
-                                />
-                                <SelectInput
-                                  label="Unit"
-                                  placeholder="Select unit"
-                                  options={timeUnitOptions}
-                                  value={activeConfig.automation.followUpUnit}
-                                  onChange={(val: string | { value: string }) =>
-                                    updateAutomation({
-                                      followUpUnit: handleSelectValue(val),
-                                    })
-                                  }
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="FlowConversationSettings__checkboxCard">
-                          <div className="FlowConversationSettings__checkboxCard-header">
-                            <span>Stop automation when</span>
-                            <button
-                              type="button"
-                              className="FlowConversationSettings__checkboxCard-selectAll"
-                              onClick={handleSelectAllStopAutomation}
-                            >
-                              {allStopAutomationSelected ? "Clear" : "Select all"}
-                            </button>
-                          </div>
-                          <CheckboxInput
-                            name="stopAutomation"
-                            options={stopAutomationOptions}
-                            value={activeConfig.automation.stopAutomation}
-                            onChange={(values) =>
-                              updateAutomation({ stopAutomation: values })
-                            }
-                            direction="column"
-                          />
-                        </div>
-                      </div>
-                    ),
-                  },
+                          ),
+                        },
+                      ]
+                    : []),
                 ]}
               />
             </div>
@@ -2557,7 +2449,7 @@ export const FlowConversationSettings = forwardRef<
             <Modal
               title={
                 catalogModal === "trigger"
-                  ? "Add custom trigger"
+                  ? "Add custom condition"
                   : "Add custom variable"
               }
               onClose={closeCatalogModal}
