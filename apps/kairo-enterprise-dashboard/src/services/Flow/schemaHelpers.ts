@@ -109,7 +109,10 @@ export function getGuardrailOptions(
   field: string,
   fallback: SchemaSelectOption[] = [],
 ): SchemaSelectOption[] {
-  return toSelectOptions(getGuardrailField(guardrails, field)?.options, fallback);
+  return toSelectOptions(
+    getGuardrailField(guardrails, field)?.options,
+    fallback,
+  );
 }
 
 export function getAutomationField(
@@ -124,7 +127,10 @@ export function getAutomationFieldOptions(
   field: string,
   fallback: SchemaSelectOption[] = [],
 ): SchemaSelectOption[] {
-  return toSelectOptions(getAutomationField(automation, field)?.options, fallback);
+  return toSelectOptions(
+    getAutomationField(automation, field)?.options,
+    fallback,
+  );
 }
 
 function automationFieldDefault(field: BackendSchemaField): unknown {
@@ -172,9 +178,7 @@ function sanitizeMultiSelectValue(
   const allowed = getSchemaOptionValues(field.options);
 
   if (!allowed.size) {
-    return field.allowsCustom
-      ? selected.filter((entry) => entry.trim())
-      : [];
+    return field.allowsCustom ? selected.filter((entry) => entry.trim()) : [];
   }
 
   return selected.filter((entry) => allowed.has(entry));
@@ -249,14 +253,22 @@ export function mergeConversationMessageVariables(
   flowSchema: BackendSettingsSchema | null | undefined,
   conversationSchema: BackendConversationSchemaMeta | undefined,
   customVariables: SchemaMessageVariable[] = [],
+  flowVariables: SchemaMessageVariable[] = [],
 ): SchemaMessageVariable[] {
   const byToken = new Map<string, SchemaMessageVariable>();
+
+  for (const variable of flowVariables) {
+    byToken.set(variable.token, variable);
+  }
 
   for (const variable of toMessageVariables(flowSchema?.commonVariables, [])) {
     byToken.set(variable.token, variable);
   }
 
-  for (const variable of toMessageVariables(conversationSchema?.variables, [])) {
+  for (const variable of toMessageVariables(
+    conversationSchema?.variables,
+    [],
+  )) {
     byToken.set(variable.token, variable);
   }
 
@@ -355,10 +367,7 @@ export function getTemplateDefaultsFromSchema(
   );
 
   return {
-    trigger: getSchemaDefaultValue(
-      conversationSchema?.triggers,
-      "",
-    ),
+    trigger: getSchemaDefaultValue(conversationSchema?.triggers, ""),
     triggerCondition: getSchemaDefaultValue(
       conversationSchema?.triggerConditions,
       "",
@@ -391,7 +400,9 @@ export function mergeBuiltInCatalogWithSchema<
   schema: BackendSettingsSchema | null | undefined,
   existingCatalog: T[] = builtInTypes,
 ): T[] {
-  const customTypes = existingCatalog.filter((entry) => entry.kind === "custom");
+  const customTypes = existingCatalog.filter(
+    (entry) => entry.kind === "custom",
+  );
 
   if (!schema?.conversations?.length) {
     return [...builtInTypes, ...customTypes];
@@ -404,22 +415,21 @@ export function mergeBuiltInCatalogWithSchema<
     const frontendId = fromBackendTypeId(entryTypeId);
     const builtIn =
       builtInTypes.find((meta) => meta.id === frontendId) ??
-      builtInTypes.find(
-        (meta) => toBackendTypeId(meta.id) === entryTypeId,
-      );
+      builtInTypes.find((meta) => toBackendTypeId(meta.id) === entryTypeId);
 
     const label =
       resolveConversationSchemaLabel(entry) ?? builtIn?.title ?? frontendId;
 
     return [
       {
-        ...(builtIn ?? ({
-          id: frontendId,
-          title: label,
-          description: entry.description ?? "",
-          conversationsTitle: `${label} conversations`,
-          kind: "built-in",
-        } as T)),
+        ...(builtIn ??
+          ({
+            id: frontendId,
+            title: label,
+            description: entry.description ?? "",
+            conversationsTitle: `${label} conversations`,
+            kind: "built-in",
+          } as T)),
         id: frontendId,
         title: label,
         description: entry.description ?? builtIn?.description ?? "",

@@ -61,6 +61,11 @@ export const flow = {
       `${FLOW_BASE(orgId)}/flow/channels`,
     ),
 
+  getVariables: (orgId: string) =>
+    xApiBff.request<BackendChannel[]>(
+      `${FLOW_BASE(orgId)}/agents/flow/settings/variables`,
+    ),
+
   connectWhatsApp: (orgId: string, body: BackendWhatsAppConnectRequest) =>
     xApiBff.request<BackendWhatsAppConnectResponse>(
       `${FLOW_BASE(orgId)}/flow/channels/whatsapp`,

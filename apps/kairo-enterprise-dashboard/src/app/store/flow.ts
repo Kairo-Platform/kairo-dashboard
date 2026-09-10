@@ -9,6 +9,7 @@ import type {
   BackendChannelConfig,
   BackendSettings,
   BackendSettingsSchema,
+  FlowMessageVariables,
 } from "@/services/Flow";
 
 export interface FlowState {
@@ -23,6 +24,9 @@ export interface FlowState {
 
   fetchingFlowChannelConfig: boolean;
   flowChannelConfig: BackendChannelConfig | null;
+
+  fetchingFlowVariables: boolean;
+  flowVariables: FlowMessageVariables[] | null;
 }
 
 const initialState: FlowState = {
@@ -37,6 +41,9 @@ const initialState: FlowState = {
 
   fetchingFlowChannelConfig: false,
   flowChannelConfig: null,
+
+  fetchingFlowVariables: false,
+  flowVariables: null,
 };
 
 export const flowStore = entity<FlowState>(initialState);
@@ -45,7 +52,9 @@ export const setFetchingFlowSettings = (payload = false): void => {
   void flowStore.set((s) => ({ ...s, fetchingFlowSettings: payload }));
 };
 
-export const setFlowSettings = (payload: BackendSettings | null = null): void => {
+export const setFlowSettings = (
+  payload: BackendSettings | null = null,
+): void => {
   void flowStore.set((s) => ({ ...s, flowSettings: payload }));
 };
 
@@ -75,6 +84,16 @@ export const setFlowChannelConfig = (
   payload: BackendChannelConfig | null = null,
 ): void => {
   void flowStore.set((s) => ({ ...s, flowChannelConfig: payload }));
+};
+
+export const setFetchingFlowVariables = (payload = false): void => {
+  void flowStore.set((s) => ({ ...s, fetchingFlowVariables: payload }));
+};
+
+export const setFlowVariables = (
+  payload: FlowMessageVariables[] | null = null,
+): void => {
+  void flowStore.set((s) => ({ ...s, flowVariables: payload }));
 };
 
 export const resetFlowStore = (): void => {
@@ -124,6 +143,29 @@ export const fetchFlowSchema = async () => {
     throw error;
   } finally {
     setFetchingFlowSchema(false);
+  }
+};
+
+export const fetchFlowVariables = async () => {
+  const orgId = getOrgId();
+  if (!orgId) return;
+
+  setFetchingFlowVariables(true);
+  try {
+    const response = await flow.getVariables(orgId);
+    if (hasApiError(response)) {
+      throw response;
+    }
+    const data = unwrapApiData<FlowMessageVariables[]>(response);
+    if (Array.isArray(data)) setFlowVariables(data);
+    return response;
+  } catch (error) {
+    showErrorNotification({
+      message: parseApiError(error, "Failed to fetch Flow variables"),
+    });
+    throw error;
+  } finally {
+    setFetchingFlowVariables(false);
   }
 };
 

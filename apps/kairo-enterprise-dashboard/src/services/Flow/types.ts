@@ -107,6 +107,12 @@ export type BackendChannelConfigEntry = {
   sensitive: boolean;
 };
 
+export type FlowMessageVariables = {
+  key: string;
+  description: string;
+  example?: string;
+};
+
 export type BackendChannelConfig = {
   channel: string;
   entries: BackendChannelConfigEntry[];
