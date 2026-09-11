@@ -10,6 +10,7 @@ import type {
   BackendSettings,
   BackendSettingsSchema,
   FlowMessageVariables,
+  FlowTriggerCondition,
 } from "@/services/Flow";
 
 export interface FlowState {
@@ -27,6 +28,9 @@ export interface FlowState {
 
   fetchingFlowVariables: boolean;
   flowVariables: FlowMessageVariables[] | null;
+
+  fetchingFlowTriggerConditions: boolean;
+  flowTriggerConditions: FlowTriggerCondition[] | null;
 }
 
 const initialState: FlowState = {
@@ -44,6 +48,9 @@ const initialState: FlowState = {
 
   fetchingFlowVariables: false,
   flowVariables: null,
+
+  fetchingFlowTriggerConditions: false,
+  flowTriggerConditions: null,
 };
 
 export const flowStore = entity<FlowState>(initialState);
@@ -94,6 +101,16 @@ export const setFlowVariables = (
   payload: FlowMessageVariables[] | null = null,
 ): void => {
   void flowStore.set((s) => ({ ...s, flowVariables: payload }));
+};
+
+export const setFetchingFlowTriggerConditions = (payload = false): void => {
+  void flowStore.set((s) => ({ ...s, fetchingFlowTriggerConditions: payload }));
+};
+
+export const setFlowTriggerConditions = (
+  payload: FlowTriggerCondition[] | null = null,
+): void => {
+  void flowStore.set((s) => ({ ...s, flowTriggerConditions: payload }));
 };
 
 export const resetFlowStore = (): void => {
@@ -166,6 +183,29 @@ export const fetchFlowVariables = async () => {
     throw error;
   } finally {
     setFetchingFlowVariables(false);
+  }
+};
+
+export const fetchFlowTriggerConditions = async () => {
+  const orgId = getOrgId();
+  if (!orgId) return;
+
+  setFetchingFlowTriggerConditions(true);
+  try {
+    const response = await flow.getTriggerConditions(orgId);
+    if (hasApiError(response)) {
+      throw response;
+    }
+    const data = unwrapApiData<FlowTriggerCondition[]>(response);
+    if (Array.isArray(data)) setFlowTriggerConditions(data);
+    return response;
+  } catch (error) {
+    showErrorNotification({
+      message: parseApiError(error, "Failed to fetch Flow trigger conditions"),
+    });
+    throw error;
+  } finally {
+    setFetchingFlowTriggerConditions(false);
   }
 };
 

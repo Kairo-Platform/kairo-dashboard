@@ -2,6 +2,7 @@ export type BackendButton = {
   label: string;
   action: string;
   type: string;
+  payload?: Record<string, string>;
 };
 
 export type BackendTemplate = {
@@ -18,7 +19,11 @@ export type BackendTemplate = {
 export type BackendConversationType = {
   active: boolean;
   custom: boolean;
-  templates: BackendTemplate[];
+  triggerConditions?: FlowTriggerCondition | null;
+  intent?: string;
+  message?: string;
+  buttons?: BackendButton[];
+  fallbackLanguage?: string;
   automation?: Record<string, unknown>;
   displayName?: string;
 };
@@ -113,6 +118,43 @@ export type FlowMessageVariables = {
   example?: string;
 };
 
+export type FlowTriggerCondition = {
+  kind?: string;
+  value?: unknown;
+  label?: string;
+  conditionType?: string;
+  conditionOperator?: string;
+  operator?: string;
+  operators?:
+    | {
+        value: string;
+        label: string;
+        input: string;
+        values: unknown;
+      }[]
+    | [];
+  children: FlowTriggerCondition[];
+};
+
+export type LogicalOperator = "AND" | "OR";
+
+export type ConditionRowState = {
+  id: string;
+  conditionType: string | null;
+  conditionOperator: string | null;
+  value: any;
+  errors: {
+    conditionType?: string;
+    conditionOperator?: string;
+    value?: string;
+    from?: string;
+    to?: string;
+    amount?: string;
+    unit?: string;
+    preset?: string;
+  };
+};
+
 export type BackendChannelConfig = {
   channel: string;
   entries: BackendChannelConfigEntry[];
@@ -148,7 +190,7 @@ export type BackendConversationSchemaMeta = {
   displayName?: string;
   description?: string;
   triggers?: BackendSchemaOption[];
-  triggerConditions?: BackendSchemaOption[];
+  triggerConditions?: FlowTriggerCondition | FlowTriggerCondition[];
   intents?: BackendSchemaOption[];
   templateTypes?: BackendSchemaOption[];
   variables?: BackendSchemaVariable[];
@@ -163,8 +205,15 @@ export type BackendSettingsSchema = {
   retentionUnits: BackendSchemaOption[];
   languages: BackendSchemaOption[];
   guardrails: BackendGuardrailField[];
-  buttonActions: BackendSchemaOption[];
+  buttonActions: BackendButtonAction[];
+  conditions?: FlowTriggerCondition[];
   buttonTypes: BackendSchemaOption[];
   commonVariables: BackendSchemaVariable[];
   conversations: BackendConversationSchemaMeta[];
+};
+
+export type BackendButtonAction = BackendSchemaOption & {
+  type?: string;
+  payload?: string;
+  payloadFields?: { key: string; required: boolean; type: string; description?: string }[];
 };

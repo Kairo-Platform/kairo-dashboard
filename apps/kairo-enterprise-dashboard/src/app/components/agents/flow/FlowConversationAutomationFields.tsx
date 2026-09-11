@@ -10,6 +10,8 @@ import {
   SwitchInputSize,
 } from "@kairo/ui/inputs";
 import {
+  DEFAULT_AUTOMATION_TIME,
+  normalizeAutomationTime,
   toSelectOptions,
   type BackendSchemaField,
 } from "@/services/Flow";
@@ -165,11 +167,15 @@ export function FlowConversationAutomationFields({
                 <FormInput
                   label={field.label}
                   name={field.field}
-                  value={String(fieldValue ?? "")}
+                  type="time"
+                  step={60}
+                  value={String(fieldValue ?? DEFAULT_AUTOMATION_TIME)}
                   onChange={(event) =>
                     onFieldChange(field.field, event.target.value)
                   }
-                  placeholder="e.g. 09:00"
+                  onBlur={(event) =>
+                    onFieldChange(field.field, normalizeAutomationTime(event.target.value))
+                  }
                 />
               </div>
             </div>

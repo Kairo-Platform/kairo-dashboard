@@ -5,12 +5,10 @@ import type {
   BackendSchemaOption,
   BackendSchemaVariable,
   BackendSettingsSchema,
-  BackendTemplate,
+  FlowTriggerCondition,
 } from "./types";
 import {
   fromBackendTypeId,
-  labelToBackendEnumValue,
-  toBackendTemplate,
   toBackendTypeId,
 } from "./mappers";
 
@@ -133,6 +131,15 @@ export function getAutomationFieldOptions(
   );
 }
 
+export const DEFAULT_AUTOMATION_TIME = "09:00";
+
+export function normalizeAutomationTime(value: unknown): string {
+  const time = typeof value === "string" ? value.trim() : "";
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+    ? time
+    : DEFAULT_AUTOMATION_TIME;
+}
+
 function automationFieldDefault(field: BackendSchemaField): unknown {
   switch (field.kind) {
     case "TOGGLE":
@@ -142,7 +149,7 @@ function automationFieldDefault(field: BackendSchemaField): unknown {
     case "SELECT":
       return field.options[0]?.value ?? "";
     case "TIME":
-      return "";
+      return DEFAULT_AUTOMATION_TIME;
     default:
       return undefined;
   }
@@ -196,7 +203,7 @@ export function sanitizeAutomationFieldValue(
     case "MULTI_SELECT":
       return sanitizeMultiSelectValue(value, field);
     case "TIME":
-      return String(value ?? "").trim();
+      return normalizeAutomationTime(value);
     default:
       return value;
   }
@@ -279,85 +286,17 @@ export function mergeConversationMessageVariables(
   return Array.from(byToken.values());
 }
 
-export function getAllowedTriggerConditionValues(
-  conversationSchema: BackendConversationSchemaMeta | undefined,
-  customTriggerConditions: SchemaSelectOption[] = [],
-): Set<string> {
-  const allowed = getSchemaOptionValues(conversationSchema?.triggerConditions);
-  for (const option of customTriggerConditions) {
-    if (option.value.trim()) allowed.add(option.value);
-  }
-  return allowed;
+export function getTriggerConditionOptions(
+  conditions?: FlowTriggerCondition | FlowTriggerCondition[] | null,
+): FlowTriggerCondition[] {
+  if (!conditions) return [];
+  if (Array.isArray(conditions)) return conditions;
+  return conditions.kind === "GROUP" && conditions.operator === "OR"
+    ? conditions.children
+    : [conditions];
 }
 
-export function createCustomTriggerConditionOption(
-  label: string,
-): SchemaSelectOption {
-  return {
-    label,
-    value: labelToBackendEnumValue(label),
-  };
-}
-
-type SaveableTemplate = {
-  id: string;
-  name: string;
-  trigger: string;
-  triggerConditions: string[];
-  intent: string;
-  message: string;
-  buttons: {
-    label: string;
-    action: string;
-    buttonType: string;
-    payload?: Record<string, unknown>;
-  }[];
-  fallbackLanguage: string;
-};
-
-export function normalizeTemplateForSave(
-  template: SaveableTemplate,
-  conversationSchema?: BackendConversationSchemaMeta,
-  customTriggerConditions: SchemaSelectOption[] = [],
-): BackendTemplate {
-  const allowedTriggers = getSchemaOptionValues(conversationSchema?.triggers);
-  const allowedIntents = getSchemaOptionValues(conversationSchema?.intents);
-  const allowedConditions = getAllowedTriggerConditionValues(
-    conversationSchema,
-    customTriggerConditions,
-  );
-
-  const trigger = sanitizeEnumValue(
-    template.trigger,
-    conversationSchema?.triggers,
-    getSchemaDefaultValue(conversationSchema?.triggers, ""),
-  );
-
-  const intent =
-    allowedIntents.size > 0
-      ? sanitizeEnumValue(
-          template.intent,
-          conversationSchema?.intents,
-          getSchemaDefaultValue(conversationSchema?.intents, ""),
-        )
-      : "";
-
-  const triggerConditions = template.triggerConditions
-    .filter((value) => value.trim() && allowedConditions.has(value))
-    .filter((value, index, list) => list.indexOf(value) === index);
-
-  const sanitizedTrigger =
-    !allowedTriggers.size || allowedTriggers.has(trigger) ? trigger : "";
-
-  return toBackendTemplate({
-    ...template,
-    trigger: sanitizedTrigger,
-    intent,
-    triggerConditions,
-  });
-}
-
-export function getTemplateDefaultsFromSchema(
+export function getConversationDefaultsFromSchema(
   conversationSchema?: BackendConversationSchemaMeta,
   flowSchema?: BackendSettingsSchema | null,
 ) {
@@ -367,13 +306,8 @@ export function getTemplateDefaultsFromSchema(
   );
 
   return {
-    trigger: getSchemaDefaultValue(conversationSchema?.triggers, ""),
-    triggerCondition: getSchemaDefaultValue(
-      conversationSchema?.triggerConditions,
-      "",
-    ),
+    triggerConditions: getTriggerConditionOptions(conversationSchema?.triggerConditions),
     intent: getSchemaDefaultValue(conversationSchema?.intents, ""),
-    templateType: getSchemaDefaultValue(conversationSchema?.templateTypes, ""),
     fallbackLanguage: getSchemaDefaultValue(flowSchema?.languages, "en"),
     buttonAction: defaultButtonAction,
     buttonActionLabel: getSchemaOptionLabel(

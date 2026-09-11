@@ -57,6 +57,13 @@ export const FALLBACK_RETENTION_UNIT_OPTIONS: SelectOption[] = [
   { label: "Years", value: "YEARS" },
 ];
 
+export const DURATION_UNITS = [
+  { value: "minutes", label: "Minutes" },
+  { value: "hours", label: "Hours" },
+  { value: "days", label: "Days" },
+  { value: "months", label: "Months" },
+];
+
 export const FALLBACK_MEMORY_UNIT_OPTIONS = FALLBACK_RETENTION_UNIT_OPTIONS;
 export const FALLBACK_TIME_UNIT_OPTIONS = FALLBACK_RETENTION_UNIT_OPTIONS;
 
@@ -169,14 +176,7 @@ export const TEMPLATE_TYPE_OPTIONS: SelectOption[] = [
 export const FALLBACK_BUTTON_ACTION_OPTIONS: SelectOption[] = [
   { label: "Open onboarding", value: "OPEN_ONBOARDING" },
   { label: "Open link", value: "OPEN_LINK" },
-  { label: "Reply", value: "REPLY" },
-];
-
-export const FALLBACK_QUICK_REPLY_PAYLOAD_OPTIONS: SelectOption[] = [
-  { label: "Get started", value: "GET_STARTED" },
-  { label: "Continue", value: "CONTINUE" },
-  { label: "Yes", value: "YES" },
-  { label: "No", value: "NO" },
+  { label: "Check balance", value: "CHECK_BALANCE" },
 ];
 
 export const FALLBACK_BUTTON_TYPE_OPTIONS: SelectOption[] = [

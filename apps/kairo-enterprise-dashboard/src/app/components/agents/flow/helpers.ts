@@ -1,10 +1,10 @@
 import {
   buildBackendAutomation,
   findConversationSchema,
-  fromBackendTemplate,
+  FlowTriggerCondition,
   getDefaultAutomationFromSchema,
+  getTriggerConditionOptions,
   initAutomationValues,
-  normalizeTemplateForSave,
   toBackendTypeId,
   type BackendConversationSchemaMeta,
   type BackendConversationType,
@@ -17,10 +17,9 @@ import type {
   ConversationStatus,
   ConversationTypeConfig,
   FlowChannel,
-  MessageTemplate,
   MessageVariable,
-  TemplateButton,
-  TemplateDefaults,
+  ConversationButton,
+  ConversationDefaults,
 } from "./types";
 
 export const getChannelBrandColor = (channel: FlowChannel) =>
@@ -56,7 +55,7 @@ export const getButtonActionLabel = (
   return match?.label ?? humanizeActionValue(action);
 };
 
-export const createEmptyButton = (): TemplateButton => ({
+export const createEmptyButton = (): ConversationButton => ({
   id: crypto.randomUUID(),
   label: "",
   action: "",
@@ -65,58 +64,35 @@ export const createEmptyButton = (): TemplateButton => ({
   labelCustomized: false,
 });
 
-export const createDefaultTemplate = (
-  index: number,
-  defaults?: TemplateDefaults,
-): MessageTemplate => {
-  const action =
-    defaults?.quickReplyAction ??
-    defaults?.buttonAction ??
-    "OPEN_ONBOARDING";
-
-  return {
-    id: crypto.randomUUID(),
-    name: `Template ${index}`,
-    trigger: defaults?.trigger ?? "",
-    triggerConditions: defaults?.triggerCondition
-      ? [defaults.triggerCondition]
-      : [],
-    intent: defaults?.intent ?? "",
-    templateType: defaults?.templateType ?? "",
-    message: "Hi {{first_name}}, welcome to {{business_name}}!",
-    buttons: [
-      {
-        id: crypto.randomUUID(),
-        label:
-          defaults?.buttonActionLabel ??
-          getButtonActionLabel(action, []),
-        action,
-        buttonType: defaults?.buttonType ?? "REPLY",
-        payload: {
-          replyText: action,
-        },
-        labelCustomized: false,
-      },
-    ],
-    fallbackLanguage: defaults?.fallbackLanguage ?? "en",
-    expanded: true,
-  };
-};
-
 export const createDefaultTypeConfig = (
   kind: "built-in" | "custom" = "built-in",
   status: ConversationStatus = "DRAFT",
-  templateDefaults?: TemplateDefaults,
+  defaults?: ConversationDefaults,
   conversationSchema?: BackendConversationSchemaMeta,
-): ConversationTypeConfig => ({
-  status,
-  kind,
-  templates: [createDefaultTemplate(1, templateDefaults)],
-  templatesSeededForUi: true,
-  automationValues: getDefaultAutomationFromSchema(conversationSchema?.automation),
-  customTriggerConditions: [],
-  customVariables: [],
-});
+): ConversationTypeConfig => {
+  const action = defaults?.buttonAction ?? "OPEN_ONBOARDING";
+  return {
+    status,
+    kind,
+    triggerConditions: (defaults?.triggerConditions ?? []).map((condition) => ({
+      condition: structuredClone(condition),
+      selected: true,
+    })),
+    intent: defaults?.intent ?? "",
+    message: "Hi {{first_name}}, welcome to {{business_name}}!",
+    buttons: [{
+      id: crypto.randomUUID(),
+      label: defaults?.buttonActionLabel ?? getButtonActionLabel(action, []),
+      action,
+      buttonType: defaults?.buttonType ?? "REPLY",
+      payload: {},
+      labelCustomized: false,
+    }],
+    fallbackLanguage: defaults?.fallbackLanguage ?? "en",
+    automationValues: getDefaultAutomationFromSchema(conversationSchema?.automation),
+    customVariables: [],
+  };
+};
 
 export const createInitialSettingsMap = (): ConversationSettingsMap => {
   const map: ConversationSettingsMap = {};
@@ -126,51 +102,13 @@ export const createInitialSettingsMap = (): ConversationSettingsMap => {
   return map;
 };
 
-export const cloneTypeConfig = (
-  config: ConversationTypeConfig,
-): ConversationTypeConfig => ({
-  ...config,
-  templates: config.templates.map((template) => ({
-    ...template,
-    triggerConditions: [...template.triggerConditions],
-    buttons: template.buttons.map((button) => ({
-      ...button,
-      payload: { ...button.payload },
-    })),
-  })),
-  automationValues: cloneAutomationValues(config.automationValues),
-  templatesSeededForUi: config.templatesSeededForUi,
-  customTriggerConditions: config.customTriggerConditions.map((option) => ({
-    ...option,
-  })),
-  customVariables: config.customVariables.map((variable) => ({ ...variable })),
-});
+export const cloneTypeConfig = (config: ConversationTypeConfig): ConversationTypeConfig =>
+  structuredClone(config);
 
 export const NO_CONVERSATION_SETTINGS_CHANGES_ERROR = "No changes to save";
 
 export const serializeTypeConfig = (config: ConversationTypeConfig) =>
-  JSON.stringify({
-    status: config.status,
-    kind: config.kind,
-    title: config.title,
-    description: config.description,
-    templatesSeededForUi: config.templatesSeededForUi ?? false,
-    templates: config.templates.map(({ expanded: _expanded, ...template }) => ({
-      ...template,
-      triggerConditions: [...template.triggerConditions].sort(),
-      buttons: template.buttons.map((button) => ({
-        ...button,
-        payload: { ...button.payload },
-      })),
-    })),
-    automationValues: cloneAutomationValues(config.automationValues),
-    customTriggerConditions: [...config.customTriggerConditions]
-      .map((option) => option.value)
-      .sort(),
-    customVariables: [...config.customVariables]
-      .map((variable) => variable.token)
-      .sort(),
-  });
+  JSON.stringify(config);
 
 export const hasConversationSettingsChanges = (
   current: ConversationSettingsMap,
@@ -188,96 +126,121 @@ export const hasConversationSettingsChanges = (
   );
 };
 
-export const toApiTypeConfig = (config: ConversationTypeConfig) => ({
-  status: config.status,
-  kind: config.kind,
-  ...(config.title !== undefined ? { title: config.title } : {}),
-  ...(config.description !== undefined
-    ? { description: config.description }
-    : {}),
-  templates: config.templates.map(({ expanded: _expanded, ...template }) => ({
-    ...template,
-    buttons: template.buttons.map((button) => ({
-      ...button,
-      payload: { ...button.payload },
-    })),
-  })),
-  automationValues: cloneAutomationValues(config.automationValues),
-  customTriggerConditions: config.customTriggerConditions.map((option) => ({
-    ...option,
-  })),
-  customVariables: config.customVariables.map((variable) => ({ ...variable })),
-});
-
 export const toConversationSettingsSavePayload = (
   settings: ConversationSettingsMap,
+  flowSchema?: BackendSettingsSchema | null,
 ): ConversationSettingsSavePayload => ({
-  settings: Object.fromEntries(
-    Object.entries(settings).map(([id, config]) => [
-      id,
-      toApiTypeConfig(config),
-    ]),
-  ),
+  conversations: toBackendConversationsMap(settings, flowSchema),
 });
 
 export function fromBackendConversationType(
   backendType: BackendConversationType,
   kind: "built-in" | "custom" = "built-in",
-  templateDefaults?: TemplateDefaults,
+  conversationDefaults?: ConversationDefaults,
   conversationSchema?: BackendConversationSchemaMeta,
 ): ConversationTypeConfig {
-  const mappedTemplates = (backendType.templates ?? []).map(
-    (t) => fromBackendTemplate(t) as MessageTemplate,
-  );
-
-  const hadBackendTemplates = (backendType.templates ?? []).length > 0;
-
-  return {
-    status: backendType.active ? "ACTIVE" : "INACTIVE",
+  const config = createDefaultTypeConfig(
     kind,
+    backendType.active ? "ACTIVE" : "INACTIVE",
+    conversationDefaults,
+    conversationSchema,
+  );
+  const conditions = backendType.triggerConditions === undefined
+    ? config.triggerConditions.map(({ condition }) => condition)
+    : getTriggerConditionOptions(backendType.triggerConditions);
+  return {
+    ...config,
     title: backendType.displayName,
-    description: undefined,
-    templates:
-      mappedTemplates.length > 0
-        ? mappedTemplates
-        : [createDefaultTemplate(1, templateDefaults)],
-    templatesSeededForUi: !hadBackendTemplates,
+    triggerConditions: mergeTriggerConditionOptions(
+      config.triggerConditions.map(({ condition }) => condition),
+      conditions,
+    ).map((condition) => ({
+      condition,
+      selected: conditions.some((selected) => triggerConditionKey(selected) === triggerConditionKey(condition)),
+    })),
+    intent: backendType.intent ?? config.intent,
+    message: backendType.message ?? config.message,
+    buttons: backendType.buttons?.map((button) => ({
+      id: crypto.randomUUID(),
+      label: button.label,
+      action: button.action,
+      buttonType: button.type,
+      payload: { ...button.payload },
+      labelCustomized: true,
+    })) ?? config.buttons,
+    fallbackLanguage: backendType.fallbackLanguage ?? config.fallbackLanguage,
     automationValues: initAutomationValues(
       backendType.automation,
       conversationSchema?.automation,
     ),
-    customTriggerConditions: [],
-    customVariables: [],
   };
 }
+
+export const triggerConditionKey = (condition: FlowTriggerCondition): string =>
+  JSON.stringify(condition);
+
+export const mergeTriggerConditionOptions = (
+  ...lists: FlowTriggerCondition[][]
+): FlowTriggerCondition[] =>
+  Array.from(
+    new Map(
+      lists.flat().map((condition) => [
+        triggerConditionKey(condition),
+        structuredClone(condition),
+      ]),
+    ).values(),
+  );
+
+export const toTriggerConditionTree = (
+  conditions: FlowTriggerCondition[],
+): FlowTriggerCondition | null => {
+  if (!conditions.length) return null;
+  if (conditions.length === 1) return structuredClone(conditions[0]);
+  return { kind: "GROUP", operator: "OR", children: structuredClone(conditions) };
+};
 
 export function toBackendConversationType(
   config: ConversationTypeConfig,
   conversationSchema?: BackendConversationSchemaMeta,
+  flowSchema?: BackendSettingsSchema | null,
 ): BackendConversationType {
   const automation = buildBackendAutomation(
     config.automationValues,
     conversationSchema?.automation,
   );
-
-  const templates = config.templatesSeededForUi
-    ? []
-    : config.templates.map((template) =>
-        normalizeTemplateForSave(
-          template,
-          conversationSchema,
-          config.customTriggerConditions,
-        ),
-      );
-
   return {
     active: config.status === "ACTIVE",
     custom: config.kind === "custom",
-    templates,
+    triggerConditions: toTriggerConditionTree(
+      config.triggerConditions.filter(({ selected }) => selected).map(({ condition }) => condition),
+    ),
+    ...(config.intent ? { intent: config.intent } : {}),
+    message: config.message,
+    buttons: config.buttons
+      .filter((button) => button.label.trim() && button.action && button.buttonType)
+      .map((button) => {
+        const action = flowSchema?.buttonActions.find(
+          (option) => option.value === button.action,
+        );
+        const fields = action?.payload === "NONE"
+          ? []
+          : action?.payloadFields ?? (button.action === "OPEN_LINK" ? [{ key: "url" }] : []);
+        const payload = Object.fromEntries(
+          fields.flatMap(({ key }) => {
+            const value = button.payload[key];
+            return value !== undefined ? [[key, value]] : [];
+          }),
+        );
+        return {
+          label: button.label.trim(),
+          action: button.action,
+          type: action?.type ?? button.buttonType,
+          ...(fields.length ? { payload } : {}),
+        };
+      }),
+    fallbackLanguage: config.fallbackLanguage,
     ...(automation !== undefined ? { automation } : {}),
-    ...(config.kind === "custom" && config.title
-      ? { displayName: config.title }
-      : {}),
+    ...(config.kind === "custom" && config.title ? { displayName: config.title } : {}),
   };
 }
 
@@ -291,6 +254,7 @@ export function toBackendConversationsMap(
       toBackendConversationType(
         config,
         findConversationSchema(flowSchema, frontendId),
+        flowSchema,
       ),
     ]),
   );
@@ -343,4 +307,26 @@ export const formatKnowledgeDate = (date: Date) => {
           : "th";
   const month = date.toLocaleString("en-GB", { month: "long" });
   return `${day}${suffix} ${month}, ${date.getFullYear()}`;
+};
+
+const formatConditionValue = (value: unknown): string => {
+  if (value == null) return "";
+  if (typeof value !== "object") return String(value).replace(/_/g, " ").toLowerCase();
+  const data = value as Record<string, unknown>;
+  if (data.preset === "IN_DAYS") return `in ${data.amount} days`;
+  if (data.preset === "DAYS_AGO") return `${data.amount} days ago`;
+  if (data.preset) return formatConditionValue(data.preset);
+  if ("from" in data || "to" in data) return `${formatConditionValue(data.from)} and ${formatConditionValue(data.to)}`;
+  return Object.values(data).map(formatConditionValue).join(" ");
+};
+
+export const formatTriggerCondition = (condition: FlowTriggerCondition): string => {
+  if (condition.kind === "GROUP") {
+    return condition.children
+      .map(formatTriggerCondition)
+      .join(` ${condition.operator ?? "OR"} `);
+  }
+  const type = humanizeActionValue(condition.conditionType ?? "");
+  const operator = (condition.conditionOperator ?? "").replace(/_/g, " ").toLowerCase();
+  return [type, operator, formatConditionValue(condition.value)].filter(Boolean).join(" ");
 };

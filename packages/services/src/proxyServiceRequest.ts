@@ -15,10 +15,7 @@ export type ProxyServiceSuccess = {
 export type ProxyServiceFailure = {
   ok: false;
   status: number;
-  body: {
-    statusCode: number;
-    message: string;
-  };
+  body: unknown;
 };
 
 export type ProxyServiceResult = ProxyServiceSuccess | ProxyServiceFailure;
@@ -56,10 +53,13 @@ export async function proxyServiceRequest({
     return {
       ok: false,
       status,
-      body: {
-        statusCode: status,
-        message: error instanceof Error ? error.message : "Request failed",
-      },
+      body:
+        error instanceof Error && "body" in error && error.body !== undefined
+          ? error.body
+          : {
+              statusCode: status,
+              message: error instanceof Error ? error.message : "Request failed",
+            },
     };
   }
 }

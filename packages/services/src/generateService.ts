@@ -145,12 +145,14 @@ export function generateService(serviceConfig: ServiceConfig = {}) {
       const err =
         (json &&
           typeof json === "object" &&
-          "message" in json &&
-          json.message) ||
+          (("message" in json && json.message) ||
+            ("error" in json && json.error))) ||
+        text ||
         res.statusText;
       const error = new Error(String(err));
       (error as Error & { status?: number; body?: unknown }).status = res.status;
-      (error as Error & { status?: number; body?: unknown }).body = json;
+      (error as Error & { status?: number; body?: unknown }).body =
+        json !== undefined ? json : text || undefined;
       throw error;
     }
     return json;

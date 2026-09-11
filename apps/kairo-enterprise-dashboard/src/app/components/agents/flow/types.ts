@@ -1,3 +1,4 @@
+import { FlowTriggerCondition } from "@/services/Flow/types";
 import type { ReactNode } from "react";
 
 export type FlowCheckboxOption = {
@@ -68,33 +69,23 @@ export type MessageVariable = {
   example?: string;
 };
 
-export type TemplateButtonPayload = {
-  url?: string;
-  replyText?: string;
-  phoneNumber?: string;
+export type ConversationButtonPayload = {
+  [key: string]: string | undefined;
 };
 
-export type TemplateButton = {
+export type ConversationButton = {
   id: string;
   label: string;
   action: string;
   buttonType: string;
-  payload: TemplateButtonPayload;
+  payload: ConversationButtonPayload;
   // When true, label is not auto-synced from the selected action
   labelCustomized?: boolean;
 };
 
-export type MessageTemplate = {
-  id: string;
-  name: string;
-  trigger: string;
-  triggerConditions: string[];
-  intent: string;
-  templateType: string;
-  message: string;
-  buttons: TemplateButton[];
-  fallbackLanguage: string;
-  expanded: boolean;
+export type ConversationTriggerCondition = {
+  condition: FlowTriggerCondition;
+  selected: boolean;
 };
 
 export type AutomationSettings = {
@@ -123,11 +114,12 @@ export type ConversationTypeConfig = {
   kind: "built-in" | "custom";
   title?: string;
   description?: string;
-  templates: MessageTemplate[];
-  // UI-only starter templates; omit from save until the user edits them
-  templatesSeededForUi?: boolean;
+  triggerConditions: ConversationTriggerCondition[];
+  intent: string;
+  message: string;
+  buttons: ConversationButton[];
+  fallbackLanguage: string;
   automationValues: Record<string, unknown>;
-  customTriggerConditions: SelectOption[];
   customVariables: MessageVariable[];
 };
 
@@ -136,11 +128,9 @@ export type ConversationSettingsMap = Record<
   ConversationTypeConfig
 >;
 
-export type TemplateDefaults = {
-  trigger?: string;
-  triggerCondition?: string;
+export type ConversationDefaults = {
+  triggerConditions?: FlowTriggerCondition[];
   intent?: string;
-  templateType?: string;
   fallbackLanguage?: string;
   buttonAction?: string;
   buttonType?: string;
@@ -149,19 +139,7 @@ export type TemplateDefaults = {
 };
 
 export type ConversationSettingsSavePayload = {
-  settings: Record<
-    ConversationTypeId,
-    {
-      status: ConversationStatus;
-      kind: "built-in" | "custom";
-      title?: string;
-      description?: string;
-      templates: Omit<MessageTemplate, "expanded">[];
-      automationValues: Record<string, unknown>;
-      customTriggerConditions: SelectOption[];
-      customVariables: MessageVariable[];
-    }
-  >;
+  conversations: Record<string, import("@/services/Flow").BackendConversationType>;
 };
 
 export type FlowConversationSettingsHandle = {
