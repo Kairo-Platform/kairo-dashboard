@@ -17,7 +17,6 @@ import {
 import {
   CheckboxInput,
   FormInput,
-  FormTextarea,
   SearchInput,
   SelectInput,
   SwitchInput,
@@ -70,6 +69,7 @@ import {
   toConversationSettingsSavePayload,
   wrapWhatsAppMarkdown,
 } from "./helpers";
+import { FlowMessageInput } from "./FlowMessageInput";
 import { FlowConversationAutomationFields } from "./FlowConversationAutomationFields";
 import {
   BUILT_IN_CONVERSATION_TYPES,
@@ -541,7 +541,7 @@ const FlowConversationSettingsContainer = styled.div`
         display: block;
         font-size: 0.8125rem;
         font-weight: 500;
-        color: ${({ theme }) => theme.colors.text_01};
+        color: ${({ theme }) => theme.colors.primaryColor};
         line-height: 1.125rem;
       }
 
@@ -1486,14 +1486,17 @@ export const FlowConversationSettings = forwardRef<
     });
   };
 
-  const applyMarkdown = (
-    wrapper: "*" | "_" | "~" | "```",
-  ) => {
+  const applyMarkdown = (wrapper: "*" | "_" | "~" | "```") => {
     const textarea = messageRefs.current[activeTypeId];
 
     const start = textarea?.selectionStart ?? 0;
     const end = textarea?.selectionEnd ?? 0;
-    const next = wrapWhatsAppMarkdown(activeConfig.message, start, end, wrapper);
+    const next = wrapWhatsAppMarkdown(
+      activeConfig.message,
+      start,
+      end,
+      wrapper,
+    );
     updateConversation({ message: next.value });
 
     requestAnimationFrame(() => {
@@ -1539,9 +1542,12 @@ export const FlowConversationSettings = forwardRef<
                     className="FlowConversationSettings__checkboxCard-selectAll"
                     onClick={() =>
                       updateConversation({
-                        triggerConditions: activeConfig.triggerConditions.map((entry) => ({
-                          ...entry, selected: !allTriggerConditionsSelected,
-                        })),
+                        triggerConditions: activeConfig.triggerConditions.map(
+                          (entry) => ({
+                            ...entry,
+                            selected: !allTriggerConditionsSelected,
+                          }),
+                        ),
                       })
                     }
                   >
@@ -1553,17 +1559,25 @@ export const FlowConversationSettings = forwardRef<
             {activeConfig.triggerConditions.length > 0 ? (
               <CheckboxInput
                 name={`triggerConditionsOptions-${activeTypeId}`}
-                options={activeConfig.triggerConditions.map(({ condition }) => ({
-                  label: formatTriggerCondition(condition),
-                  value: triggerConditionKey(condition),
-                }))}
-                value={activeConfig.triggerConditions.filter(({ selected }) => selected).map(({ condition }) => triggerConditionKey(condition))}
+                options={activeConfig.triggerConditions.map(
+                  ({ condition }) => ({
+                    label: formatTriggerCondition(condition),
+                    value: triggerConditionKey(condition),
+                  }),
+                )}
+                value={activeConfig.triggerConditions
+                  .filter(({ selected }) => selected)
+                  .map(({ condition }) => triggerConditionKey(condition))}
                 onChange={(values) =>
                   updateConversation({
-                    triggerConditions: activeConfig.triggerConditions.map((entry) => ({
-                      ...entry,
-                      selected: values.includes(triggerConditionKey(entry.condition)),
-                    })),
+                    triggerConditions: activeConfig.triggerConditions.map(
+                      (entry) => ({
+                        ...entry,
+                        selected: values.includes(
+                          triggerConditionKey(entry.condition),
+                        ),
+                      }),
+                    ),
                   })
                 }
                 direction="column"
@@ -1685,16 +1699,12 @@ export const FlowConversationSettings = forwardRef<
               </div>
 
               <div className="FlowConversationSettings__editorInput">
-                <FormTextarea
+                <FlowMessageInput
+                  key={activeTypeId}
                   name={`message-${activeTypeId}`}
                   value={activeConfig.message}
-                  onChange={(event) =>
-                    updateConversation({
-                      message: event.target.value,
-                    })
-                  }
-                  placeholder="Write a personalised message here...."
-                  rows={10}
+                  variables={messageVariables}
+                  onChange={(message) => updateConversation({ message })}
                   ref={setMessageRef}
                 />
                 {emojiOpenFor === activeTypeId && (
@@ -2223,13 +2233,21 @@ export const FlowConversationSettings = forwardRef<
                 updateActiveConfig((config) => ({
                   ...config,
                   triggerConditions: config.triggerConditions.some(
-                    (entry) => triggerConditionKey(entry.condition) === triggerConditionKey(condition),
+                    (entry) =>
+                      triggerConditionKey(entry.condition) ===
+                      triggerConditionKey(condition),
                   )
                     ? config.triggerConditions.map((entry) => ({
                         ...entry,
-                        selected: entry.selected || triggerConditionKey(entry.condition) === triggerConditionKey(condition),
+                        selected:
+                          entry.selected ||
+                          triggerConditionKey(entry.condition) ===
+                            triggerConditionKey(condition),
                       }))
-                    : [...config.triggerConditions, { condition, selected: true }],
+                    : [
+                        ...config.triggerConditions,
+                        { condition, selected: true },
+                      ],
                 }));
               }}
             />
