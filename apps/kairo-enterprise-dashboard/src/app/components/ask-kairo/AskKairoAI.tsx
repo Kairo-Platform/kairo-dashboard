@@ -20,14 +20,9 @@ const AskKairoAIContainer = styled.div<{ $sticky?: boolean }>`
     $sticky &&
     `
     position: fixed;
-    top: 6.25rem;
-    right: 3rem;
-
-    @media (max-width: ${theme.breakpoint.md}) {
-      top: auto;
-      bottom: 1.5rem;
-      right: 1.5rem;
-    }
+    top: auto;
+    bottom: 1.5rem;
+    right: 1.5rem;
   `}
 
   .AskKairoAI__iconButton {
@@ -245,7 +240,11 @@ export const AskKairoAI = ({
             aria-label={buttonLabel}
             aria-expanded={isOpen}
             aria-haspopup="dialog"
-            style={{ height: "2.5rem", width: "2.5rem", borderRadius: "2.5rem" }}
+            style={{
+              height: "2.5rem",
+              width: "2.5rem",
+              borderRadius: "2.5rem",
+            }}
           >
             <Icon icon="mingcute:ai-fill" width={20} height={20} />
           </Button>
@@ -274,7 +273,7 @@ export const AskKairoAI = ({
           anchorPlacement="bottom-end"
           anchorOffset={12}
           showOverlay={false}
-          Heading={() =>
+          Heading={() => (
             <div className="AskKairoAI__header">
               <div className="AskKairoAI__brand">
                 <span className="AskKairoAI__brandIcon">
@@ -291,8 +290,8 @@ export const AskKairoAI = ({
                 <Icon icon="iconoir:cancel" width={24} height={24} />
               </button>
             </div>
-          }
-          Footer={() =>
+          )}
+          Footer={() => (
             <Flex align="center" style={{ width: "100%" }}>
               <div className="AskKairoAI__composer">
                 <input
@@ -319,7 +318,7 @@ export const AskKairoAI = ({
                 </button>
               </div>
             </Flex>
-          }
+          )}
           style={{
             maxWidth: "39.25rem",
             width: "39.25rem",

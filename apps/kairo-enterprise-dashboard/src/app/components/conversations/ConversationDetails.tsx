@@ -1,6 +1,5 @@
 "use client";
 
-import { URL } from "@/lib/constants";
 import { Icon } from "@iconify/react";
 import {
   ActionMenu,
@@ -8,10 +7,16 @@ import {
   ButtonClass,
   Divider,
   Flex,
+  Loading,
+  EmptyState,
   InitialsAvatar,
 } from "@kairo/ui";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEntity } from "simpler-state";
+import { fetchFlowConversations, flowStore } from "@/app/store/flow";
+import { parseConversationNumber } from "@/services/Flow/conversations";
+
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import styled from "styled-components";
 
 type MessageSender = "user" | "agent";
@@ -49,72 +54,6 @@ type ActivityLog = {
   time: string;
 };
 
-const DUMMY_USER = {
-  id: "1",
-  name: "Chinedu Okafor",
-  phone: "+234 812 000 4521",
-  channel: "Whatsapp",
-  statusLabel: "Active · 2min ago",
-  conversationStatus: "Opened",
-  timeStarted: "Today, 10:14 AM",
-  messageCount: "10",
-  averageResponse: "24 secs",
-};
-
-const DUMMY_MESSAGES: ChatMessage[] = [
-  {
-    id: "m1",
-    sender: "user",
-    text: "What is my current balance?",
-    time: "1:20",
-  },
-  {
-    id: "m2",
-    sender: "agent",
-    text: "Your current wallet balance is ₦142,500.00.\n\nLast transaction: ₦15,000 received from Emeka Mba on Jun 22 at 3:41 PM.",
-    time: "1:20",
-  },
-  {
-    id: "m3",
-    sender: "user",
-    text: "Can I send ₦50,000 to my GTB account ending 4521?",
-    time: "1:20",
-  },
-  {
-    id: "m4",
-    sender: "agent",
-    text: "Sure! Just to confirm you'd like to send ₦50,000 to your GTB account ending in 4521 (Chinedu Okafor).\n\nReply YES to confirm or CANCEL to stop.",
-    time: "1:20",
-  },
-  {
-    id: "m5",
-    sender: "user",
-    text: "YES",
-    time: "1:20",
-  },
-  {
-    id: "m6",
-    sender: "agent",
-    text: "Transfer successful! ₦50,000 has been sent to GTB ···4521. Your new balance is ₦92,500.00.",
-    time: "1:20",
-  },
-  {
-    id: "m7",
-    sender: "agent",
-    type: "receipt",
-    time: "1:20",
-    receipt: {
-      amount: "₦50,000",
-      status: "Successful",
-      transactionRef: "REF2938289449",
-      recipientName: "Chinedu Okafor",
-      recipientDetails: "Kairo wallet | 484320043998",
-      senderName: "Emeke Ike",
-      senderDetails: "UBA | 634**********998",
-    },
-  },
-];
-
 const DUMMY_ACTIVITY_LOGS: ActivityLog[] = [
   {
     id: "a1",
@@ -132,14 +71,6 @@ const DUMMY_ACTIVITY_LOGS: ActivityLog[] = [
     title: "₦50,000 transfer via Relay agent · NIP ref #TXN2806412",
     time: "11:20",
   },
-];
-
-const INFO_ROWS = [
-  { label: "Channel", value: DUMMY_USER.channel },
-  { label: "Status", value: DUMMY_USER.conversationStatus },
-  { label: "Time started", value: DUMMY_USER.timeStarted },
-  { label: "No of messages", value: DUMMY_USER.messageCount },
-  { label: "Average response", value: DUMMY_USER.averageResponse },
 ];
 
 const ConversationDetailsContainer = styled.div`
@@ -197,6 +128,7 @@ const ConversationDetailsContainer = styled.div`
       flex-direction: column;
       flex: 1;
       min-height: 0;
+      max-height: 80dvh;
       padding: 1.5rem 1.5rem 0;
 
       &__scroll {
@@ -547,7 +479,76 @@ const renderMessageText = (text: string) => {
 export const ConversationDetails = ({ id }: { id: string }) => {
   const router = useRouter();
   const [draft, setDraft] = useState("");
-  void id;
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { flowConversations, fetchingFlowConversations } = useEntity(flowStore);
+  const page = parseConversationNumber(searchParams.get("page"), 1);
+  const limit = parseConversationNumber(searchParams.get("limit"), 10);
+  const size = parseConversationNumber(searchParams.get("size"));
+  const search = searchParams.get("search") || undefined;
+  const startDate = searchParams.get("startDate") || undefined;
+  const endDate = searchParams.get("endDate") || undefined;
+
+  useEffect(() => {
+    void fetchFlowConversations({
+      page,
+      limit,
+      size,
+      search,
+      startDate,
+      endDate,
+    }).catch(() => {
+      // The store displays the request error.
+    });
+  }, [page, limit, size, search, startDate, endDate]);
+
+  const query = searchParams.toString();
+  const conversation = flowConversations?.items.find((item) => item.id === id);
+  const messages: ChatMessage[] = [...(conversation?.messages ?? [])]
+    .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+    .map((message) => ({
+      id: message.id,
+      sender: message.sender === "KAIRO" ? "agent" : "user",
+      text: message.text,
+      time: new Date(message.createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    }));
+  if (fetchingFlowConversations)
+    return (
+      <Flex justify="center" align="center" style={{ minHeight: "20rem" }}>
+        <Loading>Fetching conversations...</Loading>
+      </Flex>
+    );
+  if (!conversation)
+    return (
+      <EmptyState
+        title="Conversation not found"
+        message="Return to the conversations list to select a chat."
+      />
+    );
+  const user = {
+    name: conversation.user.displayName || conversation.user.channelUserId,
+    phone: conversation.user.channelUserId,
+    channel: conversation.user.channel,
+    statusLabel: "N/A",
+  };
+  const firstMessage = [...conversation.messages].sort(
+    (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt),
+  )[0];
+  const infoRows = [
+    { label: "Channel", value: user.channel },
+    { label: "Status", value: "N/A" },
+    {
+      label: "Time started",
+      value: firstMessage
+        ? new Date(firstMessage.createdAt).toLocaleString()
+        : "N/A",
+    },
+    { label: "No of messages", value: String(conversation.messages.length) },
+    { label: "Average response", value: "N/A" },
+  ];
 
   return (
     <ConversationDetailsContainer>
@@ -559,19 +560,23 @@ export const ConversationDetails = ({ id }: { id: string }) => {
           className="UserInfoHeader"
         >
           <Flex align="center" gap="1rem">
-            <InitialsAvatar name={DUMMY_USER.name} avatarUrl="" />
+            <InitialsAvatar name={user.name} avatarUrl="" />
             <div className="UserInfo">
-              <h3 className="UserInfo__name">{DUMMY_USER.name}</h3>
+              <h3 className="UserInfo__name">{user.name}</h3>
               <Flex align="center" gap="0.75rem">
-                <p className="UserInfo__channel">{DUMMY_USER.channel}</p>
-                <p className="UserInfo__status">{DUMMY_USER.statusLabel}</p>
+                <p className="UserInfo__channel">{user.channel}</p>
+                <p className="UserInfo__status">{user.statusLabel}</p>
               </Flex>
             </div>
           </Flex>
 
           <Button
             classes={[ButtonClass.ICON_ONLY]}
-            onClick={() => router.push(URL.DASHBOARD_CONVERSATIONS_URL)}
+            onClick={() =>
+              router.push(
+                `${pathname.substring(0, pathname.lastIndexOf("/"))}?${query}`,
+              )
+            }
           >
             <Icon icon="iconoir:cancel" width={20} height={20} />
           </Button>
@@ -579,9 +584,13 @@ export const ConversationDetails = ({ id }: { id: string }) => {
 
         <div className="MessageContent">
           <div className="MessageContent__scroll">
-            <span className="MessageContent__date">Today</span>
+            <span className="MessageContent__date">
+              {firstMessage
+                ? new Date(firstMessage.createdAt).toLocaleDateString()
+                : "N/A"}
+            </span>
 
-            {DUMMY_MESSAGES.map((message) => {
+            {messages.map((message) => {
               if (message.type === "receipt") {
                 return (
                   <div
@@ -660,7 +669,11 @@ export const ConversationDetails = ({ id }: { id: string }) => {
                 onChange={(e) => setDraft(e.target.value)}
                 aria-label="Type a message"
               />
-              <button type="button" className="sendBtn" aria-label="Send message">
+              <button
+                type="button"
+                className="sendBtn"
+                aria-label="Send message"
+              >
                 <Icon icon="tabler:send" width={20} height={20} />
               </button>
             </div>
@@ -703,15 +716,15 @@ export const ConversationDetails = ({ id }: { id: string }) => {
             gap="0.125rem"
             className="ConversationInfo__profile"
           >
-            <InitialsAvatar name={DUMMY_USER.name} avatarUrl="" />
-            <p className="ConversationInfo__profile-name">{DUMMY_USER.name}</p>
-            <p className="ConversationInfo__profile-phone">{DUMMY_USER.phone}</p>
+            <InitialsAvatar name={user.name} avatarUrl="" />
+            <p className="ConversationInfo__profile-name">{user.name}</p>
+            <p className="ConversationInfo__profile-phone">{user.phone}</p>
           </Flex>
 
           <Divider />
 
           <div className="ConversationInfo__meta">
-            {INFO_ROWS.map((row) => (
+            {infoRows.map((row) => (
               <div key={row.label} className="ConversationInfo__row">
                 <span className="ConversationInfo__row-label">{row.label}</span>
                 <span className="ConversationInfo__row-value">{row.value}</span>
@@ -732,7 +745,9 @@ export const ConversationDetails = ({ id }: { id: string }) => {
                       {log.title}
                       {log.subtitle ? <span> {log.subtitle}</span> : null}
                     </p>
-                    <p className="ConversationInfo__activity-time">{log.time}</p>
+                    <p className="ConversationInfo__activity-time">
+                      {log.time}
+                    </p>
                   </div>
                 </div>
               ))}

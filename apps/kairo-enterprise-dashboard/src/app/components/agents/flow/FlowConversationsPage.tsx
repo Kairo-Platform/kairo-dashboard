@@ -1,8 +1,19 @@
-import { Suspense } from "react";
+"use client";
+
+import { Suspense, useEffect } from "react";
 import { ConversationsTable } from "../../conversations";
-import { DashboardAnalyticsCardGrid, DashboardLineChart } from "../../dashbaord-analytics";
+import {
+  DashboardAnalyticsCardGrid,
+  DashboardLineChart,
+} from "../../dashbaord-analytics";
 import { styled } from "styled-components";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEntity } from "simpler-state";
+import { fetchFlowConversations, flowStore } from "@/app/store/flow";
+import {
+  mapConversation,
+  parseConversationNumber,
+} from "@/services/Flow/conversations";
 import { URL } from "@/lib/constants";
 
 const FlowConversationsPageContainer = styled.div`
@@ -54,6 +65,27 @@ const dummyData = [
 
 export const FlowConversationsPage = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { flowConversations, fetchingFlowConversations } = useEntity(flowStore);
+  const page = parseConversationNumber(searchParams.get("page"), 1);
+  const limit = parseConversationNumber(searchParams.get("limit"), 10);
+  const size = parseConversationNumber(searchParams.get("size"));
+  const search = searchParams.get("search") || undefined;
+  const startDate = searchParams.get("startDate") || undefined;
+  const endDate = searchParams.get("endDate") || undefined;
+
+  useEffect(() => {
+    void fetchFlowConversations({
+      page,
+      limit,
+      size,
+      search,
+      startDate,
+      endDate,
+    }).catch(() => {
+      // The store displays the request error.
+    });
+  }, [page, limit, size, search, startDate, endDate]);
 
   const cards = [
     {
@@ -68,7 +100,7 @@ export const FlowConversationsPage = () => {
       icon: "iconoir:message",
       percentage: 4,
     },
-  ]
+  ];
   return (
     <FlowConversationsPageContainer>
       <main>
@@ -86,36 +118,24 @@ export const FlowConversationsPage = () => {
         <section>
           <Suspense fallback={null}>
             <ConversationsTable
-              conversations={[
-                {
-                  id: "1",
-                  user: "Chinedu Okafor",
-                  message: "What is my current balance?",
-                  channel: "Whatsapp",
-                  status: "open",
-                  createdAt: new Date(),
-                },
-                {
-                  id: "2",
-                  user: "James Miller",
-                  message: "Send ₦20,000 to my GTB account",
-                  channel: "Phone",
-                  status: "resolved",
-                  createdAt: new Date(),
-                },
-              ]}
-              loading={false}
-              onRefresh={() => { }}
-              onViewConversation={id => router.push(URL.AGENTS_FLOW_CONVERSATION_DETAILS_URL.replace(":id", id))}
-              page={1}
-              limit={10}
-              totalCount={10}
+              conversations={
+                flowConversations?.items.map(mapConversation) ?? []
+              }
+              loading={fetchingFlowConversations}
+              page={flowConversations?.page ?? page}
+              limit={flowConversations?.limit ?? limit}
+              totalCount={flowConversations?.total ?? 0}
+              onViewConversation={(id) =>
+                router.push(
+                  `${URL.AGENTS_FLOW_CONVERSATION_DETAILS_URL.replace(":id", id)}?${searchParams.toString()}`,
+                )
+              }
             />
           </Suspense>
         </section>
       </main>
     </FlowConversationsPageContainer>
-  )
-}
+  );
+};
 
 export default FlowConversationsPage;

@@ -1,11 +1,16 @@
 "use client";
 
 import styled from "styled-components";
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, ButtonClass, ButtonSize, Flex } from "@/app/components/ui";
-import { DatePickerInput, SearchInput } from "@/app/components/ui/inputs";
+import { Button, ButtonClass, Flex } from "@/app/components/ui";
+import {
+  DatePickerInput,
+  FormInput,
+  SearchInput,
+} from "@/app/components/ui/inputs";
 import { Icon } from "@iconify/react";
+import { parseConversationNumber } from "@/services/Flow/conversations";
 import { DATE_FORMAT, formatDate } from "@kairo/lib/utils";
 
 const ConversationsTableFiltersContainer = styled.div`
@@ -59,8 +64,12 @@ const ConversationsTableFiltersContainer = styled.div`
 export const ConversationsTableFilters: FC = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [size, setSize] = useState(
+    String(parseConversationNumber(searchParams.get("size"))),
+  );
   const [showFilter, setShowFilter] = useState(false);
   const [search, setSearch] = useState(searchParams.get("search") || "");
+  const previousSearch = useRef(search);
   const [searchInput, setSearchInput] = useState(
     searchParams.get("search") || "",
   );
@@ -92,7 +101,7 @@ export const ConversationsTableFilters: FC = () => {
     }
 
     params.delete("page");
-    params.delete("limit");
+    params.set("size", String(parseConversationNumber(size)));
     router.replace(`?${params.toString()}`);
   };
 
@@ -102,13 +111,14 @@ export const ConversationsTableFilters: FC = () => {
   };
 
   const handleClearFilter = () => {
+    setSize("20");
     setSearch("");
     setSearchInput("");
     setFilterStartDate("");
     setFilterEndDate("");
 
     const params = new URLSearchParams(Array.from(searchParams.entries()));
-    ["page", "limit", "startDate", "endDate", "search"].forEach((key) =>
+    ["page", "size", "startDate", "endDate", "search"].forEach((key) =>
       params.delete(key),
     );
     router.replace(`?${params.toString()}`);
@@ -123,13 +133,15 @@ export const ConversationsTableFilters: FC = () => {
   }, [searchInput]);
 
   useEffect(() => {
+    if (previousSearch.current === search) return;
+    previousSearch.current = search;
+    if (search === (searchParams.get("search") || "")) return;
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     if (search) params.set("search", search);
     else params.delete("search");
     params.delete("page");
-    params.delete("limit");
     router.replace(`?${params.toString()}`);
-  }, [search]);
+  }, [search, router, searchParams]);
 
   return (
     <ConversationsTableFiltersContainer>
@@ -177,6 +189,15 @@ export const ConversationsTableFilters: FC = () => {
             </Flex>
 
             <div className="FilterGrid">
+              <FormInput
+                label="Size"
+                type="number"
+                min={1}
+                step={1}
+                required
+                value={size}
+                onChange={(event) => setSize(event.target.value)}
+              />
               <DatePickerInput
                 label="Start date"
                 placeholder="Select start date"
@@ -195,7 +216,11 @@ export const ConversationsTableFilters: FC = () => {
               />
             </div>
 
-            <Flex justify="flex-end" gap="0.75rem" style={{ marginTop: "2rem" }}>
+            <Flex
+              justify="flex-end"
+              gap="0.75rem"
+              style={{ marginTop: "2rem" }}
+            >
               <div>
                 <Button
                   type="button"

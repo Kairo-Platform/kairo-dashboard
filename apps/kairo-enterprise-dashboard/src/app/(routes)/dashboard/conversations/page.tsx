@@ -1,14 +1,39 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { ConversationsTable } from "@/app/components/conversations";
 import { DashboardLayout } from "@/app/components/dashboard";
+import { useEntity } from "simpler-state";
+import { fetchFlowConversations, flowStore } from "@/app/store/flow";
+import {
+  mapConversation,
+  parseConversationNumber,
+} from "@/services/Flow/conversations";
 import { URL } from "@/lib/constants";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AskKairoAI } from "@/app/components/ask-kairo";
 
 export default function ConversationsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { flowConversations, fetchingFlowConversations } = useEntity(flowStore);
+  const page = parseConversationNumber(searchParams.get("page"), 1);
+  const limit = parseConversationNumber(searchParams.get("limit"), 10);
+  const size = parseConversationNumber(searchParams.get("size"));
+  const search = searchParams.get("search") || undefined;
+  const startDate = searchParams.get("startDate") || undefined;
+  const endDate = searchParams.get("endDate") || undefined;
+
+  useEffect(() => {
+    void fetchFlowConversations({
+      page,
+      limit,
+      size,
+      search,
+      startDate,
+      endDate,
+    }).catch(() => {});
+  }, [page, limit, size, search, startDate, endDate]);
 
   const breadcrumbs = [
     {
@@ -28,30 +53,16 @@ export default function ConversationsPage() {
     >
       <Suspense fallback={null}>
         <ConversationsTable
-          conversations={[
-            {
-              id: "1",
-              user: "Chinedu Okafor",
-              message: "What is my current balance?",
-              channel: "Whatsapp",
-              status: "open",
-              createdAt: new Date(),
-            },
-            {
-              id: "2",
-              user: "James Miller",
-              message: "Send ₦20,000 to my GTB account",
-              channel: "Phone",
-              status: "resolved",
-              createdAt: new Date(),
-            },
-          ]}
-          loading={false}
-          onRefresh={() => { }}
-          onViewConversation={(id) => router.push(URL.DASHBOARD_CONVERSATION_DETAILS_URL.replace(":id", id))}
-          page={1}
-          limit={10}
-          totalCount={10}
+          conversations={flowConversations?.items.map(mapConversation) ?? []}
+          loading={fetchingFlowConversations}
+          page={flowConversations?.page ?? page}
+          limit={flowConversations?.limit ?? limit}
+          totalCount={flowConversations?.total ?? 0}
+          onViewConversation={(id) =>
+            router.push(
+              `${URL.DASHBOARD_CONVERSATION_DETAILS_URL.replace(":id", id)}?${searchParams.toString()}`,
+            )
+          }
         />
       </Suspense>
     </DashboardLayout>

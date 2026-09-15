@@ -1,5 +1,7 @@
 import { xApiBff } from "@/lib/bff/client";
 import type {
+  FlowConversationsQuery,
+  FlowConversationsResponse,
   BackendChannel,
   BackendChannelConfig,
   BackendConversationType,
@@ -21,6 +23,18 @@ export function unwrapFlowResponse<T>(res: unknown): T {
 const FLOW_BASE = (orgId: string) => `v1/orgs/${orgId}`;
 
 export const flow = {
+  getConversations: (orgId: string, query: FlowConversationsQuery) =>
+    xApiBff.request<FlowConversationsResponse>(
+      `${FLOW_BASE(orgId)}/flow/conversations`,
+      {
+        query: Object.fromEntries(
+          Object.entries(query).filter(
+            ([, value]) => value !== undefined && value !== "",
+          ),
+        ),
+      },
+    ),
+
   getSchema: (orgId: string) =>
     xApiBff.request<BackendSettingsSchema>(
       `${FLOW_BASE(orgId)}/agents/flow/settings/schema`,
@@ -57,9 +71,7 @@ export const flow = {
     }),
 
   getChannels: (orgId: string) =>
-    xApiBff.request<BackendChannel[]>(
-      `${FLOW_BASE(orgId)}/flow/channels`,
-    ),
+    xApiBff.request<BackendChannel[]>(`${FLOW_BASE(orgId)}/flow/channels`),
 
   getVariables: (orgId: string) =>
     xApiBff.request<BackendChannel[]>(

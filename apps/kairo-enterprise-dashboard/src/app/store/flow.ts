@@ -5,6 +5,8 @@ import { hasApiError, unwrapApiData } from "@/lib/utils/apiResponse";
 import { flow } from "@/services/Flow";
 import { getOrgId } from "@/lib/auth/client";
 import type {
+  FlowConversationsQuery,
+  FlowConversationsResponse,
   BackendChannel,
   BackendChannelConfig,
   BackendSettings,
@@ -14,6 +16,9 @@ import type {
 } from "@/services/Flow";
 
 export interface FlowState {
+  fetchingFlowConversations: boolean;
+  flowConversations: FlowConversationsResponse | null;
+
   fetchingFlowSettings: boolean;
   flowSettings: BackendSettings | null;
 
@@ -34,6 +39,9 @@ export interface FlowState {
 }
 
 const initialState: FlowState = {
+  fetchingFlowConversations: false,
+  flowConversations: null,
+
   fetchingFlowSettings: false,
   flowSettings: null,
 
@@ -113,7 +121,51 @@ export const setFlowTriggerConditions = (
   void flowStore.set((s) => ({ ...s, flowTriggerConditions: payload }));
 };
 
+export const setFetchingFlowConversations = (payload = false): void => {
+  void flowStore.set((s) => ({ ...s, fetchingFlowConversations: payload }));
+};
+
+export const setFlowConversations = (
+  payload: FlowConversationsResponse | null = null,
+): void => {
+  void flowStore.set((s) => ({ ...s, flowConversations: payload }));
+};
+
+let conversationsRequest = 0;
+
+export const fetchFlowConversations = async (
+  filters: FlowConversationsQuery,
+) => {
+  const request = ++conversationsRequest;
+  const orgId = getOrgId();
+  if (!orgId) {
+    setFlowConversations(null);
+    setFetchingFlowConversations(false);
+    return;
+  }
+
+  setFetchingFlowConversations(true);
+  try {
+    const response = await flow.getConversations(orgId, filters);
+    if (hasApiError(response)) throw response;
+    const data = unwrapApiData<FlowConversationsResponse>(response);
+    if (request === conversationsRequest) setFlowConversations(data);
+    return response;
+  } catch (error) {
+    if (request === conversationsRequest) {
+      setFlowConversations(null);
+      showErrorNotification({
+        message: parseApiError(error, "Failed to fetch Flow conversations"),
+      });
+    }
+    throw error;
+  } finally {
+    if (request === conversationsRequest) setFetchingFlowConversations(false);
+  }
+};
+
 export const resetFlowStore = (): void => {
+  conversationsRequest++;
   void flowStore.set(() => ({ ...initialState }));
 };
 

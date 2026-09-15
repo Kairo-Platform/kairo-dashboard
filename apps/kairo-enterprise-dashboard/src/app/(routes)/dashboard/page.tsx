@@ -1,15 +1,23 @@
 "use client";
 
+import { Suspense, useEffect } from "react";
+import { useEntity } from "simpler-state";
+import { fetchFlowConversations, flowStore } from "@/app/store/flow";
+import {
+  mapConversation,
+  parseConversationNumber,
+} from "@/services/Flow/conversations";
+
 import styled from "styled-components";
 import { DashboardLayout } from "@/app/components/dashboard";
 import {
+  DashboardRecentConversationsTable,
   DashboardAnalyticsCardGrid,
   DashboardDoughnutChart,
   DashboardLineChart,
-  DashboardRecentConversationsTable,
 } from "@/app/components/dashbaord-analytics";
 import { AskKairoAI } from "@/app/components/ask-kairo";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { URL } from "@/lib/constants";
 import { KairoBillingSummaryModal } from "@/app/components/billing";
 
@@ -97,51 +105,27 @@ const resolutionBreakdown = [
   { label: "Risk", value: 16, color: "#FFC5A4" },
 ];
 
-const recentConversations = [
-  {
-    id: "1",
-    user: "Ada Okonkwo",
-    message: "What's my current wallet balance?",
-    channel: "Whatsapp",
-    status: "open",
-    dateTime: "2026-07-14T09:15:00",
-  },
-  {
-    id: "2",
-    user: "James Ade",
-    message: "My transaction failed but I was debited.",
-    channel: "Whatsapp",
-    status: "escalated",
-    dateTime: "2026-07-14T08:42:00",
-  },
-  {
-    id: "3",
-    user: "Chioma Bello",
-    message: "What is going on? I haven't received my transfer yet.",
-    channel: "Whatsapp",
-    status: "resolved",
-    dateTime: "2026-07-13T17:05:00",
-  },
-  {
-    id: "4",
-    user: "Michael Uche",
-    message: "Where can I find my latest statement?",
-    channel: "Whatsapp",
-    status: "pending",
-    dateTime: "2026-07-13T14:21:00",
-  },
-  {
-    id: "5",
-    user: "Sarah Danladi",
-    message: "Send ₦20,000 to my GTB account",
-    channel: "Whatsapp",
-    status: "closed",
-    dateTime: "2026-07-12T11:48:00",
-  },
-];
-
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { flowConversations, fetchingFlowConversations } = useEntity(flowStore);
+  const page = parseConversationNumber(searchParams.get("page"), 1);
+  const limit = parseConversationNumber(searchParams.get("limit"), 10);
+  const size = parseConversationNumber(searchParams.get("size"));
+  const search = searchParams.get("search") || undefined;
+  const startDate = searchParams.get("startDate") || undefined;
+  const endDate = searchParams.get("endDate") || undefined;
+
+  useEffect(() => {
+    void fetchFlowConversations({
+      page,
+      limit,
+      size,
+      search,
+      startDate,
+      endDate,
+    }).catch(() => {});
+  }, [page, limit, size, search, startDate, endDate]);
 
   const cards = [
     {
@@ -212,10 +196,21 @@ export default function DashboardPage() {
         </section>
 
         <section className="RecentConversationsSection">
-          <DashboardRecentConversationsTable
-            conversations={recentConversations}
-            onSeeAll={() => router.push(URL.DASHBOARD_CONVERSATIONS_URL)}
-          />
+          <Suspense fallback={null}>
+            <DashboardRecentConversationsTable
+              conversations={
+                flowConversations?.items.map(mapConversation) ?? []
+              }
+              loading={fetchingFlowConversations}
+              onSeeAll={() => router.push(URL.DASHBOARD_CONVERSATIONS_URL)}
+              onRowClick={({ row }) => {
+                if (row.id)
+                  router.push(
+                    `${URL.DASHBOARD_CONVERSATION_DETAILS_URL.replace(":id", row.id)}?${searchParams.toString()}`,
+                  );
+              }}
+            />
+          </Suspense>
         </section>
       </PageContainer>
 

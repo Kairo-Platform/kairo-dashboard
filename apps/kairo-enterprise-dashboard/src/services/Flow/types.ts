@@ -215,5 +215,45 @@ export type BackendSettingsSchema = {
 export type BackendButtonAction = BackendSchemaOption & {
   type?: string;
   payload?: string;
-  payloadFields?: { key: string; required: boolean; type: string; description?: string }[];
+  payloadFields?: {
+    key: string;
+    required: boolean;
+    type: string;
+    description?: string;
+  }[];
 };
+
+export interface FlowConversationMessage {
+  id: string;
+  sender: "USER" | "KAIRO";
+  text: string;
+  createdAt: string;
+  interaction?: { type: string; flow: string };
+}
+
+export interface FlowConversation {
+  id: string;
+  user: {
+    id: string;
+    displayName: string;
+    channel: string;
+    channelUserId: string;
+  };
+  messages: FlowConversationMessage[];
+  lastMessageAt: string;
+}
+
+export interface FlowConversationsQuery {
+  search?: string;
+  startDate?: string;
+  endDate?: string;
+  page: number;
+  size: number;
+  limit: number;
+}
+
+export interface FlowConversationsResponse extends FlowConversationsQuery {
+  items: FlowConversation[];
+  total: number;
+  totalPages: number;
+}

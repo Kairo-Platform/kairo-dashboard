@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { ConversationDetails } from "@/app/components/conversations";
 import { DashboardLayout } from "@/app/components/dashboard";
 import { URL } from "@/lib/constants";
@@ -24,7 +25,7 @@ export default function ConversationPage() {
   ]
   return (
     <DashboardLayout pageTitle="" breadcrumbs={breadcrumbs}>
-      <ConversationDetails id={String(id)} />
+      <Suspense fallback={null}><ConversationDetails id={String(id)} /></Suspense>
     </DashboardLayout>
   )
 }
