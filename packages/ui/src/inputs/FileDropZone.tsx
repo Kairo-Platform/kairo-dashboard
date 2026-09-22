@@ -55,6 +55,7 @@ const FileDropZoneContainer = styled.div`
 `;
 
 interface FileDropZoneProps extends React.HTMLAttributes<HTMLDivElement> {
+  disabled?: boolean;
   files?: FileList | null;
   accept?: string;
   fileFormat?: string;

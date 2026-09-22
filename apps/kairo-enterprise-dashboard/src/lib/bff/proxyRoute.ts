@@ -93,7 +93,9 @@ export async function handleBffRequest(
 
   if (!["GET", "HEAD"].includes(request.method)) {
     try {
-      body = await request.json();
+      body = request.headers.get("content-type")?.includes("multipart/form-data")
+        ? await request.formData()
+        : await request.json();
     } catch {
       body = undefined;
     }
@@ -104,5 +106,8 @@ export async function handleBffRequest(
     method: request.method as ProxyServiceOptions["method"],
     query,
     body,
+    headers: request.headers.get("x-api-key")
+      ? { "X-Api-Key": request.headers.get("x-api-key")! }
+      : undefined,
   });
 }

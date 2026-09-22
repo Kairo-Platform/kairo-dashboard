@@ -36,7 +36,7 @@ const DrawerContainer = styled.div`
     right: 0;
     position: fixed;
     box-shadow: 0px 10px 10px rgba(0, 0, 0, 0.07);
-    background-color: ${(props) => props.theme.colors.white};
+    background-color: ${(props) => props.theme.colors.ui_07};
     border: 1px solid ${(props) => props.theme.colors.drawerBorder};
     border-radius: 6px;
     animation-name: fadeIn;
