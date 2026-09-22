@@ -8,10 +8,10 @@ export async function POST(request: Request) {
   const body = (await request.json()) as {
     sessionId?: string;
     questionId?: string;
-    answer?: string;
+    text?: string;
   };
 
-  if (!apiKey || !body.sessionId || !body.questionId || !body.answer?.trim()) {
+  if (!apiKey || !body.sessionId || !body.questionId || !body.text?.trim()) {
     return Response.json(
       {
         statusCode: 400,
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     JSON.stringify({
       type: "answer",
       questionId: body.questionId,
-      answer: body.answer.trim(),
+      text: body.text.trim(),
     }),
   );
 

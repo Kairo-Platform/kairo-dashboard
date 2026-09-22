@@ -22,16 +22,7 @@ import {
 } from "@/app/store/reconciliation";
 import { URL } from "@/lib/constants";
 import { Icon } from "@iconify/react";
-import {
-  ActionMenu,
-  Button,
-  ButtonClass,
-  ButtonSize,
-  Flex,
-  Loading,
-  Tag,
-  TagType,
-} from "@kairo/ui";
+import { Button, ButtonClass, Flex, Loading, Tag, TagType } from "@kairo/ui";
 import { showErrorNotification } from "@kairo/utils";
 import { useEntity } from "simpler-state";
 import { useRouter } from "next/navigation";
@@ -197,7 +188,7 @@ function ReconciliationContent() {
         body: JSON.stringify({
           sessionId: sessionRef.current.sessionId,
           questionId: state.question.questionId,
-          answer,
+          text: answer,
         }),
       });
       if (!response.ok) {
