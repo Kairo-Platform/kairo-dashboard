@@ -77,8 +77,12 @@ export default function FlowPage() {
   });
   const hasConnectedChannel = channels.some((channel) => channel.isConnected);
   // A newly connected channel stays in the wizard until the user continues.
+  const hasConfiguredInfrastructure = configuredInfrastructureId !== null;
   const showDashboard =
-    flowSetupCompleted || (currentStep === 1 && hasConnectedChannel);
+    hasConnectedChannel &&
+    hasConfiguredInfrastructure &&
+    (flowSetupCompleted || currentStep === 1);
+  const setupStep = currentStep === 1 && hasConnectedChannel ? 3 : currentStep;
 
   const handleChannelConnected = (id: string) => {
     setConnectedChannelIds((prev) => [...prev, id]);
@@ -161,7 +165,7 @@ export default function FlowPage() {
           </Flex>
         ) : !showDashboard ? (
           <>
-            {currentStep === 1 && (
+            {setupStep === 1 && (
               <Flex align="center" justify="center" style={{ height: "100%" }}>
                 <div className="EmptyState_container">
                   <EmptyState
@@ -185,14 +189,14 @@ export default function FlowPage() {
                 </div>
               </Flex>
             )}
-            {currentStep === 2 && (
+            {setupStep === 2 && (
               <ConnectChannels
                 channels={channels}
                 onChannelConnected={handleChannelConnected}
                 onContinue={() => setCurrentStep(3)}
               />
             )}
-            {currentStep === 3 && (
+            {setupStep === 3 && (
               <ConnectInfrastructure
                 infrastructures={infrastructures}
                 onConfigured={handleInfrastructureConfigured}
@@ -215,10 +219,7 @@ export default function FlowPage() {
             onContinue={() => setView("dashboard")}
           />
         ) : (
-          <FlowConversationsPage
-            needsInfrastructure={!configuredInfrastructureId}
-            onConnectInfrastructure={() => setView("add-infrastructure")}
-          />
+          <FlowConversationsPage />
         )}
       </FlowPageContainer>
     </DashboardLayout>
