@@ -20,7 +20,7 @@ import {
   ButtonSize,
   EmptyState,
   Flex,
-  Loading
+  Loading,
 } from "@kairo/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -33,7 +33,7 @@ const FlowPageContainer = styled.div`
     background-color: ${({ theme }) => theme.colors.ui_01};
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.08);
     border-radius: 2rem;
-    
+
     @media (min-width: ${({ theme }) => theme.breakpoint.xl}) {
       max-width: 30rem;
       width: 100%;
@@ -45,7 +45,7 @@ const FlowPageContainer = styled.div`
   }
 `;
 
-type FlowView = "dashboard" | "add-channel";
+type FlowView = "dashboard" | "add-channel" | "add-infrastructure";
 
 export default function FlowPage() {
   const router = useRouter();
@@ -53,49 +53,54 @@ export default function FlowPage() {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [flowSetupCompleted, setFlowSetupCompleted] = useState<boolean>(false);
   const [view, setView] = useState<FlowView>("dashboard");
-  const [channels, setChannels] = useState(FALLBACK_CHANNELS);
+  const [connectedChannelIds, setConnectedChannelIds] = useState<string[]>([]);
+  const [configuredInfrastructureId, setConfiguredInfrastructureId] = useState<
+    string | null
+  >(null);
 
   const { flowChannels, fetchingFlowChannels } = useEntity(flowStore);
 
   useEffect(() => {
-    fetchFlowChannels().catch(() => { });
+    fetchFlowChannels().catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (!Array.isArray(flowChannels) || flowChannels.length === 0) return;
-
-    const mapped = FALLBACK_CHANNELS.map((fc) => {
-      const match = flowChannels.find(
-        (bc) => bc.channel?.toUpperCase() === fc.id.toUpperCase(),
-      );
-      return match ? { ...fc, isConnected: match.status === "CONNECTED" } : fc;
-    });
-    setChannels(mapped);
-
-    if (mapped.some((c) => c.isConnected)) {
-      setFlowSetupCompleted(true);
-    }
-  }, [flowChannels]);
+  const channels = FALLBACK_CHANNELS.map((channel) => {
+    const backendChannel = flowChannels.find(
+      (item) => item.channel?.toUpperCase() === channel.id.toUpperCase(),
+    );
+    return {
+      ...channel,
+      isConnected:
+        connectedChannelIds.includes(channel.id) ||
+        backendChannel?.status === "CONNECTED",
+    };
+  });
+  const hasConnectedChannel = channels.some((channel) => channel.isConnected);
+  // A newly connected channel stays in the wizard until the user continues.
+  const showDashboard =
+    flowSetupCompleted || (currentStep === 1 && hasConnectedChannel);
 
   const handleChannelConnected = (id: string) => {
-    setChannels((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, isConnected: true } : c)),
-    );
-    fetchFlowChannels().catch(() => { });
+    setConnectedChannelIds((prev) => [...prev, id]);
+    fetchFlowChannels().catch(() => {});
   };
 
-  const infrastructures = FALLBACK_INFRASTRUCTURES.map((item) =>
-    item.id === "orange" ? { ...item, isConnected: true } : item,
-  );
+  const infrastructures = FALLBACK_INFRASTRUCTURES.map((item) => ({
+    ...item,
+    isConnected: item.id === configuredInfrastructureId,
+  }));
+  const handleInfrastructureConfigured = (id: string) => {
+    setConfiguredInfrastructureId(id);
+  };
 
   const breadcrumbs = [
     {
       title: "Agents",
-      onClick: () => router.push(URL.AGENTS_URL)
+      onClick: () => router.push(URL.AGENTS_URL),
     },
     {
       title: "Flow",
-    }
+    },
   ];
   return (
     <DashboardLayout
@@ -103,7 +108,7 @@ export default function FlowPage() {
       subTitle="Streamline your payment processes from start to finish, effortlessly."
       breadcrumbs={breadcrumbs}
       appendElementToHeading={
-        flowSetupCompleted && (
+        showDashboard && (
           <Flex align="center" gap="1rem">
             <Button
               classes={[ButtonClass.OUTLINED, ButtonClass.WITH_ICON]}
@@ -122,15 +127,23 @@ export default function FlowPage() {
                   <Icon icon="mi:chevron-down" width={16} height={16} />
                 </Button>
               }
-              actions={[{
-                title: "Add channel",
-                onClick: () => setView("add-channel"),
-              },
-              {
-                title: "Send broadcast",
-                onClick: () => {
+              actions={[
+                {
+                  title: "Add channel",
+                  onClick: () => setView("add-channel"),
                 },
-              },
+                ...(configuredInfrastructureId
+                  ? [
+                      {
+                        title: "Add infrastructure",
+                        onClick: () => setView("add-infrastructure"),
+                      },
+                    ]
+                  : []),
+                {
+                  title: "Send broadcast",
+                  onClick: () => {},
+                },
               ]}
               positions={["bottom"]}
             />
@@ -140,11 +153,13 @@ export default function FlowPage() {
       }
     >
       <FlowPageContainer>
-        {fetchingFlowChannels ? (
+        {fetchingFlowChannels &&
+        currentStep === 1 &&
+        connectedChannelIds.length === 0 ? (
           <Flex align="center" justify="center" style={{ height: "10rem" }}>
             <Loading>Loading channels ...</Loading>
           </Flex>
-        ) : !flowSetupCompleted ? (
+        ) : !showDashboard ? (
           <>
             {currentStep === 1 && (
               <Flex align="center" justify="center" style={{ height: "100%" }}>
@@ -159,7 +174,11 @@ export default function FlowPage() {
                         onClick={() => setCurrentStep(2)}
                       >
                         Begin setup
-                        <Icon icon="material-symbols:chevron-right" width={20} height={20} />
+                        <Icon
+                          icon="material-symbols:chevron-right"
+                          width={20}
+                          height={20}
+                        />
                       </Button>
                     }
                   />
@@ -176,6 +195,7 @@ export default function FlowPage() {
             {currentStep === 3 && (
               <ConnectInfrastructure
                 infrastructures={infrastructures}
+                onConfigured={handleInfrastructureConfigured}
                 onContinue={() => setFlowSetupCompleted(true)}
               />
             )}
@@ -187,8 +207,18 @@ export default function FlowPage() {
             onBack={() => setView("dashboard")}
             onChannelConnected={handleChannelConnected}
           />
+        ) : view === "add-infrastructure" ? (
+          <ConnectInfrastructure
+            infrastructures={infrastructures}
+            variant="standalone"
+            onConfigured={handleInfrastructureConfigured}
+            onContinue={() => setView("dashboard")}
+          />
         ) : (
-          <FlowConversationsPage />
+          <FlowConversationsPage
+            needsInfrastructure={!configuredInfrastructureId}
+            onConnectInfrastructure={() => setView("add-infrastructure")}
+          />
         )}
       </FlowPageContainer>
     </DashboardLayout>

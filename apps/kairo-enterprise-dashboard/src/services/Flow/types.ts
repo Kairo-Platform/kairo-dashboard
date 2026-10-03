@@ -260,3 +260,13 @@ export interface FlowConversationsResponse extends FlowConversationsQuery {
   total: number;
   totalPages: number;
 }
+
+export type BackendBankingBackendRequest = {
+  kind: "ORANGE" | "CUSTOM";
+  url: string;
+  headers?: Record<string, string>;
+};
+
+export type BackendBankingBackendResponse = {
+  status: "saved";
+};

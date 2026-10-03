@@ -5,7 +5,10 @@ import { useModal } from "@kairo/hooks";
 import { Button, ButtonClass, ButtonSize, Flex, Modal } from "@kairo/ui";
 import { FormInput } from "@kairo/ui/inputs";
 import { z } from "zod";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
+import { getOrgId } from "@/lib/auth/client";
+import { flow, unwrapFlowResponse } from "@/services/Flow";
+import { showErrorNotification, showSuccessNotification } from "@kairo/utils";
 import styled from "styled-components";
 import { FALLBACK_INFRASTRUCTURES } from "./resources";
 import type { FlowInfrastructure } from "./types";
@@ -24,6 +27,10 @@ const ConnectInfrastructureContainer = styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
     gap: 1rem;
+  }
+
+  .ConnectInfrastructure__subtitle {
+    color: ${(props) => props.theme.colors.text_02};
   }
 
   .infrastructureCard {
@@ -77,87 +84,104 @@ const ConnectInfrastructureContainer = styled.div`
 type ConnectInfrastructureProps = {
   infrastructures?: FlowInfrastructure[];
   onContinue: () => void;
+  onConfigured?: (id: string) => void;
+  variant?: "setup" | "standalone";
 };
 
 const connectSchema = z.object({
-  publicKey: z.string().min(1, "Public key is required"),
-  secretKey: z.string().min(1, "Secret key is required"),
+  url: z
+    .string()
+    .trim()
+    .url("Enter a valid MCP endpoint URL")
+    .refine((value) => {
+      try {
+        const url = new URL(value);
+        return (
+          url.protocol === "https:" ||
+          (url.protocol === "http:" &&
+            ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
+        );
+      } catch {
+        return false;
+      }
+    }, "Use HTTPS, or HTTP for localhost only"),
+  bearerToken: z
+    .string()
+    .trim()
+    .refine((value) => !/[\r\n]/.test(value), "Enter a valid bearer token"),
 });
 
-type ConnectFormData = {
-  publicKey: string;
-  secretKey: string;
-};
-
-type ConnectFormErrors = Partial<{
-  publicKey: string;
-  secretKey: string;
-}>;
+type ConnectFormData = z.input<typeof connectSchema>;
+type ConnectFormErrors = Partial<Record<keyof ConnectFormData, string>>;
 
 export const ConnectInfrastructure = ({
-  infrastructures,
+  infrastructures = FALLBACK_INFRASTRUCTURES,
   onContinue,
+  onConfigured,
+  variant = "setup",
 }: ConnectInfrastructureProps) => {
-  const initialInfrastructures = useMemo(
-    () => (infrastructures?.length ? infrastructures : FALLBACK_INFRASTRUCTURES),
-    [infrastructures],
-  );
-
-  const [localInfrastructures, setLocalInfrastructures] = useState<
-    FlowInfrastructure[]
-  >(initialInfrastructures);
+  const [savedInfrastructureId, setSavedInfrastructureId] = useState<
+    string | null
+  >(null);
   const [selectedInfrastructureId, setSelectedInfrastructureId] = useState<
     string | null
   >(null);
-
-  const selectedInfrastructure = useMemo(
-    () =>
-      localInfrastructures.find((item) => item.id === selectedInfrastructureId) ??
-      null,
-    [localInfrastructures, selectedInfrastructureId],
+  const localInfrastructures = infrastructures.map((item) => ({
+    ...item,
+    isConnected: savedInfrastructureId
+      ? item.id === savedInfrastructureId
+      : item.isConnected,
+  }));
+  const selectedInfrastructure = localInfrastructures.find(
+    (item) => item.id === selectedInfrastructureId,
   );
 
-  useEffect(() => {
-    setLocalInfrastructures(initialInfrastructures);
-    setSelectedInfrastructureId(null);
-  }, [initialInfrastructures]);
-
-  const {
-    showModal: showConnectModal,
-    toggleModal: toggleConnectModal,
-  } = useModal(false);
+  const { showModal: showConnectModal, toggleModal: toggleConnectModal } =
+    useModal(false);
 
   const [formData, setFormData] = useState<ConnectFormData>({
-    publicKey: "",
-    secretKey: "",
+    url: "",
+    bearerToken: "",
   });
 
   const [formErrors, setFormErrors] = useState<ConnectFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const hasConnected = localInfrastructures.some((item) => item.isConnected);
-  const firstNotConnected =
-    localInfrastructures.find((item) => !item.isConnected) ?? null;
 
   const openConnectModal = (item: FlowInfrastructure) => {
-    if (item.isConnected) return;
     setSelectedInfrastructureId(item.id);
     setFormErrors({});
-    setFormData({ publicKey: "", secretKey: "" });
+    setFormData({ url: "", bearerToken: "" });
     toggleConnectModal();
   };
 
   const closeConnectModal = () => {
+    if (isSubmitting) return;
+    setFormData({ url: "", bearerToken: "" });
     setFormErrors({});
     setSelectedInfrastructureId(null);
     toggleConnectModal();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedInfrastructure) return;
+    if (!selectedInfrastructure || isSubmitting) return;
 
-    const result = connectSchema.safeParse(formData);
+    const result = connectSchema
+      .superRefine((data, context) => {
+        if (
+          selectedInfrastructure.id === "orange" &&
+          !data.bearerToken.replace(/^Bearer(?:\s+|$)/i, "").trim()
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["bearerToken"],
+            message: "Bearer token is required for Orange",
+          });
+        }
+      })
+      .safeParse(formData);
     if (!result.success) {
       const fieldErrors: ConnectFormErrors = {};
       for (const [key, value] of Object.entries(
@@ -165,31 +189,69 @@ export const ConnectInfrastructure = ({
       )) {
         const msg = value?.[0];
         if (!msg) continue;
-        if (key === "publicKey") fieldErrors.publicKey = msg;
-        if (key === "secretKey") fieldErrors.secretKey = msg;
+        if (key === "url") fieldErrors.url = msg;
+        if (key === "bearerToken") fieldErrors.bearerToken = msg;
       }
       setFormErrors(fieldErrors);
       return;
     }
 
+    const orgId = getOrgId();
+    if (!orgId) {
+      showErrorNotification({
+        message: "Session expired. Please sign in again.",
+      });
+      return;
+    }
+
+    setFormErrors({});
     setIsSubmitting(true);
-    setTimeout(() => {
-      setLocalInfrastructures((prev) =>
-        prev.map((item) =>
-          item.id === selectedInfrastructure.id
-            ? { ...item, isConnected: true }
-            : item,
-        ),
-      );
+    try {
+      const token = result.data.bearerToken.replace(/^Bearer\s+/i, "");
+      const response = await flow.saveBankingBackend(orgId, {
+        kind: selectedInfrastructure.id === "orange" ? "ORANGE" : "CUSTOM",
+        url: result.data.url,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = unwrapFlowResponse<{ status: string }>(response);
+      if (data.status !== "saved")
+        throw new Error("Failed to save infrastructure configuration.");
+      setSavedInfrastructureId(selectedInfrastructure.id);
+      onConfigured?.(selectedInfrastructure.id);
+      setFormData({ url: "", bearerToken: "" });
+      setSelectedInfrastructureId(null);
+      toggleConnectModal();
+      showSuccessNotification({
+        message:
+          "Infrastructure configuration saved. Connectivity has not been tested.",
+      });
+    } catch (error) {
+      const apiError = error as { error?: unknown; message?: unknown } | null;
+      showErrorNotification({
+        message:
+          typeof apiError?.error === "string"
+            ? apiError.error
+            : typeof apiError?.message === "string"
+              ? apiError.message
+              : "Failed to save infrastructure configuration.",
+      });
+    } finally {
       setIsSubmitting(false);
-      closeConnectModal();
-    }, 300);
+    }
   };
 
   return (
     <ConnectInfrastructureContainer>
       <Flex direction="column" gap="2rem">
-        <h2>Connect FlowInfrastructure</h2>
+        <div>
+          <h2>Connect infrastructure</h2>
+          {!hasConnected && (
+            <p className="ConnectInfrastructure__subtitle">
+              Saving a new configuration replaces your organization’s current
+              banking backend.
+            </p>
+          )}
+        </div>
 
         <div className="ConnectInfrastructure_list">
           {localInfrastructures.map((item) => {
@@ -217,7 +279,13 @@ export const ConnectInfrastructure = ({
                       width={16}
                       height={16}
                     />
-                    Connected
+                    Configured
+                    <Button
+                      classes={[ButtonClass.OUTLINED]}
+                      onClick={() => openConnectModal(item)}
+                    >
+                      Update
+                    </Button>
                   </span>
                 ) : (
                   <Button
@@ -237,11 +305,13 @@ export const ConnectInfrastructure = ({
           <Button
             classes={[ButtonClass.SOLID]}
             size={ButtonSize.WIDTH_140}
-            disabled={!hasConnected}
+            disabled={isSubmitting || (variant === "setup" && !hasConnected)}
             onClick={onContinue}
             style={{ width: "auto", minWidth: "140px" }}
           >
-            Continue to dashboard
+            {variant === "setup"
+              ? "Continue to dashboard"
+              : "Back to dashboard"}
           </Button>
         </Flex>
       </Flex>
@@ -251,46 +321,50 @@ export const ConnectInfrastructure = ({
           title={`Connect ${selectedInfrastructure.name}`}
           onClose={closeConnectModal}
         >
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <Flex direction="column" gap="1.5rem">
               <FormInput
-                label="Public key"
-                name="publicKey"
-                placeholder="Enter public key"
-                type="password"
-                value={formData.publicKey}
+                label="MCP endpoint URL"
+                name="url"
+                placeholder="https://orange-host/mcp"
+                type="text"
+                value={formData.url}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    publicKey: e.target.value,
+                    url: e.target.value,
                   }))
                 }
                 message={
-                  formErrors.publicKey
-                    ? { type: "error", content: formErrors.publicKey }
+                  formErrors.url
+                    ? { type: "error", content: formErrors.url }
                     : undefined
                 }
                 required
               />
 
               <FormInput
-                label="Secret key"
-                name="secretKey"
-                placeholder="Enter secret key"
+                label={
+                  selectedInfrastructure.id === "orange"
+                    ? "Bearer token"
+                    : "Bearer token (optional)"
+                }
+                name="bearerToken"
+                placeholder="Enter provider token"
                 type="password"
-                value={formData.secretKey}
+                value={formData.bearerToken}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    secretKey: e.target.value,
+                    bearerToken: e.target.value,
                   }))
                 }
                 message={
-                  formErrors.secretKey
-                    ? { type: "error", content: formErrors.secretKey }
+                  formErrors.bearerToken
+                    ? { type: "error", content: formErrors.bearerToken }
                     : undefined
                 }
-                required
+                required={selectedInfrastructure.id === "orange"}
               />
 
               <Flex
@@ -304,17 +378,18 @@ export const ConnectInfrastructure = ({
                   size={ButtonSize.WIDTH_140}
                   type="button"
                   onClick={closeConnectModal}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   classes={[ButtonClass.SOLID]}
-                  size={ButtonSize.WIDTH_140}
+                  style={{ minWidth: ButtonSize.WIDTH_140 }}
                   type="submit"
                   disabled={isSubmitting}
                   loading={isSubmitting}
                 >
-                  Connect
+                  Save configuration
                 </Button>
               </Flex>
             </Flex>

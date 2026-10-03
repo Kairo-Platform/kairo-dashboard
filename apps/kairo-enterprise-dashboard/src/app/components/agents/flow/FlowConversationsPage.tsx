@@ -14,6 +14,7 @@ import {
   mapConversation,
   parseConversationNumber,
 } from "@/services/Flow/conversations";
+import { Button, ButtonClass, Flex } from "@kairo/ui";
 import { URL } from "@/lib/constants";
 
 const FlowConversationsPageContainer = styled.div`
@@ -63,7 +64,15 @@ const dummyData = [
   },
 ];
 
-export const FlowConversationsPage = () => {
+type FlowConversationsPageProps = {
+  needsInfrastructure?: boolean;
+  onConnectInfrastructure?: () => void;
+};
+
+export const FlowConversationsPage = ({
+  needsInfrastructure = false,
+  onConnectInfrastructure,
+}: FlowConversationsPageProps = {}) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { flowConversations, fetchingFlowConversations } = useEntity(flowStore);
@@ -104,6 +113,23 @@ export const FlowConversationsPage = () => {
   return (
     <FlowConversationsPageContainer>
       <main>
+        {needsInfrastructure && (
+          <Flex align="center" justify="space-between" gap="1rem">
+            <div>
+              <h2>Set up banking infrastructure</h2>
+              <p>
+                Configure Orange to enable banking operations for your
+                organization.
+              </p>
+            </div>
+            <Button
+              classes={[ButtonClass.SOLID]}
+              onClick={onConnectInfrastructure}
+            >
+              Connect infrastructure
+            </Button>
+          </Flex>
+        )}
         <section className="CardsSection">
           <DashboardAnalyticsCardGrid cards={cards} />
         </section>
