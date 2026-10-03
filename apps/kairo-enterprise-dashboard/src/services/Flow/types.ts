@@ -95,7 +95,10 @@ export type BackendWhatsAppConnectRequest = {
   whatsappBusinessAccountId: string;
   accessToken: string;
   appSecret: string;
+  onboardingFlowId: string;
   verifyToken?: string;
+  businessFlowId?: string;
+  transferPinFlowId?: string;
 };
 
 export type BackendWhatsAppConnectResponse = {
