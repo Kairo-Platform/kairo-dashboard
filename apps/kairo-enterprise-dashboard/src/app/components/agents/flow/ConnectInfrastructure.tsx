@@ -245,7 +245,7 @@ export const ConnectInfrastructure = ({
       <Flex direction="column" gap="2rem">
         <div>
           <h2>Connect infrastructure</h2>
-          {!hasConnected && (
+          {hasConnected && (
             <p className="ConnectInfrastructure__subtitle">
               Saving a new configuration replaces your organization’s current
               banking backend.
