@@ -371,7 +371,7 @@ const WHATSAPP_FIELDS: {
     name: "phoneNumber",
     label: "WhatsApp business phone number",
     placeholder: "+2348012345678",
-    type: "tel",
+    type: "text",
     required: true,
   },
   {
