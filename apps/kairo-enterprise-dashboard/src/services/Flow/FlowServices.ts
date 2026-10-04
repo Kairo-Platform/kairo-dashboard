@@ -2,6 +2,7 @@ import { xApiBff } from "@/lib/bff/client";
 import type {
   FlowConversationsQuery,
   FlowConversationsResponse,
+  BackendBankingBackendState,
   BackendBankingBackendRequest,
   BackendBankingBackendResponse,
   BackendChannel,
@@ -96,12 +97,17 @@ export const flow = {
       `${FLOW_BASE(orgId)}/flow/channels/${channel}/config`,
     ),
 
-  saveBankingBackend: (
-    orgId: string,
-    body: BackendBankingBackendRequest,
-  ) =>
-    xApiBff.request<BackendBankingBackendResponse>(`${FLOW_BASE(orgId)}/flow/banking-backend`, {
-      method: "PUT",
-      body,
-    }),
+  getBankingBackend: (orgId: string) =>
+    xApiBff.request<BackendBankingBackendState>(
+      `${FLOW_BASE(orgId)}/flow/banking-backend`,
+    ),
+
+  saveBankingBackend: (orgId: string, body: BackendBankingBackendRequest) =>
+    xApiBff.request<BackendBankingBackendResponse>(
+      `${FLOW_BASE(orgId)}/flow/banking-backend`,
+      {
+        method: "PUT",
+        body,
+      },
+    ),
 };

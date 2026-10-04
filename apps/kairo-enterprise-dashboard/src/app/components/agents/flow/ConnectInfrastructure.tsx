@@ -7,7 +7,12 @@ import { FormInput } from "@kairo/ui/inputs";
 import { z } from "zod";
 import { useState } from "react";
 import { getOrgId } from "@/lib/auth/client";
-import { flow, unwrapFlowResponse } from "@/services/Flow";
+import {
+  flow,
+  unwrapFlowResponse,
+  type BackendBankingBackendState,
+  type BackendBankingBackendResponse,
+} from "@/services/Flow";
 import { showErrorNotification, showSuccessNotification } from "@kairo/utils";
 import styled from "styled-components";
 import { FALLBACK_INFRASTRUCTURES } from "./resources";
@@ -84,7 +89,7 @@ const ConnectInfrastructureContainer = styled.div`
 type ConnectInfrastructureProps = {
   infrastructures?: FlowInfrastructure[];
   onContinue: () => void;
-  onConfigured?: (id: string) => void;
+  onConfigured?: (state: BackendBankingBackendState) => void;
   variant?: "setup" | "standalone";
 };
 
@@ -213,11 +218,11 @@ export const ConnectInfrastructure = ({
         url: result.data.url,
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const data = unwrapFlowResponse<{ status: string }>(response);
-      if (data.status !== "saved")
+      const data = unwrapFlowResponse<BackendBankingBackendResponse>(response);
+      if (data.status !== "saved" || !data.configured)
         throw new Error("Failed to save infrastructure configuration.");
       setSavedInfrastructureId(selectedInfrastructure.id);
-      onConfigured?.(selectedInfrastructure.id);
+      onConfigured?.(data);
       setFormData({ url: "", bearerToken: "" });
       setSelectedInfrastructureId(null);
       toggleConnectModal();

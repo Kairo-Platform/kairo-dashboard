@@ -9,6 +9,12 @@ import {
 } from "@/app/components/agents/flow/resources";
 import { AskKairoAI } from "@/app/components/ask-kairo";
 import DashboardLayout from "@/app/components/dashboard/DashboardLayout";
+import { getOrgId } from "@/lib/auth/client";
+import {
+  flow,
+  unwrapFlowResponse,
+  type BackendBankingBackendState,
+} from "@/services/Flow";
 import { URL } from "@/lib/constants";
 import { fetchFlowChannels, flowStore } from "@/app/store/flow";
 import { useEntity } from "simpler-state";
@@ -23,7 +29,7 @@ import {
   Loading,
 } from "@kairo/ui";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import styled from "styled-components";
 
 const FlowPageContainer = styled.div`
@@ -54,15 +60,45 @@ export default function FlowPage() {
   const [flowSetupCompleted, setFlowSetupCompleted] = useState<boolean>(false);
   const [view, setView] = useState<FlowView>("dashboard");
   const [connectedChannelIds, setConnectedChannelIds] = useState<string[]>([]);
-  const [configuredInfrastructureId, setConfiguredInfrastructureId] = useState<
-    string | null
-  >(null);
+  const [bankingBackend, setBankingBackend] =
+    useState<BackendBankingBackendState | null>(null);
+  const [fetchingBankingBackend, setFetchingBankingBackend] = useState(true);
+  const [bankingBackendError, setBankingBackendError] = useState<string | null>(
+    null,
+  );
+
+  const loadBankingBackend = useCallback(() => {
+    const orgId = getOrgId();
+    const request = orgId
+      ? flow.getBankingBackend(orgId)
+      : Promise.reject(new Error("Session expired. Please sign in again."));
+    return request
+      .then((response) => {
+        setBankingBackend(
+          unwrapFlowResponse<BackendBankingBackendState>(response),
+        );
+      })
+      .catch((error: unknown) => {
+        const apiError = error as { error?: unknown; message?: unknown } | null;
+        setBankingBackendError(
+          typeof apiError?.error === "string"
+            ? apiError.error
+            : typeof apiError?.message === "string"
+              ? apiError.message
+              : "Failed to load infrastructure configuration.",
+        );
+      })
+      .finally(() => {
+        setFetchingBankingBackend(false);
+      });
+  }, []);
 
   const { flowChannels, fetchingFlowChannels } = useEntity(flowStore);
 
   useEffect(() => {
     fetchFlowChannels().catch(() => {});
-  }, []);
+    void loadBankingBackend();
+  }, [loadBankingBackend]);
 
   const channels = FALLBACK_CHANNELS.map((channel) => {
     const backendChannel = flowChannels.find(
@@ -77,7 +113,7 @@ export default function FlowPage() {
   });
   const hasConnectedChannel = channels.some((channel) => channel.isConnected);
   // A newly connected channel stays in the wizard until the user continues.
-  const hasConfiguredInfrastructure = configuredInfrastructureId !== null;
+  const hasConfiguredInfrastructure = bankingBackend?.configured === true;
   const showDashboard =
     hasConnectedChannel &&
     hasConfiguredInfrastructure &&
@@ -91,10 +127,14 @@ export default function FlowPage() {
 
   const infrastructures = FALLBACK_INFRASTRUCTURES.map((item) => ({
     ...item,
-    isConnected: item.id === configuredInfrastructureId,
+    isConnected:
+      bankingBackend?.configured === true &&
+      item.id === bankingBackend.kind.toLowerCase(),
   }));
-  const handleInfrastructureConfigured = (id: string) => {
-    setConfiguredInfrastructureId(id);
+  const handleInfrastructureConfigured = (
+    state: BackendBankingBackendState,
+  ) => {
+    setBankingBackend(state);
   };
 
   const breadcrumbs = [
@@ -136,7 +176,7 @@ export default function FlowPage() {
                   title: "Add channel",
                   onClick: () => setView("add-channel"),
                 },
-                ...(configuredInfrastructureId
+                ...(hasConfiguredInfrastructure
                   ? [
                       {
                         title: "Add infrastructure",
@@ -157,11 +197,26 @@ export default function FlowPage() {
       }
     >
       <FlowPageContainer>
-        {fetchingFlowChannels &&
-        currentStep === 1 &&
-        connectedChannelIds.length === 0 ? (
+        {fetchingBankingBackend ||
+        (fetchingFlowChannels &&
+          currentStep === 1 &&
+          connectedChannelIds.length === 0) ? (
           <Flex align="center" justify="center" style={{ height: "10rem" }}>
-            <Loading>Loading channels ...</Loading>
+            <Loading>Loading Flow setup ...</Loading>
+          </Flex>
+        ) : bankingBackendError ? (
+          <Flex direction="column" gap="1rem" align="center">
+            <p role="alert">{bankingBackendError}</p>
+            <Button
+              classes={[ButtonClass.OUTLINED]}
+              onClick={() => {
+                setFetchingBankingBackend(true);
+                setBankingBackendError(null);
+                void loadBankingBackend();
+              }}
+            >
+              Retry
+            </Button>
           </Flex>
         ) : !showDashboard ? (
           <>
@@ -193,7 +248,10 @@ export default function FlowPage() {
               <ConnectChannels
                 channels={channels}
                 onChannelConnected={handleChannelConnected}
-                onContinue={() => setCurrentStep(3)}
+                onContinue={() => {
+                  if (hasConfiguredInfrastructure) setFlowSetupCompleted(true);
+                  else setCurrentStep(3);
+                }}
               />
             )}
             {setupStep === 3 && (

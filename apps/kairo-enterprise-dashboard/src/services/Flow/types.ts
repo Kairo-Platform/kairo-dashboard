@@ -267,6 +267,10 @@ export type BackendBankingBackendRequest = {
   headers?: Record<string, string>;
 };
 
-export type BackendBankingBackendResponse = {
+export type BackendBankingBackendState =
+  | { configured: true; kind: string }
+  | { configured: false; kind: null };
+
+export type BackendBankingBackendResponse = BackendBankingBackendState & {
   status: "saved";
 };
