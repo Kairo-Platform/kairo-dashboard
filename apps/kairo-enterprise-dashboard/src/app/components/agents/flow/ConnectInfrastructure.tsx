@@ -294,6 +294,7 @@ export const ConnectInfrastructure = ({
                     </span>
                     <Button
                       classes={[ButtonClass.OUTLINED]}
+                      style={{ height: "2.5rem" }}
                       onClick={() => openConnectModal(item)}
                     >
                       Update

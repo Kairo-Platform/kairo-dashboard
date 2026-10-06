@@ -10,7 +10,14 @@ import {
 import { Icon } from "@iconify/react";
 import { useModal } from "@kairo/hooks";
 import { showErrorNotification } from "@kairo/utils";
-import { Button, ButtonClass, ButtonSize, Flex, Loading, Modal } from "@kairo/ui";
+import {
+  Button,
+  ButtonClass,
+  ButtonSize,
+  Flex,
+  Loading,
+  Modal,
+} from "@kairo/ui";
 import { FileInput, FormInput } from "@kairo/ui/inputs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
@@ -482,7 +489,12 @@ export const ConnectChannels = ({
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [configLoadFailed, setConfigLoadFailed] = useState(false);
 
-  useEffect(() => () => { configRequestId.current++; }, []);
+  useEffect(
+    () => () => {
+      configRequestId.current++;
+    },
+    [],
+  );
 
   const loadWhatsAppConfig = async () => {
     const requestId = ++configRequestId.current;
@@ -506,9 +518,12 @@ export const ConnectChannels = ({
       setConfigLoadFailed(true);
       const apiError = error as { error?: unknown; message?: unknown } | null;
       showErrorNotification({
-        message: typeof apiError?.error === "string" ? apiError.error
-          : typeof apiError?.message === "string" ? apiError.message
-          : "Failed to load WhatsApp configuration.",
+        message:
+          typeof apiError?.error === "string"
+            ? apiError.error
+            : typeof apiError?.message === "string"
+              ? apiError.message
+              : "Failed to load WhatsApp configuration.",
       });
     } finally {
       if (requestId === configRequestId.current) setIsLoadingConfig(false);
@@ -525,7 +540,8 @@ export const ConnectChannels = ({
     setFormData(EMPTY_CONNECT_FORM);
     setWhatsAppFormData(EMPTY_WHATSAPP_FORM);
     toggleConnectChannelModal();
-    if (channel.isConnected && isWhatsAppChannel(channel)) void loadWhatsAppConfig();
+    if (channel.isConnected && isWhatsAppChannel(channel))
+      void loadWhatsAppConfig();
   };
 
   const closeConnectModal = () => {
@@ -592,7 +608,8 @@ export const ConnectChannels = ({
 
   const handleWhatsAppSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedChannel || isSubmitting || isLoadingConfig || configLoadFailed) return;
+    if (!selectedChannel || isSubmitting || isLoadingConfig || configLoadFailed)
+      return;
 
     const result = whatsappConnectSchema.safeParse(whatsAppFormData);
 
@@ -655,7 +672,8 @@ export const ConnectChannels = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedChannel || isSubmitting || isLoadingConfig || configLoadFailed) return;
+    if (!selectedChannel || isSubmitting || isLoadingConfig || configLoadFailed)
+      return;
 
     if (isWhatsAppChannel(selectedChannel)) {
       handleWhatsAppSubmit(e);
@@ -742,10 +760,7 @@ export const ConnectChannels = ({
                 </Flex>
 
                 <Button
-                  classes={[
-                    isConnected ? ButtonClass.SOLID : ButtonClass.OUTLINED,
-                    ButtonClass.WITH_ICON,
-                  ]}
+                  classes={[ButtonClass.OUTLINED, ButtonClass.WITH_ICON]}
                   style={{ height: "2.5rem" }}
                   onClick={() => openConnectModal(channel)}
                 >
@@ -807,7 +822,11 @@ export const ConnectChannels = ({
                 disabled={isSubmitting || isLoadingConfig || configLoadFailed}
                 loading={isSubmitting}
               >
-                {selectedChannel.isConnected ? "Update" : isWhatsApp ? "Connect" : "Continue"}
+                {selectedChannel.isConnected
+                  ? "Update"
+                  : isWhatsApp
+                    ? "Connect"
+                    : "Continue"}
               </Button>
             </Flex>
           )}
@@ -819,7 +838,11 @@ export const ConnectChannels = ({
               ) : configLoadFailed ? (
                 <Flex direction="column" gap="1rem">
                   <p>Could not load the saved configuration.</p>
-                  <Button type="button" classes={[ButtonClass.OUTLINED]} onClick={() => void loadWhatsAppConfig()}>
+                  <Button
+                    type="button"
+                    classes={[ButtonClass.OUTLINED]}
+                    onClick={() => void loadWhatsAppConfig()}
+                  >
                     Retry
                   </Button>
                 </Flex>
@@ -970,7 +993,9 @@ export const ConnectChannels = ({
               </span>
               <div>
                 <h3 className="ConnectChannels__successTitle">
-                  {successChannel.name} {successChannel.isConnected ? "updated" : "connected"} successfully!
+                  {successChannel.name}{" "}
+                  {successChannel.isConnected ? "updated" : "connected"}{" "}
+                  successfully!
                 </h3>
                 <p className="ConnectChannels__successSubtitle">
                   Your WhatsApp connection is active. Use the information below
