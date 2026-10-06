@@ -278,20 +278,27 @@ export const ConnectInfrastructure = ({
                 </Flex>
 
                 {isConnected ? (
-                  <span className="infrastructureCard__connected">
-                    <Icon
-                      icon="fluent:checkmark-circle-32-regular"
-                      width={16}
-                      height={16}
-                    />
-                    Configured
+                  <Flex
+                    direction="column"
+                    gap="0.5rem"
+                    align="center"
+                    justify="center"
+                  >
+                    <span className="infrastructureCard__connected">
+                      <Icon
+                        icon="fluent:checkmark-circle-32-regular"
+                        width={16}
+                        height={16}
+                      />
+                      Configured
+                    </span>
                     <Button
                       classes={[ButtonClass.OUTLINED]}
                       onClick={() => openConnectModal(item)}
                     >
                       Update
                     </Button>
-                  </span>
+                  </Flex>
                 ) : (
                   <Button
                     classes={[ButtonClass.OUTLINED, ButtonClass.WITH_ICON]}
