@@ -17,8 +17,6 @@ import {
   FormInput,
   FormTextarea,
   SelectInput,
-  SwitchInput,
-  SwitchInputSize,
 } from "@kairo/ui/inputs";
 import { getOrgId } from "@/lib/auth/client";
 import { parseApiError } from "@/lib/utils/parseApiError";
@@ -34,16 +32,19 @@ import {
   responseStyleToBackend,
   toSelectOptions,
   type BackendSettings,
+  type BackendSchemaField,
 } from "@/services/Flow";
-import { fetchFlowSchema, fetchFlowSettings, flowStore } from "@/app/store/flow";
+import {
+  fetchFlowSchema,
+  fetchFlowSettings,
+  flowStore,
+} from "@/app/store/flow";
 import { showErrorNotification, showSuccessNotification } from "@kairo/utils";
 import { useEntity } from "simpler-state";
 import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
 
-import {
-  formatKnowledgeDate,
-} from "./helpers";
+import { formatKnowledgeDate } from "./helpers";
 import {
   BEHAVIOR_DETECTION_OPTIONS,
   CONVERSATION_MEMORY_OPTIONS,
@@ -61,6 +62,7 @@ import {
   RESPONSE_RESTRICTIONS_OPTIONS,
   RESTRICTED_TOPICS_OPTIONS,
 } from "./resources";
+import { FlowSetupFields } from "./FlowSetupFields";
 import type {
   FlowCheckboxOption,
   GeneralSettingsSection,
@@ -400,7 +402,7 @@ type CheckboxGroupCardProps = {
 type EditableSettingsState = {
   tone: string;
   languages: string[];
-  voiceToText: boolean;
+  setupValues: Record<string, unknown>;
   conversationMemory: string[];
   memoryDuration: string;
   memoryUnit: string;
@@ -421,7 +423,7 @@ type EditableSettingsState = {
 const INITIAL_EDITABLE_SETTINGS: EditableSettingsState = {
   tone: "",
   languages: ["en"],
-  voiceToText: false,
+  setupValues: { voiceToTextResponse: false },
   conversationMemory: [
     "onboarding-progress",
     "preferred-language",
@@ -471,14 +473,16 @@ function fromBackendGeneral(
   return {
     tone: setup.tone ?? "",
     languages: setup.languages ?? ["en"],
-    voiceToText: setup.voiceToTextResponse ?? false,
+    setupValues: Object.fromEntries(
+      Object.entries(setup).filter(
+        ([key]) => key !== "tone" && key !== "languages",
+      ),
+    ),
     conversationMemory: booleanObjectToArray(
       { ...DEFAULT_MEM, ...(aiBehaviour?.conversationMemory ?? {}) },
       CONVERSATION_MEMORY_KEY_MAP,
     ),
-    memoryDuration: String(
-      aiBehaviour?.memoryRetentionPeriod?.duration ?? "2",
-    ),
+    memoryDuration: String(aiBehaviour?.memoryRetentionPeriod?.duration ?? "2"),
     memoryUnit: aiBehaviour?.memoryRetentionPeriod?.unit ?? "MONTHS",
     proactiveAssistance: booleanObjectToArray(
       { ...DEFAULT_PA, ...(aiBehaviour?.proactiveAssistance ?? {}) },
@@ -566,7 +570,7 @@ function toBackendGeneral(
     setup: {
       tone: s.tone,
       languages: s.languages,
-      voiceToTextResponse: s.voiceToText,
+      ...s.setupValues,
     },
     aiBehaviour: {
       conversationMemory: arrayToBooleanObject(
@@ -631,7 +635,7 @@ const applyEditableSettings = (
   setters: {
     setTone: (value: string) => void;
     setLanguages: (value: string[]) => void;
-    setVoiceToText: (value: boolean) => void;
+    setSetupValues: (value: Record<string, unknown>) => void;
     setConversationMemory: (value: string[]) => void;
     setMemoryDuration: (value: string) => void;
     setMemoryUnit: (value: string) => void;
@@ -647,7 +651,7 @@ const applyEditableSettings = (
 ) => {
   setters.setTone(settings.tone);
   setters.setLanguages([...settings.languages]);
-  setters.setVoiceToText(settings.voiceToText);
+  setters.setSetupValues({ ...settings.setupValues });
   setters.setConversationMemory([...settings.conversationMemory]);
   setters.setMemoryDuration(settings.memoryDuration);
   setters.setMemoryUnit(settings.memoryUnit);
@@ -712,8 +716,8 @@ export const FlowGeneralSettings = ({
   const [languages, setLanguages] = useState<string[]>([
     ...INITIAL_EDITABLE_SETTINGS.languages,
   ]);
-  const [voiceToText, setVoiceToText] = useState(
-    INITIAL_EDITABLE_SETTINGS.voiceToText,
+  const [setupValues, setSetupValues] = useState(
+    INITIAL_EDITABLE_SETTINGS.setupValues,
   );
 
   const [conversationMemory, setConversationMemory] = useState<string[]>([
@@ -764,9 +768,7 @@ export const FlowGeneralSettings = ({
       restrictedTopics: [...INITIAL_EDITABLE_SETTINGS.restrictedTopics],
       escalationConditions: [...INITIAL_EDITABLE_SETTINGS.escalationConditions],
       requireApproval: [...INITIAL_EDITABLE_SETTINGS.requireApproval],
-      responseRestrictions: [
-        ...INITIAL_EDITABLE_SETTINGS.responseRestrictions,
-      ],
+      responseRestrictions: [...INITIAL_EDITABLE_SETTINGS.responseRestrictions],
       behaviorDetection: [...INITIAL_EDITABLE_SETTINGS.behaviorDetection],
     }),
   );
@@ -817,11 +819,13 @@ export const FlowGeneralSettings = ({
     if (isBootstrapping) return;
     if (!flowSettings?.general) return;
     const mapped = fromBackendGeneral(flowSettings.general);
-    const mappedKnowledgeItems = fromBackendKnowledgeItems(flowSettings.general);
+    const mappedKnowledgeItems = fromBackendKnowledgeItems(
+      flowSettings.general,
+    );
     applyEditableSettings(mapped, {
       setTone,
       setLanguages,
-      setVoiceToText,
+      setSetupValues,
       setConversationMemory,
       setMemoryDuration,
       setMemoryUnit,
@@ -848,15 +852,15 @@ export const FlowGeneralSettings = ({
       behaviorDetection: [...mapped.behaviorDetection],
     });
     setKnowledgeItems(mappedKnowledgeItems);
-    setSavedKnowledgeItems(
-      mappedKnowledgeItems.map((item) => ({ ...item })),
-    );
+    setSavedKnowledgeItems(mappedKnowledgeItems.map((item) => ({ ...item })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flowSettings, isBootstrapping]);
 
   const activeMeta = useMemo(
     () =>
-      GENERAL_SETTINGS_SECTIONS.find((section) => section.id === activeSection) ?? GENERAL_SETTINGS_SECTIONS[0],
+      GENERAL_SETTINGS_SECTIONS.find(
+        (section) => section.id === activeSection,
+      ) ?? GENERAL_SETTINGS_SECTIONS[0],
     [activeSection],
   );
 
@@ -870,14 +874,36 @@ export const FlowGeneralSettings = ({
     [flowSchema],
   );
 
+  const setupFields = useMemo<BackendSchemaField[]>(
+    () =>
+      (
+        flowSchema?.setupFields ?? [
+          {
+            field: "voiceToTextResponse",
+            label: "Voice to text response",
+            kind: "TOGGLE",
+            options: [],
+            allowsCustom: false,
+          },
+        ]
+      ).filter(
+        (field) => field.field !== "tone" && field.field !== "languages",
+      ),
+    [flowSchema],
+  );
+
   const memoryUnitOptions = useMemo(
-    () => toSelectOptions(flowSchema?.retentionUnits, FALLBACK_MEMORY_UNIT_OPTIONS),
+    () =>
+      toSelectOptions(flowSchema?.retentionUnits, FALLBACK_MEMORY_UNIT_OPTIONS),
     [flowSchema],
   );
 
   const responseStyleOptions = useMemo(
     () =>
-      toSelectOptions(flowSchema?.responseStyles, FALLBACK_RESPONSE_STYLE_OPTIONS),
+      toSelectOptions(
+        flowSchema?.responseStyles,
+        FALLBACK_RESPONSE_STYLE_OPTIONS,
+      ),
     [flowSchema],
   );
 
@@ -933,30 +959,40 @@ export const FlowGeneralSettings = ({
       string,
       { selected: string[]; onChange: (values: string[]) => void }
     > = {
-      restrictedTopics: { selected: restrictedTopics, onChange: setRestrictedTopics },
+      restrictedTopics: {
+        selected: restrictedTopics,
+        onChange: setRestrictedTopics,
+      },
       escalationConditions: {
         selected: escalationConditions,
         onChange: setEscalationConditions,
       },
-      requireApprovalFor: { selected: requireApproval, onChange: setRequireApproval },
+      requireApprovalFor: {
+        selected: requireApproval,
+        onChange: setRequireApproval,
+      },
       responseRestrictions: {
         selected: responseRestrictions,
         onChange: setResponseRestrictions,
       },
-      behaviorDetection: { selected: behaviorDetection, onChange: setBehaviorDetection },
+      behaviorDetection: {
+        selected: behaviorDetection,
+        onChange: setBehaviorDetection,
+      },
     };
 
     return flowSchema.guardrails.map((field) => {
       const stateKey =
         GUARDRAIL_STATE_KEYS[field.field as keyof typeof GUARDRAIL_STATE_KEYS];
       const fallback =
-        FALLBACK_GUARDRAIL_OPTIONS[field.field as keyof typeof FALLBACK_GUARDRAIL_OPTIONS] ??
-        [];
+        FALLBACK_GUARDRAIL_OPTIONS[
+          field.field as keyof typeof FALLBACK_GUARDRAIL_OPTIONS
+        ] ?? [];
       const state = stateByField[field.field] ??
         stateByField[stateKey] ?? {
-        selected: [],
-        onChange: () => { },
-      };
+          selected: [],
+          onChange: () => {},
+        };
 
       return {
         field: field.field,
@@ -981,7 +1017,7 @@ export const FlowGeneralSettings = ({
     () => ({
       tone,
       languages,
-      voiceToText,
+      setupValues,
       conversationMemory,
       memoryDuration,
       memoryUnit,
@@ -997,7 +1033,7 @@ export const FlowGeneralSettings = ({
     [
       tone,
       languages,
-      voiceToText,
+      setupValues,
       conversationMemory,
       memoryDuration,
       memoryUnit,
@@ -1016,14 +1052,17 @@ export const FlowGeneralSettings = ({
     serializeEditableSettings(currentSettings) !==
     serializeEditableSettings(savedSettings);
 
-  const showHeaderActions =
-    activeSection !== "knowledge" && hasUnsavedChanges;
+  const showHeaderActions = activeSection !== "knowledge" && hasUnsavedChanges;
 
   const allLanguageValues = languageOptions.map((option) => option.value);
   const allLanguagesSelected = languages.length === allLanguageValues.length;
 
   const handleSelectAllLanguages = () => {
-    setLanguages(allLanguagesSelected ? [languageOptions[0]?.value ?? "en"] : allLanguageValues);
+    setLanguages(
+      allLanguagesSelected
+        ? [languageOptions[0]?.value ?? "en"]
+        : allLanguageValues,
+    );
   };
 
   const handleSelectValue = (
@@ -1041,7 +1080,7 @@ export const FlowGeneralSettings = ({
     applyEditableSettings(savedSettings, {
       setTone,
       setLanguages,
-      setVoiceToText,
+      setSetupValues,
       setConversationMemory,
       setMemoryDuration,
       setMemoryUnit,
@@ -1196,10 +1235,10 @@ export const FlowGeneralSettings = ({
     const nextItems = knowledgeItems.map((item) =>
       item.id === selectedKnowledgeItem.id
         ? {
-          ...item,
-          name: editNoteTitle.trim(),
-          content: editNoteContent,
-        }
+            ...item,
+            name: editNoteTitle.trim(),
+            content: editNoteContent,
+          }
         : item,
     );
 
@@ -1236,13 +1275,17 @@ export const FlowGeneralSettings = ({
         <>
           <aside>
             <p className="FlowGeneralSettings__navLabel">General settings</p>
-            <nav className="FlowGeneralSettings__nav" aria-label="General settings">
+            <nav
+              className="FlowGeneralSettings__nav"
+              aria-label="General settings"
+            >
               {GENERAL_SETTINGS_SECTIONS.map((section) => (
                 <button
                   key={section.id}
                   type="button"
-                  className={`FlowGeneralSettings__navItem${activeSection === section.id ? " is-active" : ""
-                    }`}
+                  className={`FlowGeneralSettings__navItem${
+                    activeSection === section.id ? " is-active" : ""
+                  }`}
                   onClick={() => setActiveSection(section.id)}
                 >
                   <span className="FlowGeneralSettings__navItem-icon">
@@ -1262,8 +1305,9 @@ export const FlowGeneralSettings = ({
           </aside>
 
           <section
-            className={`FlowGeneralSettings__panel${activeSection === "knowledge" ? " is-knowledge" : ""
-              }`}
+            className={`FlowGeneralSettings__panel${
+              activeSection === "knowledge" ? " is-knowledge" : ""
+            }`}
           >
             {activeSection === "knowledge" ? (
               <div className="FlowGeneralSettings__knowledgeHeader">
@@ -1285,7 +1329,11 @@ export const FlowGeneralSettings = ({
                       style={{ height: "2.5rem" }}
                     >
                       Add
-                      <Icon icon="iconamoon:arrow-down-2-light" width={20} height={20} />
+                      <Icon
+                        icon="iconamoon:arrow-down-2-light"
+                        width={20}
+                        height={20}
+                      />
                     </Button>
                   }
                   actions={[
@@ -1374,15 +1422,16 @@ export const FlowGeneralSettings = ({
                   />
                 </div>
 
-                <div className="FlowGeneralSettings__toggleRow">
-                  <span>Voice to text response</span>
-                  <SwitchInput
-                    size={SwitchInputSize.SMALL}
-                    value={voiceToText}
-                    onChange={setVoiceToText}
-                    name="voiceToText"
-                  />
-                </div>
+                <FlowSetupFields
+                  fields={setupFields}
+                  values={setupValues}
+                  onFieldChange={(field, value) =>
+                    setSetupValues((previous) => ({
+                      ...previous,
+                      [field]: value,
+                    }))
+                  }
+                />
               </>
             )}
 
@@ -1475,7 +1524,13 @@ export const FlowGeneralSettings = ({
                   className="FlowGeneralSettings__knowledgeEmpty"
                   title="No knowledge added yet."
                   message="Added knowledge will be listed here"
-                  icon={<Icon icon="fluent:brain-32-filled" width={30} height={30} />}
+                  icon={
+                    <Icon
+                      icon="fluent:brain-32-filled"
+                      width={30}
+                      height={30}
+                    />
+                  }
                 />
               ) : (
                 <>
@@ -1485,7 +1540,10 @@ export const FlowGeneralSettings = ({
                   </div>
                   <div className="FlowGeneralSettings__knowledgeList">
                     {knowledgeItems.map((item) => (
-                      <div key={item.id} className="FlowGeneralSettings__knowledgeRow">
+                      <div
+                        key={item.id}
+                        className="FlowGeneralSettings__knowledgeRow"
+                      >
                         <div className="FlowGeneralSettings__knowledgeRow-main">
                           <span className="FlowGeneralSettings__knowledgeRow-icon">
                             <Icon
@@ -1496,7 +1554,9 @@ export const FlowGeneralSettings = ({
                               }
                               width={30}
                               height={30}
-                              color={item.type === "file" ? "#3B82F6" : "#F59E0B"}
+                              color={
+                                item.type === "file" ? "#3B82F6" : "#F59E0B"
+                              }
                             />
                           </span>
                           <div className="FlowGeneralSettings__knowledgeRow-text">
@@ -1520,7 +1580,11 @@ export const FlowGeneralSettings = ({
                                 classes={[ButtonClass.ICON_ONLY]}
                                 style={{ height: "2.5rem" }}
                               >
-                                <Icon icon="pepicons-pencil:dots-y" width={20} height={20} />
+                                <Icon
+                                  icon="pepicons-pencil:dots-y"
+                                  width={20}
+                                  height={20}
+                                />
                               </Button>
                             }
                             actions={[
@@ -1542,7 +1606,6 @@ export const FlowGeneralSettings = ({
                   </div>
                 </>
               ))}
-
           </section>
 
           {showAddNoteModal && (
@@ -1563,7 +1626,11 @@ export const FlowGeneralSettings = ({
                   placeholder="Write something here....."
                   rows={12}
                 />
-                <Flex justify="flex-end" gap="0.75rem" style={{ marginTop: "1.5rem" }}>
+                <Flex
+                  justify="flex-end"
+                  gap="0.75rem"
+                  style={{ marginTop: "1.5rem" }}
+                >
                   <Button
                     classes={[ButtonClass.OUTLINED]}
                     size={ButtonSize.WIDTH_140}
@@ -1604,7 +1671,11 @@ export const FlowGeneralSettings = ({
                   placeholder="Write something here....."
                   rows={12}
                 />
-                <Flex justify="flex-end" gap="0.75rem" style={{ marginTop: "1.5rem" }}>
+                <Flex
+                  justify="flex-end"
+                  gap="0.75rem"
+                  style={{ marginTop: "1.5rem" }}
+                >
                   <Button
                     classes={[ButtonClass.OUTLINED]}
                     size={ButtonSize.WIDTH_140}
@@ -1639,8 +1710,8 @@ export const FlowGeneralSettings = ({
             >
               <p style={{ textAlign: "center", margin: 0 }}>
                 Are you sure you want to delete{" "}
-                <strong>{selectedKnowledgeItem.name}</strong>? This action cannot be
-                undone.
+                <strong>{selectedKnowledgeItem.name}</strong>? This action
+                cannot be undone.
               </p>
             </ConfirmationModal>
           )}

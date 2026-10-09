@@ -31,7 +31,8 @@ export type BackendConversationType = {
 export type BackendGeneralSetup = {
   tone: string;
   languages: string[];
-  voiceToTextResponse: boolean;
+  voiceToTextResponse?: boolean;
+  [field: string]: unknown;
 };
 
 export type BackendConversationMemory = {
@@ -203,6 +204,7 @@ export type BackendConversationSchemaMeta = {
 export type BackendSettingsSchema = {
   schemaVersion?: number;
   messageWordLimit?: number;
+  setupFields?: BackendSchemaField[];
   tones: BackendSchemaOption[];
   responseStyles: BackendSchemaOption[];
   retentionUnits: BackendSchemaOption[];
