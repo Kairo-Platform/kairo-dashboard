@@ -408,6 +408,7 @@ type EditableSettingsState = {
   memoryUnit: string;
   proactiveAssistance: string[];
   escalationIntelligence: string[];
+  voiceType: string;
   responseStyle: {
     shortReplies: boolean;
     conversational: boolean;
@@ -434,6 +435,7 @@ const INITIAL_EDITABLE_SETTINGS: EditableSettingsState = {
   memoryUnit: "MONTHS",
   proactiveAssistance: ["suggest-next-actions"],
   escalationIntelligence: ["detect-frustration", "detect-confusion"],
+  voiceType: "",
   responseStyle: {
     shortReplies: false,
     conversational: true,
@@ -492,6 +494,7 @@ function fromBackendGeneral(
       { ...DEFAULT_EI, ...(aiBehaviour?.escalationIntelligence ?? {}) },
       ESCALATION_INTELLIGENCE_KEY_MAP,
     ),
+    voiceType: aiBehaviour?.voiceType ?? "",
     responseStyle: responseStyleFromBackend(
       aiBehaviour?.responseStyle ?? "CONVERSATIONAL",
     ),
@@ -593,6 +596,7 @@ function toBackendGeneral(
         DEFAULT_EI,
       ),
       responseStyle: responseStyleToBackend(s.responseStyle),
+      ...(s.voiceType ? { voiceType: s.voiceType } : {}),
     },
     guardrails: {
       restrictedTopics: s.restrictedTopics,
@@ -641,6 +645,7 @@ const applyEditableSettings = (
     setMemoryUnit: (value: string) => void;
     setProactiveAssistance: (value: string[]) => void;
     setEscalationIntelligence: (value: string[]) => void;
+    setVoiceType: (value: string) => void;
     setResponseStyle: (value: EditableSettingsState["responseStyle"]) => void;
     setRestrictedTopics: (value: string[]) => void;
     setEscalationConditions: (value: string[]) => void;
@@ -657,6 +662,7 @@ const applyEditableSettings = (
   setters.setMemoryUnit(settings.memoryUnit);
   setters.setProactiveAssistance([...settings.proactiveAssistance]);
   setters.setEscalationIntelligence([...settings.escalationIntelligence]);
+  setters.setVoiceType(settings.voiceType);
   setters.setResponseStyle({ ...settings.responseStyle });
   setters.setRestrictedTopics([...settings.restrictedTopics]);
   setters.setEscalationConditions([...settings.escalationConditions]);
@@ -735,6 +741,7 @@ export const FlowGeneralSettings = ({
   const [escalationIntelligence, setEscalationIntelligence] = useState<
     string[]
   >([...INITIAL_EDITABLE_SETTINGS.escalationIntelligence]);
+  const [voiceType, setVoiceType] = useState(INITIAL_EDITABLE_SETTINGS.voiceType);
   const [responseStyle, setResponseStyle] = useState({
     ...INITIAL_EDITABLE_SETTINGS.responseStyle,
   });
@@ -831,6 +838,7 @@ export const FlowGeneralSettings = ({
       setMemoryUnit,
       setProactiveAssistance,
       setEscalationIntelligence,
+      setVoiceType,
       setResponseStyle,
       setRestrictedTopics,
       setEscalationConditions,
@@ -897,6 +905,11 @@ export const FlowGeneralSettings = ({
       toSelectOptions(flowSchema?.retentionUnits, FALLBACK_MEMORY_UNIT_OPTIONS),
     [flowSchema],
   );
+
+  const voiceTypeField = flowSchema?.aiBehaviourFields?.find(
+    (field) => field.field === "voiceType" && field.kind === "SELECT",
+  );
+  const voiceTypeOptions = toSelectOptions(voiceTypeField?.options, []);
 
   const responseStyleOptions = useMemo(
     () =>
@@ -1023,6 +1036,7 @@ export const FlowGeneralSettings = ({
       memoryUnit,
       proactiveAssistance,
       escalationIntelligence,
+      voiceType,
       responseStyle,
       restrictedTopics,
       escalationConditions,
@@ -1039,6 +1053,7 @@ export const FlowGeneralSettings = ({
       memoryUnit,
       proactiveAssistance,
       escalationIntelligence,
+      voiceType,
       responseStyle,
       restrictedTopics,
       escalationConditions,
@@ -1086,6 +1101,7 @@ export const FlowGeneralSettings = ({
       setMemoryUnit,
       setProactiveAssistance,
       setEscalationIntelligence,
+      setVoiceType,
       setResponseStyle,
       setRestrictedTopics,
       setEscalationConditions,
@@ -1487,6 +1503,18 @@ export const FlowGeneralSettings = ({
                   selected={escalationIntelligence}
                   onChange={setEscalationIntelligence}
                 />
+
+                {voiceTypeField && (
+                  <SelectInput
+                    label={voiceTypeField.label}
+                    placeholder="Select voice type"
+                    options={voiceTypeOptions}
+                    value={voiceType}
+                    onChange={(value: string | { value: string }) =>
+                      handleSelectValue(setVoiceType, value)
+                    }
+                  />
+                )}
 
                 <SelectInput
                   label="Response style"

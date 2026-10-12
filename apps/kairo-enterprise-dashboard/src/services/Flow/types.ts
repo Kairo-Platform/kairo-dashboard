@@ -62,6 +62,7 @@ export type BackendAiBehaviour = {
   proactiveAssistance: BackendProactiveAssistance;
   escalationIntelligence: BackendEscalationIntelligence;
   responseStyle: string;
+  voiceType?: string;
 };
 
 export type BackendGuardrails = {
@@ -205,6 +206,7 @@ export type BackendSettingsSchema = {
   schemaVersion?: number;
   messageWordLimit?: number;
   setupFields?: BackendSchemaField[];
+  aiBehaviourFields?: BackendSchemaField[];
   tones: BackendSchemaOption[];
   responseStyles: BackendSchemaOption[];
   retentionUnits: BackendSchemaOption[];
