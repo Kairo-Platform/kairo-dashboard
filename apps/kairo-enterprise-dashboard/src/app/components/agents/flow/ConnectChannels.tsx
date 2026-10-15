@@ -316,6 +316,7 @@ const whatsappConnectSchema = z.object({
     .trim()
     .regex(/^\d*$/, "Enter a numeric business Flow ID")
     .optional(),
+  transferAuthorizationTemplateName: z.string().trim().optional(),
   transferPinFlowId: z
     .string()
     .trim()
@@ -359,6 +360,7 @@ const EMPTY_WHATSAPP_FORM: WhatsAppFormData = {
   onboardingFlowId: "",
   verifyToken: "",
   businessFlowId: "",
+  transferAuthorizationTemplateName: "",
   transferPinFlowId: "",
 };
 
@@ -417,6 +419,11 @@ const WHATSAPP_FIELDS: {
     name: "businessFlowId",
     label: "Business Flow ID (optional)",
     placeholder: "Needed for business setup",
+  },
+  {
+    name: "transferAuthorizationTemplateName",
+    label: "Transfer Authorization Template (optional)",
+    placeholder: "Enter transfer authorization template name",
   },
   {
     name: "transferPinFlowId",
@@ -642,6 +649,8 @@ export const ConnectChannels = ({
         ...result.data,
         verifyToken: result.data.verifyToken || undefined,
         businessFlowId: result.data.businessFlowId || undefined,
+        transferAuthorizationTemplateName:
+          result.data.transferAuthorizationTemplateName || undefined,
         transferPinFlowId: result.data.transferPinFlowId || undefined,
       })
       .then((res) => {

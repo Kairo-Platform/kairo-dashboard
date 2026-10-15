@@ -100,6 +100,7 @@ export type BackendWhatsAppConnectRequest = {
   onboardingFlowId: string;
   verifyToken?: string;
   businessFlowId?: string;
+  transferAuthorizationTemplateName?: string;
   transferPinFlowId?: string;
 };
 
