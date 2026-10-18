@@ -243,7 +243,7 @@ export interface FlowConversation {
   id: string;
   user: {
     id: string;
-    displayName: string;
+    displayName?: string | null;
     channel: string;
     channelUserId: string;
   };
@@ -256,13 +256,14 @@ export interface FlowConversationsQuery {
   startDate?: string;
   endDate?: string;
   page: number;
-  size: number;
   limit: number;
+  messageLimit?: number;
+  agent?: "all" | "flow";
 }
 
 export interface FlowConversationsResponse extends FlowConversationsQuery {
   items: FlowConversation[];
-  total: number;
+  totalCount: number;
   totalPages: number;
 }
 

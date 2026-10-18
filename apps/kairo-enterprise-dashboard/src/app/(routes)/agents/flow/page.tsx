@@ -9,7 +9,7 @@ import {
 } from "@/app/components/agents/flow/resources";
 import { AskKairoAI } from "@/app/components/ask-kairo";
 import DashboardLayout from "@/app/components/dashboard/DashboardLayout";
-import { getOrgId } from "@/lib/auth/client";
+import { getOrgId, hydrateSession } from "@/lib/auth/client";
 import {
   flow,
   unwrapFlowResponse,
@@ -96,8 +96,15 @@ export default function FlowPage() {
   const { flowChannels, fetchingFlowChannels } = useEntity(flowStore);
 
   useEffect(() => {
-    fetchFlowChannels().catch(() => {});
-    void loadBankingBackend();
+    let active = true;
+    void (async () => {
+      if (!getOrgId()) await hydrateSession();
+      if (!active) return;
+      await Promise.allSettled([fetchFlowChannels(), loadBankingBackend()]);
+    })();
+    return () => {
+      active = false;
+    };
   }, [loadBankingBackend]);
 
   const channels = FALLBACK_CHANNELS.map((channel) => {

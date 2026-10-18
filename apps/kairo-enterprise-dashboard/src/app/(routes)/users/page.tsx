@@ -1,12 +1,58 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { UsersTable } from "@/app/components/users";
 import { DashboardLayout } from "@/app/components/dashboard";
 import { Button, ButtonClass } from "@/app/components/ui";
+import { useSearchParams } from "next/navigation";
+import { usersStore, fetchUsers } from "@/app/store/users";
+import { useEntity } from "simpler-state";
+import { getOrgId } from "@/lib/auth/client";
+import { metricValue } from "@/services/Analytics/mappers";
+import { parseConversationNumber } from "@/services/Flow/conversations";
+import { DashboardAnalyticsCardGrid } from "@/app/components/dashbaord-analytics";
 import { Icon } from "@iconify/react";
 
 export default function UsersPage() {
+  const params = useSearchParams();
+  const page = parseConversationNumber(params.get("page"), 1);
+  const limit = parseConversationNumber(params.get("limit"), 10);
+  const search = params.get("search") || undefined;
+  const startDate = params.get("startDate") || undefined;
+  const endDate = params.get("endDate") || undefined;
+  const filters = useMemo(
+    () => ({ page, limit, search, startDate, endDate }),
+    [page, limit, search, startDate, endDate],
+  );
+  const usersState = useEntity(usersStore);
+  useEffect(() => {
+    void fetchUsers(filters).catch(() => {});
+  }, [filters]);
+  const currentUsers =
+    usersState.queryKey === JSON.stringify(filters) &&
+    usersState.orgId === getOrgId();
+  const users = {
+    data: currentUsers ? usersState.users : null,
+    loading: !currentUsers || usersState.fetchingUsers,
+  };
+  const stats = users.data?.analytics;
+  const cards = [
+    {
+      title: "Active users",
+      value: metricValue(stats?.activeUsers),
+      icon: "iconoir:user",
+    },
+    {
+      title: "Inactive users",
+      value: metricValue(stats?.inactiveUsers),
+      icon: "iconoir:user",
+    },
+    {
+      title: "Suspended users",
+      value: metricValue(stats?.suspendedUsers),
+      icon: "iconoir:user",
+    },
+  ];
   return (
     <DashboardLayout
       pageTitle="Users"
@@ -15,39 +61,26 @@ export default function UsersPage() {
         <Button
           classes={[ButtonClass.GRADIENT, ButtonClass.WITH_ICON]}
           style={{ height: "2.5rem" }}
-          onClick={() => { }}
+          onClick={() => {}}
         >
           <Icon icon="mingcute:ai-fill" width={20} height={20} />
           Ask AI
         </Button>
       }
     >
+      <DashboardAnalyticsCardGrid cards={cards} columns={3} />
       <Suspense fallback={null}>
         <UsersTable
-          users={[
-            {
-              id: "1",
-              user: "Ada Okonkwo",
-              status: "active",
-              dateAdded: "2026-07-01",
-            },
-            {
-              id: "2",
-              user: "James Ade",
-              status: "pending",
-              dateAdded: "2026-07-10",
-            },
-            {
-              id: "3",
-              user: "Chioma Bello",
-              status: "inactive",
-              dateAdded: "2026-06-18",
-            },
-          ]}
-          loading={false}
-          page={1}
-          limit={10}
-          totalCount={3}
+          users={(users.data?.items ?? []).map((user) => ({
+            id: user.id,
+            user: user.displayName || user.channelUserId,
+            status: user.status.toLowerCase(),
+            dateAdded: user.createdAt,
+          }))}
+          loading={users.loading}
+          page={users.data?.page ?? page}
+          limit={users.data?.limit ?? limit}
+          totalCount={users.data?.totalCount ?? 0}
         />
       </Suspense>
     </DashboardLayout>

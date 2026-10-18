@@ -3,7 +3,8 @@ import { showErrorNotification } from "@kairo/utils";
 import { parseApiError } from "@/lib/utils/parseApiError";
 import { hasApiError, unwrapApiData } from "@/lib/utils/apiResponse";
 import { flow } from "@/services/Flow";
-import { getOrgId } from "@/lib/auth/client";
+import type { ConversationDetail } from "@/services/Analytics/types";
+import { getOrgId, hydrateSession } from "@/lib/auth/client";
 import type {
   FlowConversationsQuery,
   FlowConversationsResponse,
@@ -16,6 +17,13 @@ import type {
 } from "@/services/Flow";
 
 export interface FlowState {
+  conversationsQueryKey: string | null;
+  conversationsOrgId: string | null;
+  conversationDetail: ConversationDetail | null;
+  fetchingConversationDetail: boolean;
+  conversationDetailQueryKey: string | null;
+  conversationDetailOrgId: string | null;
+
   fetchingFlowConversations: boolean;
   flowConversations: FlowConversationsResponse | null;
 
@@ -39,6 +47,13 @@ export interface FlowState {
 }
 
 const initialState: FlowState = {
+  conversationsQueryKey: null,
+  conversationsOrgId: null,
+  conversationDetail: null,
+  fetchingConversationDetail: false,
+  conversationDetailQueryKey: null,
+  conversationDetailOrgId: null,
+
   fetchingFlowConversations: false,
   flowConversations: null,
 
@@ -132,40 +147,100 @@ export const setFlowConversations = (
 };
 
 let conversationsRequest = 0;
+let conversationDetailRequest = 0;
 
 export const fetchFlowConversations = async (
   filters: FlowConversationsQuery,
 ) => {
   const request = ++conversationsRequest;
-  const orgId = getOrgId();
-  if (!orgId) {
-    setFlowConversations(null);
-    setFetchingFlowConversations(false);
-    return;
-  }
-
-  setFetchingFlowConversations(true);
+  let orgId = getOrgId();
+  void flowStore.set((s) => ({
+    ...s,
+    flowConversations: null,
+    fetchingFlowConversations: true,
+    conversationsQueryKey: JSON.stringify(filters),
+    conversationsOrgId: orgId,
+  }));
   try {
+    orgId = orgId ?? (await hydrateSession()).orgId;
+    if (request !== conversationsRequest) return;
+    if (!orgId)
+      throw new Error("Please sign in to an organization to view this data.");
     const response = await flow.getConversations(orgId, filters);
     if (hasApiError(response)) throw response;
-    const data = unwrapApiData<FlowConversationsResponse>(response);
-    if (request === conversationsRequest) setFlowConversations(data);
+    if (request === conversationsRequest && getOrgId() === orgId) {
+      void flowStore.set((s) => ({
+        ...s,
+        flowConversations: unwrapApiData<FlowConversationsResponse>(response),
+        conversationsOrgId: orgId,
+      }));
+    }
     return response;
   } catch (error) {
-    if (request === conversationsRequest) {
-      setFlowConversations(null);
+    if (request === conversationsRequest && getOrgId() === orgId) {
+      void flowStore.set((s) => ({ ...s, conversationsOrgId: orgId }));
       showErrorNotification({
-        message: parseApiError(error, "Failed to fetch Flow conversations"),
+        message: parseApiError(
+          error,
+          "Unable to load conversations. Please try again.",
+        ),
       });
     }
     throw error;
   } finally {
-    if (request === conversationsRequest) setFetchingFlowConversations(false);
+    if (request === conversationsRequest)
+      void flowStore.set((s) => ({ ...s, fetchingFlowConversations: false }));
+  }
+};
+
+export const fetchConversationDetail = async (
+  userId: string,
+  filters: FlowConversationsQuery,
+) => {
+  const request = ++conversationDetailRequest;
+  let orgId = getOrgId();
+  void flowStore.set((s) => ({
+    ...s,
+    conversationDetail: null,
+    fetchingConversationDetail: true,
+    conversationDetailQueryKey: JSON.stringify([userId, filters]),
+    conversationDetailOrgId: orgId,
+  }));
+  try {
+    orgId = orgId ?? (await hydrateSession()).orgId;
+    if (request !== conversationDetailRequest) return;
+    if (!orgId)
+      throw new Error("Please sign in to an organization to view this data.");
+    const response = await flow.getConversation(orgId, userId, filters);
+    if (hasApiError(response)) throw response;
+    if (request === conversationDetailRequest && getOrgId() === orgId) {
+      void flowStore.set((s) => ({
+        ...s,
+        conversationDetail: unwrapApiData<ConversationDetail>(response),
+        conversationDetailOrgId: orgId,
+      }));
+    }
+    return response;
+  } catch (error) {
+    if (request === conversationDetailRequest && getOrgId() === orgId) {
+      void flowStore.set((s) => ({ ...s, conversationDetailOrgId: orgId }));
+      showErrorNotification({
+        message: parseApiError(
+          error,
+          "Unable to load conversations. Please try again.",
+        ),
+      });
+    }
+    throw error;
+  } finally {
+    if (request === conversationDetailRequest)
+      void flowStore.set((s) => ({ ...s, fetchingConversationDetail: false }));
   }
 };
 
 export const resetFlowStore = (): void => {
   conversationsRequest++;
+  conversationDetailRequest++;
   void flowStore.set(() => ({ ...initialState }));
 };
 

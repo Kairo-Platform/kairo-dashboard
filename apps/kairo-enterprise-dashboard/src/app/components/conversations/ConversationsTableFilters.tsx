@@ -11,7 +11,7 @@ import {
 } from "@/app/components/ui/inputs";
 import { Icon } from "@iconify/react";
 import { parseConversationNumber } from "@/services/Flow/conversations";
-import { DATE_FORMAT, formatDate } from "@kairo/lib/utils";
+import { formatDate } from "@kairo/lib/utils";
 
 const ConversationsTableFiltersContainer = styled.div`
   position: relative;
@@ -62,10 +62,18 @@ const ConversationsTableFiltersContainer = styled.div`
 `;
 
 export const ConversationsTableFilters: FC = () => {
+  const params = useSearchParams();
+  return <ConversationFiltersForm key={params.toString()} />;
+};
+const ConversationFiltersForm: FC = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [size, setSize] = useState(
-    String(parseConversationNumber(searchParams.get("size"))),
+    String(
+      parseConversationNumber(
+        searchParams.get("limit") ?? searchParams.get("size"),
+      ),
+    ),
   );
   const [showFilter, setShowFilter] = useState(false);
   const [search, setSearch] = useState(searchParams.get("search") || "");
@@ -83,25 +91,26 @@ export const ConversationsTableFilters: FC = () => {
   const applyParams = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
 
-    if (search) params.set("search", search);
+    if (searchInput) params.set("search", searchInput);
     else params.delete("search");
 
     if (filterStartDate) {
-      const formattedStart = formatDate(new Date(filterStartDate), DATE_FORMAT);
+      const formattedStart = formatDate(new Date(filterStartDate), "YYYY-MM-DD");
       params.set("startDate", String(formattedStart));
     } else {
       params.delete("startDate");
     }
 
     if (filterEndDate) {
-      const formattedEnd = formatDate(new Date(filterEndDate), DATE_FORMAT);
+      const formattedEnd = formatDate(new Date(filterEndDate), "YYYY-MM-DD");
       params.set("endDate", String(formattedEnd));
     } else {
       params.delete("endDate");
     }
 
     params.delete("page");
-    params.set("size", String(parseConversationNumber(size)));
+    params.delete("size");
+    params.set("limit", String(parseConversationNumber(size)));
     router.replace(`?${params.toString()}`);
   };
 
@@ -111,14 +120,14 @@ export const ConversationsTableFilters: FC = () => {
   };
 
   const handleClearFilter = () => {
-    setSize("20");
+    setSize("10");
     setSearch("");
     setSearchInput("");
     setFilterStartDate("");
     setFilterEndDate("");
 
     const params = new URLSearchParams(Array.from(searchParams.entries()));
-    ["page", "size", "startDate", "endDate", "search"].forEach((key) =>
+    ["page", "size", "limit", "startDate", "endDate", "search"].forEach((key) =>
       params.delete(key),
     );
     router.replace(`?${params.toString()}`);
@@ -159,6 +168,7 @@ export const ConversationsTableFilters: FC = () => {
               ButtonClass.OUTLINED_GREY_TO_PRIMARY,
               ButtonClass.ICON_ONLY,
             ]}
+            aria-label="Filter conversations"
             onClick={() => setShowFilter(!showFilter)}
             style={{
               height: "3rem",
@@ -190,9 +200,10 @@ export const ConversationsTableFilters: FC = () => {
 
             <div className="FilterGrid">
               <FormInput
-                label="Size"
+                label="Conversations per page"
                 type="number"
                 min={1}
+                max={100}
                 step={1}
                 required
                 value={size}

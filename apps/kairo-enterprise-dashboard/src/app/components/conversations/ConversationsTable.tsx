@@ -45,7 +45,10 @@ export type ConversationsTableProps = {
   totalCount?: number;
 };
 
-const CONVERSATION_STATUS_TAG: Record<string, (typeof TagType)[keyof typeof TagType]> = {
+const CONVERSATION_STATUS_TAG: Record<
+  string,
+  (typeof TagType)[keyof typeof TagType]
+> = {
   open: TagType.PURPLE_COOL,
   resolved: TagType.GREEN,
   escalated: TagType.RED,
@@ -98,37 +101,35 @@ export const ConversationsTable = ({
 
   return (
     <ConversationsTableContainer>
-      {
-        loading ? (
-          <Flex
-            justify="center"
-            align="center"
-            style={{ height: "10rem" }}
-          >
-            <Loading>
-              Fetching conversations...
-            </Loading>
-          </Flex>
-        ) :
-          conversations.length > 0 ? (
-            <Flex direction="column" gap="1rem">
-              <ConversationsTableFilters />
-              <Table
-                headers={headers}
-                rows={conversations}
-                pageNumber={page}
-                limitNumber={limit}
-                totalCount={totalCount}
-                onRowClick={onViewConversation ? ({ row }: { row: Conversation }) => onViewConversation(row.id) : undefined}
-              />
-            </Flex>
-          ) :
-            <EmptyState
-              title="No conversations yet"
-              message="Conversations with your agents will appear here."
-              icon={<Icon icon="arcticons:conversations" width={20} height={20} />}
-            />
-      }
+      <div style={{ marginBottom: "1rem" }}>
+        <ConversationsTableFilters />
+      </div>
+      {loading ? (
+        <Flex justify="center" align="center" style={{ height: "10rem" }}>
+          <Loading>Fetching conversations...</Loading>
+        </Flex>
+      ) : conversations.length > 0 ? (
+        <Flex direction="column" gap="1rem">
+          <Table
+            headers={headers}
+            rows={conversations}
+            pageNumber={page}
+            limitNumber={limit}
+            totalCount={totalCount}
+            onRowClick={
+              onViewConversation
+                ? ({ row }: { row: Conversation }) => onViewConversation(row.id)
+                : undefined
+            }
+          />
+        </Flex>
+      ) : (
+        <EmptyState
+          title="No conversations yet"
+          message="Conversations with your agents will appear here."
+          icon={<Icon icon="arcticons:conversations" width={20} height={20} />}
+        />
+      )}
     </ConversationsTableContainer>
   );
 };

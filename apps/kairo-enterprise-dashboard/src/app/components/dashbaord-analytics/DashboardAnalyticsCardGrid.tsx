@@ -7,7 +7,7 @@ import { styled } from "styled-components";
 const AnalyticsCardGridContainer = styled.div`
   .cards {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--card-columns, 4), minmax(0, 1fr));
     gap: 0.75rem;
     width: 100%;
 
@@ -45,7 +45,10 @@ const AnalyticsCardGridContainer = styled.div`
         color: ${(props) => props.theme.colors.white};
       }
 
-      .card__valueSuffix {
+      .card__valueSuffix,
+      .card__percentage:not(.card__percentage--up):not(
+          .card__percentage--down
+        ) {
         color: rgba(255, 255, 255, 0.7);
       }
     }
@@ -76,6 +79,7 @@ const AnalyticsCardGridContainer = styled.div`
     }
 
     &__percentage {
+      color: ${(props) => props.theme.colors.text_02};
       display: inline-flex;
       align-items: center;
       gap: 0.125rem;
@@ -97,7 +101,7 @@ const AnalyticsCardGridContainer = styled.div`
 export type DashboardAnalyticsCard = {
   title: string;
   value: number | string;
-  percentage: number;
+  percentage?: number | null;
   icon: string;
   featured?: boolean;
   valueSuffix?: string;
@@ -105,17 +109,24 @@ export type DashboardAnalyticsCard = {
 
 type DashboardAnalyticsCardGridProps = {
   cards: DashboardAnalyticsCard[];
+  columns?: 2 | 3 | 4;
 };
 
 export const DashboardAnalyticsCardGrid = ({
   cards,
+  columns = 4,
 }: DashboardAnalyticsCardGridProps) => {
   return (
-    <AnalyticsCardGridContainer>
+    <AnalyticsCardGridContainer
+      style={{ "--card-columns": columns } as React.CSSProperties}
+    >
       <div className="cards">
         {cards.map((card) => {
-          const isUp = card.percentage >= 0;
-          const percentageLabel = `${isUp ? "+" : "-"}${Math.abs(card.percentage).toFixed(1)}%`;
+          const hasPercentage = card.percentage != null;
+          const isUp = (card.percentage ?? 0) >= 0;
+          const percentageLabel = hasPercentage
+            ? `${isUp ? "+" : "-"}${Math.abs(card.percentage!).toFixed(1)}%`
+            : "N/A";
 
           return (
             <div
@@ -124,28 +135,42 @@ export const DashboardAnalyticsCardGrid = ({
             >
               <Flex direction="column" gap="1rem" style={{ width: "100%" }}>
                 <Flex gap="0.375rem" align="center" className="card__title">
-                  <Icon icon={card.icon} width={16} height={16} color={card.featured ? "#FF6B1A" : ""} />
+                  <Icon
+                    icon={card.icon}
+                    width={16}
+                    height={16}
+                    color={card.featured ? "#FF6B1A" : ""}
+                  />
                   <span>{card.title}</span>
                 </Flex>
                 <Flex direction="column" gap="0.125rem">
                   <p className="card__value">
                     {card.value}
                     {card.valueSuffix ? (
-                      <span className="card__valueSuffix">{card.valueSuffix}</span>
+                      <span className="card__valueSuffix">
+                        {card.valueSuffix}
+                      </span>
                     ) : null}
                   </p>
                   <p
-                    className={`card__percentage card__percentage--${isUp ? "up" : "down"}`}
+                    className={`card__percentage${hasPercentage ? ` card__percentage--${isUp ? "up" : "down"}` : ""}`}
+                    title={
+                      hasPercentage
+                        ? "Change from comparison period"
+                        : "Comparison data is not available"
+                    }
                   >
-                    <Icon
-                      icon={
-                        isUp
-                          ? "iconamoon:arrow-up-2-fill"
-                          : "iconamoon:arrow-down-2-fill"
-                      }
-                      width={16}
-                      height={16}
-                    />
+                    {hasPercentage && (
+                      <Icon
+                        icon={
+                          isUp
+                            ? "iconamoon:arrow-up-2-fill"
+                            : "iconamoon:arrow-down-2-fill"
+                        }
+                        width={16}
+                        height={16}
+                      />
+                    )}
                     <span>{percentageLabel}</span>
                   </p>
                 </Flex>

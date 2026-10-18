@@ -26,12 +26,13 @@ export type UsersTableProps = {
   totalCount?: number;
 };
 
-const USER_STATUS_TAG: Record<string, (typeof TagType)[keyof typeof TagType]> = {
-  active: TagType.GREEN,
-  inactive: TagType.RED,
-  pending: TagType.PURPLE_COOL,
-  suspended: TagType.RED,
-};
+const USER_STATUS_TAG: Record<string, (typeof TagType)[keyof typeof TagType]> =
+  {
+    active: TagType.GREEN,
+    inactive: TagType.RED,
+    pending: TagType.PURPLE_COOL,
+    suspended: TagType.RED,
+  };
 
 const humanize = (value: string) =>
   value
@@ -71,20 +72,22 @@ export const UsersTable = ({
 
   return (
     <UsersTableContainer>
+      <div style={{ marginBottom: "1rem" }}>
+        <UsersTableFilters />
+      </div>
       {loading ? (
         <Flex justify="center" align="center" style={{ height: "10rem" }}>
           <Loading>Fetching users...</Loading>
         </Flex>
       ) : users.length > 0 ? (
         <Flex direction="column" gap="1rem">
-          <UsersTableFilters />
           <Table
             headers={headers}
             rows={users}
             pageNumber={page}
             limitNumber={limit}
             totalCount={totalCount}
-            onRowClick={() => { }}
+            onRowClick={() => {}}
           />
         </Flex>
       ) : (

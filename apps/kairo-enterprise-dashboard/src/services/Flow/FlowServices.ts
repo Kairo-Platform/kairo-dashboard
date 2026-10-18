@@ -1,3 +1,4 @@
+import type { ConversationDetail } from "@/services/Analytics/types";
 import { xApiBff } from "@/lib/bff/client";
 import type {
   FlowConversationsQuery,
@@ -28,7 +29,23 @@ const FLOW_BASE = (orgId: string) => `v1/orgs/${orgId}`;
 export const flow = {
   getConversations: (orgId: string, query: FlowConversationsQuery) =>
     xApiBff.request<FlowConversationsResponse>(
-      `${FLOW_BASE(orgId)}/flow/conversations`,
+      `${FLOW_BASE(orgId)}/conversations`,
+      {
+        query: Object.fromEntries(
+          Object.entries(query).filter(
+            ([, value]) => value !== undefined && value !== "",
+          ),
+        ),
+      },
+    ),
+
+  getConversation: (
+    orgId: string,
+    userId: string,
+    query: FlowConversationsQuery,
+  ) =>
+    xApiBff.request<ConversationDetail>(
+      `${FLOW_BASE(orgId)}/conversations/${encodeURIComponent(userId)}`,
       {
         query: Object.fromEntries(
           Object.entries(query).filter(
