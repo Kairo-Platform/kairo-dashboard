@@ -17,7 +17,7 @@ import { showErrorNotification } from "@kairo/utils";
 import { URL } from "@/lib/constants/URL";
 import { AuthUtils } from "@/lib/auth";
 import { getApiData, isApiError } from "@/lib/utils";
-import { user as userService } from "@/services/User";
+import { users as userService } from "@/services/Users";
 import { DashboardHeader } from "./DashboardHeader";
 import { DashboardSidebar } from "./DashboardSidebar";
 import {
@@ -340,7 +340,11 @@ export const DashboardLayout: FC<DashboardLayoutProps> = ({
                       </button>
                     )}
                   </div>
-                  {subTitle && <p className="DashboardLayout__pageHeading--subTitle">{subTitle}</p>}
+                  {subTitle && (
+                    <p className="DashboardLayout__pageHeading--subTitle">
+                      {subTitle}
+                    </p>
+                  )}
                 </Flex>
                 {appendElementToHeading && <div>{appendElementToHeading}</div>}
               </Flex>
