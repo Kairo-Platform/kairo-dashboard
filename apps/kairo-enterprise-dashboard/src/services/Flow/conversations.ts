@@ -14,6 +14,7 @@ export function mapConversation(conversation: FlowConversation) {
   );
   return {
     id: conversation.id,
+    userId: conversation.user.id,
     user: conversation.user.displayName || conversation.user.channelUserId,
     message: messages.at(-1)?.text || "",
     channel: conversation.user.channel,

@@ -8,24 +8,26 @@ import { useParams, useRouter } from "next/navigation";
 
 export default function ConversationPage() {
   const router = useRouter();
-  const { id } = useParams();
+  const { userId } = useParams<{ userId: string }>();
 
   const breadcrumbs = [
     {
-      title: "Dashboard",
-      onClick: () => router.push(URL.DASHBOARD_URL),
+      title: "Agents",
+      onClick: () => router.push(URL.AGENTS_URL),
     },
     {
-      title: "Conversations",
-      onClick: () => router.push(URL.DASHBOARD_CONVERSATIONS_URL),
+      title: "Flow",
+      onClick: () => router.push(URL.AGENTS_FLOW_URL),
     },
     {
-      title: "Details",
+      title: "Conversation details",
     },
-  ]
+  ];
   return (
     <DashboardLayout pageTitle="" breadcrumbs={breadcrumbs}>
-      <Suspense fallback={null}><ConversationDetails id={String(id)} /></Suspense>
+      <Suspense fallback={null}>
+        <ConversationDetails userId={userId} />
+      </Suspense>
     </DashboardLayout>
-  )
+  );
 }

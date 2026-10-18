@@ -23,6 +23,7 @@ export type ConversationStatus =
 
 export type RecentConversation = {
   id?: string;
+  userId?: string;
   user: string;
   message: string;
   channel: string;

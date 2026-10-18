@@ -119,9 +119,9 @@ export const FlowConversationsPage = () => {
               page={flowConversations?.page ?? page}
               limit={flowConversations?.limit ?? limit}
               totalCount={flowConversations?.totalCount ?? 0}
-              onViewConversation={(id) =>
+              onViewConversation={(userId) =>
                 router.push(
-                  `${URL.AGENTS_FLOW_CONVERSATION_DETAILS_URL.replace(":id", id)}?${searchParams.toString()}`,
+                  `${URL.AGENTS_FLOW_CONVERSATION_DETAILS_URL.replace(":userId", encodeURIComponent(userId))}?${searchParams.toString()}`,
                 )
               }
             />

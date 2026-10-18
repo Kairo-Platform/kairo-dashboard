@@ -27,6 +27,7 @@ export const ConversationsTableContainer = styled.div`
 
 export type Conversation = {
   id: string;
+  userId: string;
   user: string;
   message: string;
   channel: string;
@@ -38,7 +39,7 @@ export type ConversationsTableProps = {
   conversations: Conversation[];
   loading?: boolean;
   onRefresh?: () => void;
-  onViewConversation?: (id: string) => void;
+  onViewConversation?: (userId: string) => void;
   onSeeAll?: () => void;
   page?: number;
   limit?: number;
@@ -118,7 +119,8 @@ export const ConversationsTable = ({
             totalCount={totalCount}
             onRowClick={
               onViewConversation
-                ? ({ row }: { row: Conversation }) => onViewConversation(row.id)
+                ? ({ row }: { row: Conversation }) =>
+                    onViewConversation(row.userId)
                 : undefined
             }
           />

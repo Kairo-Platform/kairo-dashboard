@@ -66,9 +66,9 @@ export default function ConversationsPage() {
           page={flowConversations?.page ?? page}
           limit={flowConversations?.limit ?? limit}
           totalCount={flowConversations?.totalCount ?? 0}
-          onViewConversation={(id) =>
+          onViewConversation={(userId) =>
             router.push(
-              `${URL.DASHBOARD_CONVERSATION_DETAILS_URL.replace(":id", id)}?${searchParams.toString()}`,
+              `${URL.DASHBOARD_CONVERSATION_DETAILS_URL.replace(":userId", encodeURIComponent(userId))}?${searchParams.toString()}`,
             )
           }
         />
