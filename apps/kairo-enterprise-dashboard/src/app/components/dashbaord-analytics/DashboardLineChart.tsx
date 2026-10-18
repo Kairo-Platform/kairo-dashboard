@@ -9,7 +9,7 @@ import { LineChart } from "@/lib/utils";
 
 type ChartValue = {
   label: string;
-  value: number;
+  value: number | null;
   color?: string;
 };
 
@@ -19,6 +19,7 @@ interface DashboardLineChartProps {
   subTitle?: string | React.ReactNode;
   subTitleAmount?: string | number;
   chartValues?: ChartValue[];
+  emptyLabel?: string;
   link?: string;
   chartWidth?: string | number;
   chartHeight?: string | number;
@@ -130,6 +131,7 @@ export const DashboardLineChart = ({
   subTitleAmount,
   chartValues = [],
   link,
+  emptyLabel = "N/A",
   chartWidth = "100%",
   chartHeight = 260,
   showLegend = false,
@@ -212,61 +214,71 @@ export const DashboardLineChart = ({
         )}
         <div className="line_chart_container">
           <div className="chart_wrapper">
-            <LineChart
-              title={titleString}
-              data={chartValues}
-              width={chartWidth}
-              height={chartHeight}
-              showLegend={showLegend}
-              showYAxisLabels={showYAxisLabels}
-              showHorizontalLines={false}
-              showVerticalLines={true}
-              pointRadius={0}
-              pointHoverRadius={0}
-              tension={0.4}
-              enableAreaGradient={true}
-              borderColor={[borderColor]}
-              backgroundColor={[borderColor]}
-              gradientStartColor={gradientStartColor}
-              gradientEndColor={gradientEndColor}
-              options={{
-                plugins: {
-                  legend: {
-                    display: showLegend,
-                    position: "bottom",
-                    align: "center",
-                    labels: {
-                      padding: 15,
-                      boxWidth: legendBoxWidth,
-                      boxHeight: legendBoxHeight,
-                      usePointStyle: true,
-                      pointStyle: "circle",
-                      color: legendTextColor || theme.colors.text_02,
-                      font: {
-                        size: 12,
+            {chartValues.some((point) => point.value != null) ? (
+              <LineChart
+                title={titleString}
+                data={chartValues}
+                width={chartWidth}
+                height={chartHeight}
+                showLegend={showLegend}
+                showYAxisLabels={showYAxisLabels}
+                showHorizontalLines={false}
+                showVerticalLines={true}
+                pointRadius={0}
+                pointHoverRadius={0}
+                tension={0.4}
+                enableAreaGradient={true}
+                borderColor={[borderColor]}
+                backgroundColor={[borderColor]}
+                gradientStartColor={gradientStartColor}
+                gradientEndColor={gradientEndColor}
+                options={{
+                  plugins: {
+                    legend: {
+                      display: showLegend,
+                      position: "bottom",
+                      align: "center",
+                      labels: {
+                        padding: 15,
+                        boxWidth: legendBoxWidth,
+                        boxHeight: legendBoxHeight,
+                        usePointStyle: true,
+                        pointStyle: "circle",
+                        color: legendTextColor || theme.colors.text_02,
+                        font: {
+                          size: 12,
+                        },
                       },
                     },
                   },
-                },
-                layout: {
-                  padding: {
-                    bottom: 0,
-                    top: 10,
+                  layout: {
+                    padding: {
+                      bottom: 0,
+                      top: 10,
+                    },
                   },
-                },
-                ...chartOptions,
-                scales: {
-                  x: {
-                    ticks: { color: theme.colors.text_02 },
-                    grid: { color: theme.colors.gray_03 },
+                  ...chartOptions,
+                  scales: {
+                    x: {
+                      ticks: { color: theme.colors.text_02 },
+                      grid: { color: theme.colors.gray_03 },
+                    },
+                    y: {
+                      ticks: { color: theme.colors.text_02 },
+                      grid: { color: theme.colors.gray_03 },
+                    },
                   },
-                  y: {
-                    ticks: { color: theme.colors.text_02 },
-                    grid: { color: theme.colors.gray_03 },
-                  },
-                },
-              }}
-            />
+                }}
+              />
+            ) : (
+              <Flex
+                align="center"
+                justify="center"
+                style={{ height: chartHeight, width: "100%" }}
+              >
+                <span>{emptyLabel}</span>
+              </Flex>
+            )}
           </div>
         </div>
       </div>

@@ -205,47 +205,66 @@ export const DashboardDoughnutChart = ({
         </Flex>
         <div className="doughnut_chart_container">
           <div className="chart_wrapper">
-            <DoughnutChart
-              title={title}
-              data={chartValues}
-              width={chartWidth}
-              height={chartHeight}
-              cutout={cutout}
-              showPercentageLabels={
-                shouldUseCustomLegend ? false : showPercentageLabels
-              }
-              percentagePlacement={
-                shouldUseCustomLegend ? "none" : percentagePlacement
-              }
-              showLegend={shouldUseCustomLegend ? false : showLegend}
-              centerContent={centerContent}
-              options={{
-                // plugins: {
-                //   legend: {
-                //     position: "bottom",
-                //     align: "center",
-                //     labels: {
-                //       padding: 15,
-                //       boxWidth: legendBoxWidth,
-                //       boxHeight: legendBoxHeight,
-                //       usePointStyle: true,
-                //       pointStyle: "circle",
-                //       color: legendTextColor || theme.colors.text_02,
-                //       font: {
-                //         size: 12,
-                //       },
-                //     },
-                //   },
-                // },
-                layout: {
-                  padding: {
-                    bottom: 0,
-                    top: 10,
+            {total > 0 ? (
+              <DoughnutChart
+                title={title}
+                data={chartValues}
+                width={chartWidth}
+                height={chartHeight}
+                cutout={cutout}
+                showPercentageLabels={
+                  shouldUseCustomLegend ? false : showPercentageLabels
+                }
+                percentagePlacement={
+                  shouldUseCustomLegend ? "none" : percentagePlacement
+                }
+                showLegend={shouldUseCustomLegend ? false : showLegend}
+                centerContent={centerContent}
+                options={{
+                  // plugins: {
+                  //   legend: {
+                  //     position: "bottom",
+                  //     align: "center",
+                  //     labels: {
+                  //       padding: 15,
+                  //       boxWidth: legendBoxWidth,
+                  //       boxHeight: legendBoxHeight,
+                  //       usePointStyle: true,
+                  //       pointStyle: "circle",
+                  //       color: legendTextColor || theme.colors.text_02,
+                  //       font: {
+                  //         size: 12,
+                  //       },
+                  //     },
+                  //   },
+                  // },
+                  layout: {
+                    padding: {
+                      bottom: 0,
+                      top: 10,
+                    },
                   },
-                },
-                ...chartOptions,
-              }}
-            />
+                  ...chartOptions,
+                }}
+              />
+            ) : (
+              <div
+                role="img"
+                aria-label={`${title}: N/A`}
+                style={{
+                  width: chartWidth,
+                  height: chartHeight,
+                  borderRadius: "50%",
+                  border: `32px solid ${theme.colors.gray_03}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxSizing: "border-box",
+                }}
+              >
+                {centerContent ?? "N/A"}
+              </div>
+            )}
           </div>
 
           {shouldUseCustomLegend && (

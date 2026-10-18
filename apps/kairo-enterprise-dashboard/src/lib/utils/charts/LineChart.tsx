@@ -27,17 +27,17 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
 );
 
 type LineChartDataItem = {
   label: string;
-  value: number;
+  value: number | null;
 };
 
 type LineDataset = {
   label?: string;
-  data?: number[];
+  data?: (number | null)[];
   borderColor?: string;
   backgroundColor?: string;
   borderWidth?: number;
@@ -101,7 +101,9 @@ export const LineChart: FC<LineChartProps> = ({
   gradientEndColor = "rgba(195, 228, 253, 0)",
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const chartRef = useRef<Chart<"line", number[], string> | null>(null);
+  const chartRef = useRef<Chart<"line", (number | null)[], string> | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!canvasRef.current || (!data.length && !datasets.length)) return;
@@ -118,7 +120,7 @@ export const LineChart: FC<LineChartProps> = ({
     if (!ctx) return;
 
     let chartLabels: string[] = [];
-    let chartDatasets: ChartDataset<"line", number[]>[] = [];
+    let chartDatasets: ChartDataset<"line", (number | null)[]>[] = [];
 
     const areaGradientFn = (context: any) => {
       const chart = context.chart;
@@ -161,7 +163,7 @@ export const LineChart: FC<LineChartProps> = ({
                 : enableAreaGradient
                   ? ("start" as any)
                   : false,
-          }) as ChartDataset<"line", number[]>
+          }) as ChartDataset<"line", (number | null)[]>,
       );
     } else if (data && data.length > 0) {
       chartLabels = data.map((item) => item.label);
@@ -177,10 +179,10 @@ export const LineChart: FC<LineChartProps> = ({
         pointRadius,
         pointHoverRadius,
         fill: enableAreaGradient ? ("start" as any) : false,
-      } as ChartDataset<"line", number[]>);
+      } as ChartDataset<"line", (number | null)[]>);
     }
 
-    const chartData: ChartData<"line", number[], string | unknown> = {
+    const chartData: ChartData<"line", (number | null)[], string | unknown> = {
       labels: chartLabels,
       datasets: chartDatasets,
     };
@@ -199,7 +201,8 @@ export const LineChart: FC<LineChartProps> = ({
             ...(options.scales?.x as { grid?: object })?.grid,
             display:
               (options.scales?.x as { grid?: { display?: boolean } })?.grid
-                ?.display ?? (showVerticalLines && showXAxis),
+                ?.display ??
+              (showVerticalLines && showXAxis),
           },
           ticks: {
             ...(options.scales?.x as { ticks?: object })?.ticks,
@@ -217,13 +220,15 @@ export const LineChart: FC<LineChartProps> = ({
             ...(options.scales?.y as { grid?: object })?.grid,
             display:
               (options.scales?.y as { grid?: { display?: boolean } })?.grid
-                ?.display ?? (showHorizontalLines && showYAxis),
+                ?.display ??
+              (showHorizontalLines && showYAxis),
           },
           ticks: {
             ...(options.scales?.y as { ticks?: object })?.ticks,
             display:
               (options.scales?.y as { ticks?: { display?: boolean } })?.ticks
-                ?.display ?? (showYAxis && showYAxisLabels),
+                ?.display ??
+              (showYAxis && showYAxisLabels),
           },
         },
       },
@@ -253,7 +258,7 @@ export const LineChart: FC<LineChartProps> = ({
       type: "line",
       data: chartData,
       options: chartOptions,
-    }) as Chart<"line", number[], string>;
+    }) as Chart<"line", (number | null)[], string>;
 
     return () => {
       if (chartRef.current) {

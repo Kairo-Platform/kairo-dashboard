@@ -8,13 +8,15 @@ import {
 } from "../../dashbaord-analytics";
 import { styled } from "styled-components";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getOrgId } from "@/lib/auth/client";
+import { flowStore, fetchFlowConversations } from "@/app/store/flow";
+import { analyticsStore, fetchAnalytics } from "@/app/store/analytics";
 import { useEntity } from "simpler-state";
-import { fetchFlowConversations, flowStore } from "@/app/store/flow";
+import { getOrgId } from "@/lib/auth/client";
 import {
   mapConversation,
   parseConversationNumber,
 } from "@/services/Flow/conversations";
+import { chartPoints, metricValue } from "@/services/Analytics/mappers";
 import { URL } from "@/lib/constants";
 
 const FlowConversationsPageContainer = styled.div`
@@ -32,37 +34,6 @@ const FlowConversationsPageContainer = styled.div`
     width: 100%;
   }
 `;
-
-const dummyData = [
-  {
-    label: "July 1",
-    value: 0.4,
-  },
-  {
-    label: "July 2",
-    value: 30,
-  },
-  {
-    label: "July 3",
-    value: 50,
-  },
-  {
-    label: "July 4",
-    value: 20,
-  },
-  {
-    label: "July 5",
-    value: 40,
-  },
-  {
-    label: "July 6",
-    value: 10,
-  },
-  {
-    label: "July 7",
-    value: 3,
-  },
-];
 
 export const FlowConversationsPage = () => {
   const router = useRouter();
@@ -93,18 +64,32 @@ export const FlowConversationsPage = () => {
   const flowConversations = conversations.data;
   const fetchingFlowConversations = conversations.loading;
 
+  const analyticsFilters = useMemo(
+    () => ({ agent: "flow" as const, startDate, endDate }),
+    [startDate, endDate],
+  );
+  const analyticsState = useEntity(analyticsStore);
+  useEffect(() => {
+    void fetchAnalytics(analyticsFilters).catch(() => {});
+  }, [analyticsFilters]);
+  const currentAnalytics =
+    analyticsState.queryKey === JSON.stringify(analyticsFilters) &&
+    analyticsState.orgId === getOrgId();
+  const analytics = {
+    data: currentAnalytics ? analyticsState.analytics : null,
+    loading: !currentAnalytics || analyticsState.fetchingAnalytics,
+  };
+  const metrics = analytics.data;
   const cards = [
     {
       title: "Total conversations",
-      value: 100,
+      value: metricValue(metrics?.totalConversations),
       icon: "iconoir:message",
-      percentage: 10,
     },
     {
       title: "Open conversations",
-      value: 50,
+      value: metricValue(metrics?.openConversations),
       icon: "iconoir:message",
-      percentage: 4,
     },
   ];
   return (
@@ -117,7 +102,10 @@ export const FlowConversationsPage = () => {
         <section className="LineChartsSection">
           <DashboardLineChart
             title="Average response time (in seconds)"
-            chartValues={dummyData}
+            chartValues={chartPoints(metrics?.averageResponseTime, metrics)}
+            subTitleAmount={metricValue(metrics?.averageResponseTimeSeconds)}
+            subTitle="seconds (estimated)"
+            emptyLabel={analytics.loading ? "Loading..." : "N/A"}
             chartHeight={260}
           />
         </section>

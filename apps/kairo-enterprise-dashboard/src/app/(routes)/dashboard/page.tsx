@@ -1,9 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useMemo } from "react";
-import { getOrgId } from "@/lib/auth/client";
+import { flowStore, fetchFlowConversations } from "@/app/store/flow";
+import { analyticsStore, fetchAnalytics } from "@/app/store/analytics";
 import { useEntity } from "simpler-state";
-import { fetchFlowConversations, flowStore } from "@/app/store/flow";
+import { getOrgId } from "@/lib/auth/client";
 import {
   mapConversation,
   parseConversationNumber,
@@ -17,10 +18,13 @@ import {
   DashboardDoughnutChart,
   DashboardLineChart,
 } from "@/app/components/dashbaord-analytics";
+import { chartPoints, metricValue } from "@/services/Analytics/mappers";
+import { DashboardDateFilters } from "@/app/components/dashbaord-analytics/DashboardDateFilters";
 import { AskKairoAI } from "@/app/components/ask-kairo";
 import { useRouter, useSearchParams } from "next/navigation";
 import { URL } from "@/lib/constants";
 import { KairoBillingSummaryModal } from "@/app/components/billing";
+import { Flex } from "@kairo/ui";
 
 const PageContainer = styled.main`
   display: grid;
@@ -89,23 +93,6 @@ const PageContainer = styled.main`
   }
 `;
 
-const conversationTrend = [
-  { label: "12:00", value: 42 },
-  { label: "2:00", value: 58 },
-  { label: "4:00", value: 51 },
-  { label: "6:00", value: 73 },
-  { label: "8:00", value: 66 },
-  { label: "10:00", value: 80 },
-  { label: "12:00", value: 47 },
-];
-
-const resolutionBreakdown = [
-  { label: "Support", value: 38, color: "#804625" },
-  { label: "Fraud", value: 24, color: "#BF6938" },
-  { label: "Reconcile", value: 22, color: "#FF8C4A" },
-  { label: "Risk", value: 16, color: "#FFC5A4" },
-];
-
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -135,32 +122,62 @@ export default function DashboardPage() {
   const flowConversations = conversations.data;
   const fetchingFlowConversations = conversations.loading;
 
+  const analyticsFilters = useMemo(
+    () => ({ agent: "all" as const, startDate, endDate }),
+    [startDate, endDate],
+  );
+  const analyticsState = useEntity(analyticsStore);
+  useEffect(() => {
+    void fetchAnalytics(analyticsFilters).catch(() => {});
+  }, [analyticsFilters]);
+  const currentAnalytics =
+    analyticsState.queryKey === JSON.stringify(analyticsFilters) &&
+    analyticsState.orgId === getOrgId();
+  const analytics = {
+    data: currentAnalytics ? analyticsState.analytics : null,
+    loading: !currentAnalytics || analyticsState.fetchingAnalytics,
+  };
+  const metrics = analytics.data;
+  const conversationTrend = chartPoints(metrics?.conversationVolume, metrics);
+  const totalMessages = metrics?.conversationVolume.reduce(
+    (total, point) => total + (point.value ?? 0),
+    0,
+  );
+  const colors = ["#804625", "#BF6938", "#FF8C4A", "#FFC5A4"];
+  const resolutionBreakdown = (metrics?.intentBreakdown ?? []).map(
+    (item, index) => ({
+      label: item.intent,
+      value: item.count,
+      color: colors[index % colors.length]!,
+    }),
+  );
+  const intentCount = metrics?.intentBreakdown?.reduce(
+    (total, item) => total + item.count,
+    0,
+  );
   const cards = [
     {
       title: "Total conversations",
-      value: 0,
+      value: metricValue(metrics?.totalConversations),
       icon: "iconoir:message-solid",
-      percentage: 0,
       featured: true,
     },
     {
       title: "Active users",
-      value: 0,
+      value: metricValue(metrics?.activeUsers),
       icon: "iconoir:user",
-      percentage: 0,
     },
     {
       title: "AI overall health score",
-      value: 0,
-      valueSuffix: "/100",
+      value: metricValue(metrics?.aiOverallHealthScore),
+      valueSuffix: metrics?.aiOverallHealthScore == null ? undefined : "/100",
       icon: "mingcute:ai-fill",
-      percentage: 0,
     },
     {
       title: "Human escalation rates",
-      value: 0,
+      valueSuffix: metrics?.humanEscalationRate == null ? undefined : "%",
+      value: metricValue(metrics?.humanEscalationRate),
       icon: "system-uicons:heart-rate",
-      percentage: 0,
     },
   ];
 
@@ -168,7 +185,12 @@ export default function DashboardPage() {
     <DashboardLayout
       pageTitle="Dashboard"
       subTitle="Monitor operations, agents, alerts, and insights in real time."
-      appendElementToHeading={<AskKairoAI iconOnly />}
+      appendElementToHeading={
+        <Flex>
+          <DashboardDateFilters />
+          <AskKairoAI iconOnly />
+        </Flex>
+      }
     >
       <PageContainer>
         <section className="CardsSection">
@@ -179,10 +201,15 @@ export default function DashboardPage() {
           <DashboardLineChart
             title="Conversation volume"
             titleIcon="mdi:message"
-            subTitle="today"
-            subTitleAmount="120,006"
+            subTitle={
+              startDate || endDate
+                ? "messages in selected period"
+                : "messages today"
+            }
+            subTitleAmount={metricValue(totalMessages)}
             chartValues={conversationTrend}
             chartHeight={300}
+            emptyLabel={analytics.loading ? "Loading..." : "N/A"}
           />
         </section>
 
@@ -196,7 +223,9 @@ export default function DashboardPage() {
             useCustomLegend
             centerContent={
               <div className="DoughnutCenterIntent">
-                <span className="DoughnutCenterIntent__value">84%</span>
+                <span className="DoughnutCenterIntent__value">
+                  {metricValue(intentCount)}
+                </span>
                 <span className="DoughnutCenterIntent__label">Intent</span>
               </div>
             }
@@ -210,7 +239,11 @@ export default function DashboardPage() {
                 flowConversations?.items.map(mapConversation) ?? []
               }
               loading={fetchingFlowConversations}
-              onSeeAll={() => router.push(URL.DASHBOARD_CONVERSATIONS_URL)}
+              onSeeAll={() =>
+                router.push(
+                  `${URL.DASHBOARD_CONVERSATIONS_URL}?${searchParams.toString()}`,
+                )
+              }
               onRowClick={({ row }) => {
                 if (row.id)
                   router.push(
@@ -222,7 +255,7 @@ export default function DashboardPage() {
         </section>
       </PageContainer>
 
-      <KairoBillingSummaryModal />
+      {/* <KairoBillingSummaryModal /> */}
     </DashboardLayout>
   );
 }
