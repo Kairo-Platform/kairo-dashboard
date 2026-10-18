@@ -533,7 +533,13 @@ const renderMessageText = (text: string) => {
   });
 };
 
-export const ConversationDetails = ({ id }: { id: string }) => {
+export const ConversationDetails = ({
+  userId,
+  backUrl,
+}: {
+  userId: string;
+  backUrl?: string;
+}) => {
   const router = useRouter();
   const [draft, setDraft] = useState("");
   const pathname = usePathname();
@@ -550,10 +556,10 @@ export const ConversationDetails = ({ id }: { id: string }) => {
   );
   const detailState = useEntity(flowStore);
   useEffect(() => {
-    void fetchConversationDetail(id, filters).catch(() => {});
-  }, [id, filters]);
+    void fetchConversationDetail(userId, filters).catch(() => {});
+  }, [userId, filters]);
   const currentDetail =
-    detailState.conversationDetailQueryKey === JSON.stringify([id, filters]) &&
+    detailState.conversationDetailQueryKey === JSON.stringify([userId, filters]) &&
     detailState.conversationDetailOrgId === getOrgId();
   const detail = {
     data: currentDetail ? detailState.conversationDetail : null,
@@ -658,7 +664,7 @@ export const ConversationDetails = ({ id }: { id: string }) => {
             aria-label="Close conversation"
             onClick={() =>
               router.push(
-                `${pathname.substring(0, pathname.lastIndexOf("/"))}?${query}`,
+                `${backUrl ?? pathname.substring(0, pathname.lastIndexOf("/"))}${query ? `?${query}` : ""}`,
               )
             }
           >

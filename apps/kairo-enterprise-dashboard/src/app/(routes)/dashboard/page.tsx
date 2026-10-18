@@ -245,9 +245,9 @@ export default function DashboardPage() {
                 )
               }
               onRowClick={({ row }) => {
-                if (row.id)
+                if (row.userId)
                   router.push(
-                    `${URL.DASHBOARD_CONVERSATION_DETAILS_URL.replace(":id", row.id)}?${searchParams.toString()}`,
+                    `${URL.DASHBOARD_CONVERSATION_DETAILS_URL.replace(":userId", encodeURIComponent(row.userId))}?${searchParams.toString()}`,
                   );
               }}
             />

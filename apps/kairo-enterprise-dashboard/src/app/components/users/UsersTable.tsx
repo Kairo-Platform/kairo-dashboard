@@ -21,6 +21,7 @@ export type UsersTableProps = {
   users: UserRow[];
   loading?: boolean;
   onRefresh?: () => void;
+  onViewConversation?: (userId: string) => void;
   page?: number;
   limit?: number;
   totalCount?: number;
@@ -43,6 +44,7 @@ const humanize = (value: string) =>
 export const UsersTable = ({
   users,
   loading = false,
+  onViewConversation,
   page,
   limit,
   totalCount,
@@ -87,7 +89,11 @@ export const UsersTable = ({
             pageNumber={page}
             limitNumber={limit}
             totalCount={totalCount}
-            onRowClick={() => {}}
+            onRowClick={
+              onViewConversation
+                ? ({ row }: { row: UserRow }) => onViewConversation(row.id)
+                : undefined
+            }
           />
         </Flex>
       ) : (

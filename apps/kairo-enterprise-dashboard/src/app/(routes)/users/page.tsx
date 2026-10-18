@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo } from "react";
 import { UsersTable } from "@/app/components/users";
 import { DashboardLayout } from "@/app/components/dashboard";
 import { Button, ButtonClass } from "@/app/components/ui";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { URL } from "@/lib/constants";
 import { usersStore, fetchUsers } from "@/app/store/users";
 import { useEntity } from "simpler-state";
 import { getOrgId } from "@/lib/auth/client";
@@ -14,6 +15,7 @@ import { DashboardAnalyticsCardGrid } from "@/app/components/dashbaord-analytics
 import { Icon } from "@iconify/react";
 
 export default function UsersPage() {
+  const router = useRouter();
   const params = useSearchParams();
   const page = parseConversationNumber(params.get("page"), 1);
   const limit = parseConversationNumber(params.get("limit"), 10);
@@ -71,6 +73,14 @@ export default function UsersPage() {
       <DashboardAnalyticsCardGrid cards={cards} columns={3} />
       <Suspense fallback={null}>
         <UsersTable
+          onViewConversation={(userId) =>
+            router.push(
+              URL.USERS_CONVERSATION_DETAILS_URL.replace(
+                ":userId",
+                encodeURIComponent(userId),
+              ),
+            )
+          }
           users={(users.data?.items ?? []).map((user) => ({
             id: user.id,
             user: user.displayName || user.channelUserId,
