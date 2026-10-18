@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useMemo } from "react";
+import { getOrgId } from "@/lib/auth/client";
 import { useEntity } from "simpler-state";
 import { fetchFlowConversations, flowStore } from "@/app/store/flow";
 import {
@@ -108,24 +109,31 @@ const resolutionBreakdown = [
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { flowConversations, fetchingFlowConversations } = useEntity(flowStore);
   const page = parseConversationNumber(searchParams.get("page"), 1);
   const limit = parseConversationNumber(searchParams.get("limit"), 10);
-  const size = parseConversationNumber(searchParams.get("size"));
   const search = searchParams.get("search") || undefined;
   const startDate = searchParams.get("startDate") || undefined;
   const endDate = searchParams.get("endDate") || undefined;
 
+  const conversationFilters = useMemo(
+    () => ({ agent: "all" as const, page, limit, search, startDate, endDate }),
+    [page, limit, search, startDate, endDate],
+  );
+  const conversationState = useEntity(flowStore);
   useEffect(() => {
-    void fetchFlowConversations({
-      page,
-      limit,
-      size,
-      search,
-      startDate,
-      endDate,
-    }).catch(() => {});
-  }, [page, limit, size, search, startDate, endDate]);
+    void fetchFlowConversations(conversationFilters).catch(() => {});
+  }, [conversationFilters]);
+  const currentConversations =
+    conversationState.conversationsQueryKey ===
+      JSON.stringify(conversationFilters) &&
+    conversationState.conversationsOrgId === getOrgId();
+  const conversations = {
+    data: currentConversations ? conversationState.flowConversations : null,
+    loading:
+      !currentConversations || conversationState.fetchingFlowConversations,
+  };
+  const flowConversations = conversations.data;
+  const fetchingFlowConversations = conversations.loading;
 
   const cards = [
     {

@@ -11,12 +11,13 @@ import {
   EmptyState,
   InitialsAvatar,
 } from "@kairo/ui";
+import { flowStore, fetchConversationDetail } from "@/app/store/flow";
 import { useEntity } from "simpler-state";
-import { fetchFlowConversations, flowStore } from "@/app/store/flow";
+import { getOrgId } from "@/lib/auth/client";
 import { parseConversationNumber } from "@/services/Flow/conversations";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 
 type MessageSender = "user" | "agent";
@@ -54,24 +55,7 @@ type ActivityLog = {
   time: string;
 };
 
-const DUMMY_ACTIVITY_LOGS: ActivityLog[] = [
-  {
-    id: "a1",
-    title: "Balance query",
-    subtitle: "— Reconcile agent",
-    time: "11:20",
-  },
-  {
-    id: "a2",
-    title: "Identity check passed before transfer",
-    time: "11:20",
-  },
-  {
-    id: "a3",
-    title: "₦50,000 transfer via Relay agent · NIP ref #TXN2806412",
-    time: "11:20",
-  },
-];
+const activityLogs: ActivityLog[] = [];
 
 const ConversationDetailsContainer = styled.div`
   display: grid;
@@ -94,31 +78,104 @@ const ConversationDetailsContainer = styled.div`
   }
 
   .MessageSection {
+    container: conversation-messages / inline-size;
     display: flex;
     flex-direction: column;
     min-width: 0;
     border-right: 1px solid ${({ theme }) => theme.colors.gray_02};
 
     .UserInfoHeader {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 1rem;
       border-bottom: 1px solid ${({ theme }) => theme.colors.gray_02};
-      height: 6rem;
-      padding-inline: 1.5rem;
+      min-height: 6rem;
+      padding: 1rem;
+
+      .UserInfoIdentity {
+        min-width: 0;
+
+        > div:first-child {
+          flex-shrink: 0;
+        }
+      }
 
       .UserInfo {
+        min-width: 0;
+
         &__name {
           color: ${({ theme }) => theme.colors.text_01};
+          overflow-wrap: anywhere;
         }
 
         &__channel {
           font-size: 0.9375rem;
           font-weight: 500;
           color: ${({ theme }) => theme.colors.green};
+          overflow-wrap: anywhere;
         }
 
         &__status {
           font-size: 0.8125rem;
           font-weight: 500;
           color: ${({ theme }) => theme.colors.text_02};
+        }
+      }
+
+      .MessagePagination {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        min-width: 0;
+
+        > div {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .btn {
+          width: 100%;
+          height: auto;
+          min-height: 3rem;
+          padding: 0.5rem 0.75rem;
+          white-space: normal;
+        }
+
+        &__page {
+          flex-basis: 100%;
+          order: -1;
+          text-align: center;
+          overflow-wrap: anywhere;
+        }
+      }
+
+      @container conversation-messages (min-width: 30rem) {
+        padding-inline: 1.5rem;
+
+        .MessagePagination {
+          &__page {
+            flex-basis: auto;
+            order: 0;
+          }
+        }
+      }
+
+      @container conversation-messages (min-width: 54rem) {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 2rem;
+
+        .MessagePagination {
+          grid-column: 2;
+          grid-row: 1;
+
+          > div {
+            flex: none;
+          }
         }
       }
     }
@@ -481,29 +538,36 @@ export const ConversationDetails = ({ id }: { id: string }) => {
   const [draft, setDraft] = useState("");
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { flowConversations, fetchingFlowConversations } = useEntity(flowStore);
-  const page = parseConversationNumber(searchParams.get("page"), 1);
-  const limit = parseConversationNumber(searchParams.get("limit"), 10);
-  const size = parseConversationNumber(searchParams.get("size"));
-  const search = searchParams.get("search") || undefined;
+  const page = parseConversationNumber(searchParams.get("messagePage"), 1);
   const startDate = searchParams.get("startDate") || undefined;
   const endDate = searchParams.get("endDate") || undefined;
-
+  const agent: "flow" | "all" = pathname.includes("/agents/flow/")
+    ? "flow"
+    : "all";
+  const filters = useMemo(
+    () => ({ page, limit: 50, startDate, endDate, agent }),
+    [page, startDate, endDate, agent],
+  );
+  const detailState = useEntity(flowStore);
   useEffect(() => {
-    void fetchFlowConversations({
-      page,
-      limit,
-      size,
-      search,
-      startDate,
-      endDate,
-    }).catch(() => {
-      // The store displays the request error.
-    });
-  }, [page, limit, size, search, startDate, endDate]);
-
-  const query = searchParams.toString();
-  const conversation = flowConversations?.items.find((item) => item.id === id);
+    void fetchConversationDetail(id, filters).catch(() => {});
+  }, [id, filters]);
+  const currentDetail =
+    detailState.conversationDetailQueryKey === JSON.stringify([id, filters]) &&
+    detailState.conversationDetailOrgId === getOrgId();
+  const detail = {
+    data: currentDetail ? detailState.conversationDetail : null,
+    loading: !currentDetail || detailState.fetchingConversationDetail,
+  };
+  const conversation = detail.data;
+  const backParams = new URLSearchParams(searchParams.toString());
+  backParams.delete("messagePage");
+  const query = backParams.toString();
+  function changeMessagePage(nextPage: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("messagePage", String(nextPage));
+    router.replace(`?${params}`, { scroll: false });
+  }
   const messages: ChatMessage[] = [...(conversation?.messages ?? [])]
     .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
     .map((message) => ({
@@ -515,12 +579,13 @@ export const ConversationDetails = ({ id }: { id: string }) => {
         minute: "2-digit",
       }),
     }));
-  if (fetchingFlowConversations)
+  if (detail.loading)
     return (
       <Flex justify="center" align="center" style={{ minHeight: "20rem" }}>
         <Loading>Fetching conversations...</Loading>
       </Flex>
     );
+
   if (!conversation)
     return (
       <EmptyState
@@ -542,36 +607,55 @@ export const ConversationDetails = ({ id }: { id: string }) => {
     { label: "Status", value: "N/A" },
     {
       label: "Time started",
-      value: firstMessage
-        ? new Date(firstMessage.createdAt).toLocaleString()
-        : "N/A",
+      value:
+        conversation.totalPages === 1 && firstMessage
+          ? new Date(firstMessage.createdAt).toLocaleString()
+          : "N/A",
     },
-    { label: "No of messages", value: String(conversation.messages.length) },
+    { label: "No of messages", value: String(conversation.totalCount) },
     { label: "Average response", value: "N/A" },
   ];
 
   return (
     <ConversationDetailsContainer>
       <section className="MessageSection">
-        <Flex
-          justify="space-between"
-          align="center"
-          gap="2rem"
-          className="UserInfoHeader"
-        >
-          <Flex align="center" gap="1rem">
+        <div className="UserInfoHeader">
+          <Flex align="center" gap="1rem" className="UserInfoIdentity">
             <InitialsAvatar name={user.name} avatarUrl="" />
             <div className="UserInfo">
               <h3 className="UserInfo__name">{user.name}</h3>
-              <Flex align="center" gap="0.75rem">
+              <Flex align="center" gap="0.75rem" wrap="wrap">
                 <p className="UserInfo__channel">{user.channel}</p>
                 <p className="UserInfo__status">{user.statusLabel}</p>
               </Flex>
             </div>
           </Flex>
 
+          {conversation.totalPages > 1 && (
+            <nav className="MessagePagination" aria-label="Message pagination">
+              <Button
+                classes={[ButtonClass.OUTLINED]}
+                disabled={page >= conversation.totalPages}
+                onClick={() => changeMessagePage(page + 1)}
+              >
+                Older messages
+              </Button>
+              <span className="MessagePagination__page">
+                Page {page} of {conversation.totalPages}
+              </span>
+              <Button
+                classes={[ButtonClass.OUTLINED]}
+                disabled={page <= 1}
+                onClick={() => changeMessagePage(page - 1)}
+              >
+                Newer messages
+              </Button>
+            </nav>
+          )}
+
           <Button
             classes={[ButtonClass.ICON_ONLY]}
+            aria-label="Close conversation"
             onClick={() =>
               router.push(
                 `${pathname.substring(0, pathname.lastIndexOf("/"))}?${query}`,
@@ -580,10 +664,11 @@ export const ConversationDetails = ({ id }: { id: string }) => {
           >
             <Icon icon="iconoir:cancel" width={20} height={20} />
           </Button>
-        </Flex>
+        </div>
 
         <div className="MessageContent">
           <div className="MessageContent__scroll">
+            {messages.length === 0 && <p>No messages in this date range.</p>}
             <span className="MessageContent__date">
               {firstMessage
                 ? new Date(firstMessage.createdAt).toLocaleDateString()
@@ -737,7 +822,8 @@ export const ConversationDetails = ({ id }: { id: string }) => {
           <div className="ConversationInfo__activity">
             <p className="ConversationInfo__activity-title">Activity logs</p>
             <div className="ConversationInfo__activity-list">
-              {DUMMY_ACTIVITY_LOGS.map((log) => (
+              {activityLogs.length === 0 && <p>N/A</p>}
+              {activityLogs.map((log) => (
                 <div key={log.id} className="ConversationInfo__activity-item">
                   <span className="ConversationInfo__activity-bullet" />
                   <div className="ConversationInfo__activity-body">

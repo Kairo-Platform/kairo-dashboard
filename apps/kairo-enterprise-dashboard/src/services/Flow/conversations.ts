@@ -2,7 +2,7 @@ import type { FlowConversation } from "./types";
 
 export function parseConversationNumber(
   value: string | null,
-  fallback = 20,
+  fallback = 10,
 ): number {
   const number = Number(value);
   return Number.isSafeInteger(number) && number > 0 ? number : fallback;
