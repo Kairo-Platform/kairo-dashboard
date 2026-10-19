@@ -34,6 +34,11 @@ const AnalyticsCardGridContainer = styled.div`
     width: 100%;
     min-width: 0;
 
+    &--without-percentage {
+      justify-content: center;
+      padding-block: 1.5rem;
+    }
+
     &--featured {
       background-color: #401b07;
       border-color: ${(props) => props.theme.colors.gray_03};
@@ -127,7 +132,7 @@ export const DashboardAnalyticsCardGrid = ({
         {cards.map((card) => {
           return (
             <div
-              className={`card${card.featured ? " card--featured" : ""}`}
+              className={`card${card.featured ? " card--featured" : ""}${showPercentage ? "" : " card--without-percentage"}`}
               key={card.title}
             >
               <Flex direction="column" gap="1rem" style={{ width: "100%" }}>
