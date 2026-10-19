@@ -17,7 +17,7 @@ import { getOrgId } from "@/lib/auth/client";
 import { parseConversationNumber } from "@/services/Flow/conversations";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
 
 type MessageSender = "user" | "agent";
@@ -542,6 +542,9 @@ export const ConversationDetails = ({
 }) => {
   const router = useRouter();
   const [draft, setDraft] = useState("");
+  const scrollMessagesToLatest = useCallback((element: HTMLDivElement | null) => {
+    if (element) element.scrollTop = element.scrollHeight;
+  }, []);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const page = parseConversationNumber(searchParams.get("messagePage"), 1);
@@ -673,7 +676,10 @@ export const ConversationDetails = ({
         </div>
 
         <div className="MessageContent">
-          <div className="MessageContent__scroll">
+          <div
+            className="MessageContent__scroll"
+            ref={scrollMessagesToLatest}
+          >
             {messages.length === 0 && <p>No messages in this date range.</p>}
             <span className="MessageContent__date">
               {firstMessage
