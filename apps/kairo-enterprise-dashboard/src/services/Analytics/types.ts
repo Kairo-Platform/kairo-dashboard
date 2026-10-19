@@ -34,6 +34,22 @@ export interface DashboardAnalytics {
   activeUsers: number;
   openConversations: number;
   aiOverallHealthScore: number | null;
+  aiHealth?: {
+    eligibleRequests: number;
+    evaluatedRequests: number;
+    coveragePercentage: number;
+    minimumSamples: number;
+    rubricVersion: string;
+    scope: string;
+    unavailableReason: string | null;
+    sampledRequests: number;
+    pendingEvaluations: number;
+    failedEvaluations: number;
+    unscorableRequests: number;
+    samplePercent: number;
+    respondedRequests?: number | null;
+    unansweredRequests?: number | null;
+  } | null;
   humanEscalationRate: number | null;
   averageResponseTimeSeconds: number | null;
   conversationVolume: AnalyticsPoint[];
