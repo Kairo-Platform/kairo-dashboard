@@ -1,5 +1,6 @@
 "use client";
 
+import { DashboardPercentageChange } from "./DashboardPercentageChange";
 import { Icon } from "@iconify/react";
 import { Flex } from "@kairo/ui";
 import { styled } from "styled-components";
@@ -110,11 +111,13 @@ export type DashboardAnalyticsCard = {
 type DashboardAnalyticsCardGridProps = {
   cards: DashboardAnalyticsCard[];
   columns?: 2 | 3 | 4;
+  showPercentage?: boolean;
 };
 
 export const DashboardAnalyticsCardGrid = ({
   cards,
   columns = 4,
+  showPercentage = true,
 }: DashboardAnalyticsCardGridProps) => {
   return (
     <AnalyticsCardGridContainer
@@ -146,10 +149,12 @@ export const DashboardAnalyticsCardGrid = ({
                       </span>
                     ) : null}
                   </p>
-                  {/* <DashboardPercentageChange
-                    value={card.percentage}
-                    className="card__percentage"
-                  /> */}
+                  {showPercentage && (
+                    <DashboardPercentageChange
+                      value={card.percentage}
+                      className="card__percentage"
+                    />
+                  )}
                 </Flex>
               </Flex>
             </div>
