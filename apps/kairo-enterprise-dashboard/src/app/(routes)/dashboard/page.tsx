@@ -180,9 +180,13 @@ export default function DashboardPage() {
     },
     {
       title: "AI overall health score",
+      description: metrics?.aiHealth
+        ? `Workflow safety and reply structure: ${metrics.aiHealth.evaluatedRequests} evaluated requests; ${metricValue(metrics.aiHealth.coveragePercentage)}% coverage. Minimum ${metrics.aiHealth.minimumSamples} samples.`
+        : undefined,
       percentage: metrics?.percentageChanges?.aiOverallHealthScore,
       value: metricValue(metrics?.aiOverallHealthScore),
       valueSuffix: metrics?.aiOverallHealthScore == null ? undefined : "/100",
+      emphasizeValue: true,
       icon: "mingcute:ai-fill",
     },
     {

@@ -75,6 +75,17 @@ const AnalyticsCardGridContainer = styled.div`
       color: ${(props) => props.theme.colors.text_01};
     }
 
+    &__value--emphasized {
+      font-weight: 500;
+
+      .card__valueSuffix {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        line-height: 1.125rem;
+        color: ${(props) => props.theme.colors.text_02};
+      }
+    }
+
     &__valueSuffix {
       font-size: 0.9375rem;
       font-weight: 500;
@@ -106,11 +117,13 @@ const AnalyticsCardGridContainer = styled.div`
 
 export type DashboardAnalyticsCard = {
   title: string;
+  description?: string;
   value: number | string;
   percentage?: number | null;
   icon: string;
   featured?: boolean;
   valueSuffix?: string;
+  emphasizeValue?: boolean;
 };
 
 type DashboardAnalyticsCardGridProps = {
@@ -134,6 +147,7 @@ export const DashboardAnalyticsCardGrid = ({
             <div
               className={`card${card.featured ? " card--featured" : ""}${showPercentage ? "" : " card--without-percentage"}`}
               key={card.title}
+              title={card.description}
             >
               <Flex direction="column" gap="1rem" style={{ width: "100%" }}>
                 <Flex gap="0.375rem" align="center" className="card__title">
@@ -146,7 +160,7 @@ export const DashboardAnalyticsCardGrid = ({
                   <span>{card.title}</span>
                 </Flex>
                 <Flex direction="column" gap="0.125rem">
-                  <p className="card__value">
+                  <p className={`card__value${card.emphasizeValue ? " card__value--emphasized" : ""}`}>
                     {card.value}
                     {card.valueSuffix ? (
                       <span className="card__valueSuffix">
