@@ -1,6 +1,5 @@
 "use client";
 
-import { DashboardPercentageChange } from "./DashboardPercentageChange";
 import { Icon } from "@iconify/react";
 import { Flex } from "@kairo/ui";
 import { styled } from "styled-components";
@@ -147,10 +146,10 @@ export const DashboardAnalyticsCardGrid = ({
                       </span>
                     ) : null}
                   </p>
-                  <DashboardPercentageChange
+                  {/* <DashboardPercentageChange
                     value={card.percentage}
                     className="card__percentage"
-                  />
+                  /> */}
                 </Flex>
               </Flex>
             </div>
