@@ -41,16 +41,19 @@ export default function UsersPage() {
   const cards = [
     {
       title: "Active users",
+      percentage: stats?.percentageChanges?.activeUsers,
       value: metricValue(stats?.activeUsers),
       icon: "iconoir:user",
     },
     {
       title: "Inactive users",
+      percentage: stats?.percentageChanges?.inactiveUsers,
       value: metricValue(stats?.inactiveUsers),
       icon: "iconoir:user",
     },
     {
       title: "Suspended users",
+      percentage: stats?.percentageChanges?.suspendedUsers,
       value: metricValue(stats?.suspendedUsers),
       icon: "iconoir:user",
     },

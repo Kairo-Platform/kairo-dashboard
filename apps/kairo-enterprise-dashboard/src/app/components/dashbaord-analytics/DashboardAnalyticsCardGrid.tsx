@@ -1,5 +1,6 @@
 "use client";
 
+import { DashboardPercentageChange } from "./DashboardPercentageChange";
 import { Icon } from "@iconify/react";
 import { Flex } from "@kairo/ui";
 import { styled } from "styled-components";
@@ -122,12 +123,6 @@ export const DashboardAnalyticsCardGrid = ({
     >
       <div className="cards">
         {cards.map((card) => {
-          const hasPercentage = card.percentage != null;
-          const isUp = (card.percentage ?? 0) >= 0;
-          const percentageLabel = hasPercentage
-            ? `${isUp ? "+" : "-"}${Math.abs(card.percentage!).toFixed(1)}%`
-            : "N/A";
-
           return (
             <div
               className={`card${card.featured ? " card--featured" : ""}`}
@@ -152,27 +147,10 @@ export const DashboardAnalyticsCardGrid = ({
                       </span>
                     ) : null}
                   </p>
-                  <p
-                    className={`card__percentage${hasPercentage ? ` card__percentage--${isUp ? "up" : "down"}` : ""}`}
-                    title={
-                      hasPercentage
-                        ? "Change from comparison period"
-                        : "Comparison data is not available"
-                    }
-                  >
-                    {hasPercentage && (
-                      <Icon
-                        icon={
-                          isUp
-                            ? "iconamoon:arrow-up-2-fill"
-                            : "iconamoon:arrow-down-2-fill"
-                        }
-                        width={16}
-                        height={16}
-                      />
-                    )}
-                    <span>{percentageLabel}</span>
-                  </p>
+                  <DashboardPercentageChange
+                    value={card.percentage}
+                    className="card__percentage"
+                  />
                 </Flex>
               </Flex>
             </div>

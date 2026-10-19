@@ -25,6 +25,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { URL } from "@/lib/constants";
 import { KairoBillingSummaryModal } from "@/app/components/billing";
 import { Flex } from "@kairo/ui";
+import { formatDate } from "@kairo/lib/utils";
 
 const PageContainer = styled.main`
   display: grid;
@@ -101,10 +102,18 @@ export default function DashboardPage() {
   const search = searchParams.get("search") || undefined;
   const startDate = searchParams.get("startDate") || undefined;
   const endDate = searchParams.get("endDate") || undefined;
+  const today = String(formatDate(new Date(), "YYYY-MM-DD"));
 
   const conversationFilters = useMemo(
-    () => ({ agent: "all" as const, page, limit, search, startDate, endDate }),
-    [page, limit, search, startDate, endDate],
+    () => ({
+      agent: "all" as const,
+      page,
+      limit,
+      search,
+      startDate: startDate || today,
+      endDate: endDate || today,
+    }),
+    [page, limit, search, startDate, endDate, today],
   );
   const conversationState = useEntity(flowStore);
   useEffect(() => {
@@ -158,23 +167,27 @@ export default function DashboardPage() {
   const cards = [
     {
       title: "Total conversations",
+      percentage: metrics?.percentageChanges?.totalConversations,
       value: metricValue(metrics?.totalConversations),
       icon: "iconoir:message-solid",
       featured: true,
     },
     {
       title: "Active users",
+      percentage: metrics?.percentageChanges?.activeUsers,
       value: metricValue(metrics?.activeUsers),
       icon: "iconoir:user",
     },
     {
       title: "AI overall health score",
+      percentage: metrics?.percentageChanges?.aiOverallHealthScore,
       value: metricValue(metrics?.aiOverallHealthScore),
       valueSuffix: metrics?.aiOverallHealthScore == null ? undefined : "/100",
       icon: "mingcute:ai-fill",
     },
     {
       title: "Human escalation rates",
+      percentage: metrics?.percentageChanges?.humanEscalationRate,
       valueSuffix: metrics?.humanEscalationRate == null ? undefined : "%",
       value: metricValue(metrics?.humanEscalationRate),
       icon: "system-uicons:heart-rate",
@@ -207,6 +220,8 @@ export default function DashboardPage() {
                 : "messages today"
             }
             subTitleAmount={metricValue(totalMessages)}
+            showPercentage
+            percentage={metrics?.percentageChanges?.conversationVolume}
             chartValues={conversationTrend}
             chartHeight={300}
             emptyLabel={analytics.loading ? "Loading..." : "N/A"}

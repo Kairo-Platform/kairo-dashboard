@@ -3,6 +3,21 @@ import type {
   FlowConversationMessage,
 } from "@/services/Flow/types";
 
+export interface DashboardComparison {
+  startDate: string | null;
+  endDate: string;
+  mode: "PREVIOUS_PERIOD" | "PREVIOUS_DAY_SNAPSHOT";
+}
+
+export type AnalyticsMetric =
+  | "totalConversations"
+  | "activeUsers"
+  | "openConversations"
+  | "aiOverallHealthScore"
+  | "humanEscalationRate"
+  | "conversationVolume"
+  | "averageResponseTimeSeconds";
+
 export type AgentFilter = "all" | "flow";
 export interface AnalyticsPoint {
   timestamp: string;
@@ -25,6 +40,8 @@ export interface DashboardAnalytics {
   averageResponseTime: AnalyticsPoint[];
   intentBreakdown: { intent: string; count: number }[] | null;
   unavailableMetrics: Record<string, string>;
+  comparison?: DashboardComparison | null;
+  percentageChanges?: Partial<Record<AnalyticsMetric, number | null>>;
 }
 export interface ConversationDetail {
   id: string;
@@ -57,5 +74,16 @@ export interface DashboardUsersPage {
     inactiveUsers: number;
     suspendedUsers: number;
     suspensionSupported: boolean;
+    comparison?: DashboardComparison | null;
+    percentageChanges?: Partial<
+      Record<
+        | "totalUsers"
+        | "activeUsers"
+        | "inactiveUsers"
+        | "unknownUsers"
+        | "suspendedUsers",
+        number | null
+      >
+    >;
   };
 }
