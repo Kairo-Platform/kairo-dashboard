@@ -167,23 +167,27 @@ export default function DashboardPage() {
   const cards = [
     {
       title: "Total conversations",
+      percentage: metrics?.percentageChanges?.totalConversations,
       value: metricValue(metrics?.totalConversations),
       icon: "iconoir:message-solid",
       featured: true,
     },
     {
       title: "Active users",
+      percentage: metrics?.percentageChanges?.activeUsers,
       value: metricValue(metrics?.activeUsers),
       icon: "iconoir:user",
     },
     {
       title: "AI overall health score",
+      percentage: metrics?.percentageChanges?.aiOverallHealthScore,
       value: metricValue(metrics?.aiOverallHealthScore),
       valueSuffix: metrics?.aiOverallHealthScore == null ? undefined : "/100",
       icon: "mingcute:ai-fill",
     },
     {
       title: "Human escalation rates",
+      percentage: metrics?.percentageChanges?.humanEscalationRate,
       valueSuffix: metrics?.humanEscalationRate == null ? undefined : "%",
       value: metricValue(metrics?.humanEscalationRate),
       icon: "system-uicons:heart-rate",
@@ -216,6 +220,8 @@ export default function DashboardPage() {
                 : "messages today"
             }
             subTitleAmount={metricValue(totalMessages)}
+            showPercentage
+            percentage={metrics?.percentageChanges?.conversationVolume}
             chartValues={conversationTrend}
             chartHeight={300}
             emptyLabel={analytics.loading ? "Loading..." : "N/A"}

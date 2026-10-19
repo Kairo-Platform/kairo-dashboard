@@ -1,5 +1,6 @@
 "use client";
 
+import { DashboardPercentageChange } from "./DashboardPercentageChange";
 import Link from "next/link";
 import React, { isValidElement } from "react";
 import styled, { useTheme } from "styled-components";
@@ -18,6 +19,8 @@ interface DashboardLineChartProps {
   titleIcon?: string;
   subTitle?: string | React.ReactNode;
   subTitleAmount?: string | number;
+  percentage?: number | null;
+  showPercentage?: boolean;
   chartValues?: ChartValue[];
   emptyLabel?: string;
   link?: string;
@@ -67,6 +70,7 @@ const DashboardLineChartContainer = styled.div`
 
   .sub_title {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: 0.375rem;
     font-size: 0.9375rem;
@@ -129,6 +133,8 @@ export const DashboardLineChart = ({
   titleIcon = "mdi:message",
   subTitle,
   subTitleAmount,
+  percentage,
+  showPercentage = false,
   chartValues = [],
   link,
   emptyLabel = "N/A",
@@ -175,6 +181,7 @@ export const DashboardLineChart = ({
           <span className="sub_title__label">
             {typeof subTitle === "string" ? subTitle : "today"}
           </span>
+          {showPercentage && <DashboardPercentageChange value={percentage} />}
         </p>
       );
     }

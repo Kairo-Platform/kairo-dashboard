@@ -92,11 +92,13 @@ export const FlowConversationsPage = () => {
   const cards = [
     {
       title: "Total conversations",
+      percentage: metrics?.percentageChanges?.totalConversations,
       value: metricValue(metrics?.totalConversations),
       icon: "iconoir:message",
     },
     {
       title: "Open conversations",
+      percentage: metrics?.percentageChanges?.openConversations,
       value: metricValue(metrics?.openConversations),
       icon: "iconoir:message",
     },
@@ -114,6 +116,8 @@ export const FlowConversationsPage = () => {
             chartValues={chartPoints(metrics?.averageResponseTime, metrics)}
             subTitleAmount={metricValue(metrics?.averageResponseTimeSeconds)}
             subTitle="seconds (estimated)"
+            showPercentage
+            percentage={metrics?.percentageChanges?.averageResponseTimeSeconds}
             emptyLabel={analytics.loading ? "Loading..." : "N/A"}
             chartHeight={260}
           />
