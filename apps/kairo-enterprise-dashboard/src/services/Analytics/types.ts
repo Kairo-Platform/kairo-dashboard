@@ -47,6 +47,8 @@ export interface DashboardAnalytics {
     failedEvaluations: number;
     unscorableRequests: number;
     samplePercent: number;
+    respondedRequests?: number | null;
+    unansweredRequests?: number | null;
   } | null;
   humanEscalationRate: number | null;
   averageResponseTimeSeconds: number | null;
