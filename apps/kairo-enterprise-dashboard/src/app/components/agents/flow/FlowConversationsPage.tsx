@@ -18,6 +18,7 @@ import {
 } from "@/services/Flow/conversations";
 import { chartPoints, metricValue } from "@/services/Analytics/mappers";
 import { URL } from "@/lib/constants";
+import { formatDate } from "@kairo/lib/utils";
 
 const FlowConversationsPageContainer = styled.div`
   main {
@@ -43,10 +44,18 @@ export const FlowConversationsPage = () => {
   const search = searchParams.get("search") || undefined;
   const startDate = searchParams.get("startDate") || undefined;
   const endDate = searchParams.get("endDate") || undefined;
+  const today = String(formatDate(new Date(), "YYYY-MM-DD"));
 
   const conversationFilters = useMemo(
-    () => ({ agent: "flow" as const, page, limit, search, startDate, endDate }),
-    [page, limit, search, startDate, endDate],
+    () => ({
+      agent: "flow" as const,
+      page,
+      limit,
+      search,
+      startDate: startDate || today,
+      endDate: endDate || today,
+    }),
+    [page, limit, search, startDate, endDate, today],
   );
   const conversationState = useEntity(flowStore);
   useEffect(() => {
