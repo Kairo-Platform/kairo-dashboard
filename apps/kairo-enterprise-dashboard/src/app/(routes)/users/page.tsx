@@ -73,7 +73,11 @@ export default function UsersPage() {
         </Button>
       }
     >
-      <DashboardAnalyticsCardGrid cards={cards} columns={3} />
+      <DashboardAnalyticsCardGrid
+        cards={cards}
+        columns={3}
+        showPercentage={false}
+      />
       <Suspense fallback={null}>
         <UsersTable
           onViewConversation={(userId) =>
