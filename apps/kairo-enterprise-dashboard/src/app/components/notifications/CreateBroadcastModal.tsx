@@ -80,8 +80,8 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
 
   const options = [
     { label: "All users", value: "ALL" },
-    { label: "Active users — onboarding completed", value: "ACTIVE" },
-    { label: "Not onboarded — signup not completed", value: "INACTIVE" },
+    { label: "Active users (onboarding completed)", value: "ACTIVE" },
+    { label: "Not onboarded (signup not completed)", value: "INACTIVE" },
     ...(users?.analytics.suspensionSupported
       ? [{ label: "Suspended users", value: "SUSPENDED" }]
       : []),
@@ -164,10 +164,6 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
                 maxLength={4000}
                 required
                 onChange={(event) => setMessage(event.target.value)}
-                defaultMessage={{
-                  content:
-                    "The title and message will be sent together on WhatsApp.",
-                }}
               />
               <Flex direction="column" gap="0.75rem">
                 <h4>Choose recipients</h4>
@@ -180,12 +176,6 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
                     setError("");
                   }}
                 />
-                {!users?.analytics.suspensionSupported && (
-                  <p className="hint">
-                    Suspended users will be available when account suspension is
-                    supported.
-                  </p>
-                )}
               </Flex>
               {targeted && (
                 <Flex direction="column" gap="0.75rem">
@@ -212,6 +202,7 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
                       <Button
                         classes={[ButtonClass.OUTLINED]}
                         onClick={() => setSelected([])}
+                        style={{ height: "2rem" }}
                       >
                         Clear selection
                       </Button>
@@ -229,7 +220,7 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
                       <CheckboxInput
                         options={rows.map((user) => ({
                           value: user.id,
-                          label: `${user.displayName || "Unnamed user"} — ${user.channelUserId}`,
+                          label: `${user.displayName || "Unnamed user"} (${user.channelUserId})`,
                         }))}
                         value={selected.filter((id) => visibleIds.includes(id))}
                         onChange={(values) =>
@@ -248,6 +239,7 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
                       classes={[ButtonClass.OUTLINED]}
                       disabled={page === 1 || loadingUsers}
                       onClick={() => setPage((value) => value - 1)}
+                      style={{ width: "6rem", height: "2rem" }}
                     >
                       Previous
                     </Button>
@@ -260,23 +252,24 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
                         loadingUsers || !users || page >= users.totalPages
                       }
                       onClick={() => setPage((value) => value + 1)}
+                      style={{ width: "6rem", height: "2rem" }}
                     >
                       Next
                     </Button>
                   </Flex>
                 </Flex>
               )}
-              <p className="hint">
-                Messages wait until the user is idle and has finished any
-                ongoing task. Users outside WhatsApp’s messaging window remain
-                queued until they return. Unsent broadcasts expire after 7 days.
-              </p>
               {error && (
                 <p className="error" role="alert">
                   {error}
                 </p>
               )}
-              <Flex align="center" justify="flex-end" gap="1rem">
+              <Flex
+                align="center"
+                justify="flex-end"
+                gap="1rem"
+                style={{ marginTop: "1rem" }}
+              >
                 <Button
                   classes={[ButtonClass.OUTLINED_GREY_TO_PRIMARY]}
                   size={ButtonSize.WIDTH_140}

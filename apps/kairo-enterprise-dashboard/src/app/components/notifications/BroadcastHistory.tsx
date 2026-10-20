@@ -41,7 +41,7 @@ export function BroadcastStatusTag({ status }: { status: BroadcastStatus }) {
 const date = (value: string) =>
   String(formatDate(value, DATE_TIME_FORMAT) ?? "N/A");
 const reasonLabel = (reason: string | null) => {
-  if (!reason) return "—";
+  if (!reason) return "N/A";
   if (reason.endsWith("_IN_PROGRESS") || reason === "MESSAGE_IN_PROGRESS")
     return "Waiting for the current conversation step";
   const labels: Record<string, string> = {

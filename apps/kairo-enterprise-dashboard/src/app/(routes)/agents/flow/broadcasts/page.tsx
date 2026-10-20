@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEntity } from "simpler-state";
 import { Button, ButtonClass } from "@kairo/ui";
 import { DashboardLayout } from "@/app/components/dashboard";
+import CreateBroadcastModal from "@/app/components/notifications/CreateBroadcastModal";
 import { BroadcastListTable } from "@/app/components/notifications/BroadcastHistory";
 import {
   broadcastHistoryStore,
@@ -16,6 +17,7 @@ import { parseConversationNumber } from "@/services/Flow/conversations";
 
 export default function BroadcastsPage() {
   const router = useRouter();
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
   const params = useSearchParams();
   const page = parseConversationNumber(params.get("page"), 1);
   const limit = Math.min(100, parseConversationNumber(params.get("limit"), 10));
@@ -43,12 +45,18 @@ export default function BroadcastsPage() {
       appendElementToHeading={
         <Button
           classes={[ButtonClass.OUTLINED]}
-          onClick={() => void fetchBroadcastHistory(query)}
+          onClick={() => setBroadcastOpen(true)}
         >
-          Refresh
+          Send broadcast
         </Button>
       }
     >
+      {broadcastOpen && (
+        <CreateBroadcastModal
+          onClose={() => setBroadcastOpen(false)}
+          onSuccess={() => void fetchBroadcastHistory(query)}
+        />
+      )}
       <BroadcastListTable
         data={current ? state.list : null}
         loading={!current || state.loading}
