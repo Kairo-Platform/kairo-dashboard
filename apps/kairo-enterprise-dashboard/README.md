@@ -47,6 +47,8 @@ Integration follows **page → store → service → BFF**.
 | `GET /v1/orgs/{orgId}/conversations/{userId}` | One customer's message history        |
 | `GET /v1/orgs/{orgId}/analytics`              | Overview and Flow metrics             |
 | `GET /v1/orgs/{orgId}/users`                  | Paginated customers and status counts |
+| `POST /v1/orgs/{orgId}/flow/broadcasts`       | Queue a WhatsApp broadcast            |
+| `GET /v1/orgs/{orgId}/flow/broadcasts/{id}`   | Broadcast delivery counts             |
 
 Lists support `page`, `limit` (default 10), `search`, `startDate`, and `endDate`.
 Use `agent=flow` for Flow conversations/analytics. Analytics defaults to today;
@@ -54,3 +56,5 @@ lists have no date filter by default. Unavailable metrics display `N/A`.
 
 Services: `Users`, `Analytics`, and `Flow`. Stores: `users.ts`, `analytics.ts`, and
 `flow.ts`. Full API documentation lives in the backend repository.
+
+Broadcasts use `Broadcasts` → `broadcasts.ts`, with recipient search through `Users`.
