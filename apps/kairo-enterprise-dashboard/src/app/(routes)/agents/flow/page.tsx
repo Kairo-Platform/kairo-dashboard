@@ -32,6 +32,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import styled from "styled-components";
 import { DashboardDateFilters } from "@/app/components/dashbaord-analytics/DashboardDateFilters";
+import CreateBroadcastModal from "@/app/components/notifications/CreateBroadcastModal";
 
 const FlowPageContainer = styled.div`
   margin-top: 3rem;
@@ -56,6 +57,7 @@ type FlowView = "dashboard" | "add-channel" | "add-infrastructure";
 
 export default function FlowPage() {
   const router = useRouter();
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [flowSetupCompleted, setFlowSetupCompleted] = useState<boolean>(false);
@@ -195,7 +197,11 @@ export default function FlowPage() {
                   : []),
                 {
                   title: "Send broadcast",
-                  onClick: () => {},
+                  onClick: () => setBroadcastOpen(true),
+                },
+                {
+                  title: "View broadcasts",
+                  onClick: () => router.push(URL.AGENTS_FLOW_BROADCASTS_URL),
                 },
               ]}
               positions={["bottom"]}
@@ -206,6 +212,9 @@ export default function FlowPage() {
       }
     >
       <FlowPageContainer>
+        {broadcastOpen && (
+          <CreateBroadcastModal onClose={() => setBroadcastOpen(false)} />
+        )}
         {fetchingBankingBackend ||
         (fetchingFlowChannels &&
           currentStep === 1 &&
