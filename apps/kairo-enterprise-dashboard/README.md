@@ -41,14 +41,16 @@ Shared primitives: `@kairo/auth`, `@kairo/services`.
 Requests use the BFF (`/api/x-api`) with the dashboard session and organization ID.
 Integration follows **page → store → service → BFF**.
 
-| Endpoint                                      | Purpose                               |
-| --------------------------------------------- | ------------------------------------- |
-| `GET /v1/orgs/{orgId}/conversations`          | Paginated conversations               |
-| `GET /v1/orgs/{orgId}/conversations/{userId}` | One customer's message history        |
-| `GET /v1/orgs/{orgId}/analytics`              | Overview and Flow metrics             |
-| `GET /v1/orgs/{orgId}/users`                  | Paginated customers and status counts |
-| `POST /v1/orgs/{orgId}/flow/broadcasts`       | Queue a WhatsApp broadcast            |
-| `GET /v1/orgs/{orgId}/flow/broadcasts/{id}`   | Broadcast delivery counts             |
+| Endpoint                                               | Purpose                               |
+| ------------------------------------------------------ | ------------------------------------- |
+| `GET /v1/orgs/{orgId}/conversations`                   | Paginated conversations               |
+| `GET /v1/orgs/{orgId}/conversations/{userId}`          | One customer's message history        |
+| `GET /v1/orgs/{orgId}/analytics`                       | Overview and Flow metrics             |
+| `GET /v1/orgs/{orgId}/users`                           | Paginated customers and status counts |
+| `POST /v1/orgs/{orgId}/flow/broadcasts`                | Queue a WhatsApp broadcast            |
+| `GET /v1/orgs/{orgId}/flow/broadcasts`                 | Search/filter broadcast history       |
+| `GET /v1/orgs/{orgId}/flow/broadcasts/{id}/details`    | Broadcast message and counts          |
+| `GET /v1/orgs/{orgId}/flow/broadcasts/{id}/recipients` | Search/filter recipient statuses      |
 
 Lists support `page`, `limit` (default 10), `search`, `startDate`, and `endDate`.
 Use `agent=flow` for Flow conversations/analytics. Analytics defaults to today;

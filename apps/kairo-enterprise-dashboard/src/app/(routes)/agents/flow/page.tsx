@@ -199,6 +199,10 @@ export default function FlowPage() {
                   title: "Send broadcast",
                   onClick: () => setBroadcastOpen(true),
                 },
+                {
+                  title: "View broadcasts",
+                  onClick: () => router.push(URL.AGENTS_FLOW_BROADCASTS_URL),
+                },
               ]}
               positions={["bottom"]}
             />

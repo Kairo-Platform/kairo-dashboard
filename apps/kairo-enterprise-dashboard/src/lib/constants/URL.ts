@@ -13,6 +13,8 @@ export const URL = {
   AGENTS_RISK_URL: "/agents/risk",
   AGENTS_RELAY_URL: "/agents/relay",
   AGENTS_INSIGHTS_URL: "/agents/insights",
+  AGENTS_FLOW_BROADCASTS_URL: "/agents/flow/broadcasts",
+  AGENTS_FLOW_BROADCAST_DETAILS_URL: "/agents/flow/broadcasts/:id",
   AGENTS_FLOW_URL: "/agents/flow",
   AGENTS_FLOW_CONVERSATION_DETAILS_URL: "/agents/flow/conversations/:userId",
   AGENTS_FLOW_SETTINGS_URL: "/agents/flow/settings",

@@ -5,6 +5,10 @@ import { unwrapApiData } from "@/lib/utils/apiResponse";
 import { parseApiError } from "@/lib/utils/parseApiError";
 import {
   broadcasts,
+  type BroadcastQuery,
+  type BroadcastDetails,
+  type BroadcastPage,
+  type BroadcastRecipient,
   type BroadcastRequest,
   type BroadcastSummary,
 } from "@/services/Broadcasts";
@@ -86,4 +90,77 @@ export const resetBroadcastUsers = () => {
     ...initialState,
     submitting: s.submitting,
   }));
+};
+
+interface BroadcastHistoryState {
+  list: BroadcastPage<BroadcastSummary> | null;
+  details: BroadcastDetails | null;
+  recipients: BroadcastPage<BroadcastRecipient> | null;
+  loading: boolean;
+  queryKey: string | null;
+  orgId: string | null;
+}
+export const broadcastHistoryStore = entity<BroadcastHistoryState>({
+  list: null,
+  details: null,
+  recipients: null,
+  loading: false,
+  queryKey: null,
+  orgId: null,
+});
+let latestHistoryRequest = 0;
+
+export const fetchBroadcastHistory = async (
+  query: BroadcastQuery,
+  id?: string,
+) => {
+  const request = ++latestHistoryRequest;
+  let orgId = getOrgId();
+  void broadcastHistoryStore.set({
+    list: null,
+    details: null,
+    recipients: null,
+    loading: true,
+    queryKey: JSON.stringify({ id, query }),
+    orgId,
+  });
+  try {
+    orgId = await organization();
+    if (request !== latestHistoryRequest) return;
+    if (id) {
+      const [details, recipients] = await Promise.all([
+        broadcasts.details(orgId, id),
+        broadcasts.recipients(orgId, id, query),
+      ]);
+      if (request === latestHistoryRequest && getOrgId() === orgId)
+        void broadcastHistoryStore.set((s) => ({
+          ...s,
+          orgId,
+          details: unwrapApiData<BroadcastDetails>(details),
+          recipients:
+            unwrapApiData<BroadcastPage<BroadcastRecipient>>(recipients),
+        }));
+    } else {
+      const result = await broadcasts.list(orgId, query);
+      if (request === latestHistoryRequest && getOrgId() === orgId)
+        void broadcastHistoryStore.set((s) => ({
+          ...s,
+          orgId,
+          list: unwrapApiData<BroadcastPage<BroadcastSummary>>(result),
+        }));
+    }
+  } catch (error) {
+    if (request === latestHistoryRequest && getOrgId() === orgId) {
+      void broadcastHistoryStore.set((s) => ({ ...s, orgId }));
+      showErrorNotification({
+        message: parseApiError(
+          error,
+          "Unable to load broadcasts. Please try again.",
+        ),
+      });
+    }
+  } finally {
+    if (request === latestHistoryRequest)
+      void broadcastHistoryStore.set((s) => ({ ...s, loading: false }));
+  }
 };
