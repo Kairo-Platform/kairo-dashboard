@@ -111,7 +111,7 @@ export default function BroadcastDetailsPage() {
             </Flex>
           </MessageCard>
           <h2>Recipients</h2>
-          <p>
+          <p style={{ marginBottom: "1rem" }}>
             Sent means WhatsApp accepted the message; it does not confirm
             delivery or that it was read.
           </p>

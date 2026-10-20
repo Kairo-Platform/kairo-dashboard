@@ -196,13 +196,19 @@ export const fetchFlowConversations = async (
 export const fetchConversationDetail = async (
   userId: string,
   filters: FlowConversationsQuery,
+  silent = false,
 ) => {
   const request = ++conversationDetailRequest;
   let orgId = getOrgId();
   void flowStore.set((s) => ({
     ...s,
-    conversationDetail: null,
-    fetchingConversationDetail: true,
+    conversationDetail:
+      silent &&
+      s.conversationDetailOrgId === orgId &&
+      s.conversationDetailQueryKey === JSON.stringify([userId, filters])
+        ? s.conversationDetail
+        : null,
+    fetchingConversationDetail: !silent,
     conversationDetailQueryKey: JSON.stringify([userId, filters]),
     conversationDetailOrgId: orgId,
   }));
@@ -224,12 +230,13 @@ export const fetchConversationDetail = async (
   } catch (error) {
     if (request === conversationDetailRequest && getOrgId() === orgId) {
       void flowStore.set((s) => ({ ...s, conversationDetailOrgId: orgId }));
-      showErrorNotification({
-        message: parseApiError(
-          error,
-          "Unable to load conversations. Please try again.",
-        ),
-      });
+      if (!silent)
+        showErrorNotification({
+          message: parseApiError(
+            error,
+            "Unable to load conversations. Please try again.",
+          ),
+        });
     }
     throw error;
   } finally {

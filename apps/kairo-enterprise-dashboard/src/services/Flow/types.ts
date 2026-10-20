@@ -233,7 +233,7 @@ export type BackendButtonAction = BackendSchemaOption & {
 
 export interface FlowConversationMessage {
   id: string;
-  sender: "USER" | "KAIRO";
+  sender: "USER" | "KAIRO" | "ADMIN";
   text: string;
   createdAt: string;
   interaction?: { type: string; flow: string };
@@ -280,3 +280,22 @@ export type BackendBankingBackendState =
 export type BackendBankingBackendResponse = BackendBankingBackendState & {
   status: "saved";
 };
+
+export interface ConversationControl {
+  mode: "AGENT" | "HUMAN";
+  takeoverId?: string | null;
+  expiresAt?: string | null;
+  ownedByMe: boolean;
+  canSend: boolean;
+  messagingWindowOpen: boolean;
+}
+export interface AdminMessageRequest {
+  requestId: string;
+  takeoverId: string;
+  text: string;
+}
+export interface AdminMessageResult {
+  requestId: string;
+  status: "SENT" | "UNKNOWN";
+  messageId?: string | null;
+}
