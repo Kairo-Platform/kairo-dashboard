@@ -1,6 +1,9 @@
 import type { ConversationDetail } from "@/services/Analytics/types";
 import { xApiBff } from "@/lib/bff/client";
 import type {
+  ConversationControl,
+  AdminMessageRequest,
+  AdminMessageResult,
   FlowConversationsQuery,
   FlowConversationsResponse,
   BackendBankingBackendState,
@@ -26,7 +29,36 @@ export function unwrapFlowResponse<T>(res: unknown): T {
 
 const FLOW_BASE = (orgId: string) => `v1/orgs/${orgId}`;
 
+const conversationPath = (orgId: string, userId: string) =>
+  `${FLOW_BASE(orgId)}/flow/conversations/${encodeURIComponent(userId)}`;
 export const flow = {
+  getConversationControl: (orgId: string, userId: string) =>
+    xApiBff.request<ConversationControl>(
+      `${conversationPath(orgId, userId)}/control`,
+    ),
+  takeOverConversation: (orgId: string, userId: string) =>
+    xApiBff.request<ConversationControl>(
+      `${conversationPath(orgId, userId)}/takeover`,
+      { method: "POST" },
+    ),
+  returnConversationToAgent: (
+    orgId: string,
+    userId: string,
+    takeoverId: string,
+  ) =>
+    xApiBff.request<ConversationControl>(
+      `${conversationPath(orgId, userId)}/return-to-agent`,
+      { method: "POST", body: { takeoverId } },
+    ),
+  sendAdminMessage: (
+    orgId: string,
+    userId: string,
+    body: AdminMessageRequest,
+  ) =>
+    xApiBff.request<AdminMessageResult>(
+      `${conversationPath(orgId, userId)}/messages`,
+      { method: "POST", body },
+    ),
   getConversations: (orgId: string, query: FlowConversationsQuery) =>
     xApiBff.request<FlowConversationsResponse>(
       `${FLOW_BASE(orgId)}/conversations`,

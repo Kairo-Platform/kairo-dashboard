@@ -11,13 +11,19 @@ import {
   EmptyState,
   InitialsAvatar,
 } from "@kairo/ui";
+import {
+  conversationControlStore,
+  fetchConversationControl,
+  changeConversationControl,
+  sendConversationMessage,
+} from "@/app/store/conversationControl";
 import { flowStore, fetchConversationDetail } from "@/app/store/flow";
 import { useEntity } from "simpler-state";
 import { getOrgId } from "@/lib/auth/client";
 import { parseConversationNumber } from "@/services/Flow/conversations";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import styled from "styled-components";
 
 type MessageSender = "user" | "agent";
@@ -350,7 +356,11 @@ const ConversationDetailsContainer = styled.div`
         background-color: ${({ theme }) => theme.colors.gray_02};
         border: 1.2px solid ${({ theme }) => theme.colors.gray_02};
 
-        input {
+        textarea {
+          resize: vertical;
+          min-width: 0;
+          max-height: 12rem;
+          font-family: inherit;
           flex: 1;
           border: none;
           outline: none;
@@ -377,6 +387,10 @@ const ConversationDetailsContainer = styled.div`
           cursor: pointer;
           flex-shrink: 0;
 
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
           &:hover {
             background-color: ${({ theme }) => `${theme.colors.orange}55`};
           }
@@ -524,8 +538,9 @@ const ConversationDetailsContainer = styled.div`
 `;
 
 const renderMessageText = (text: string) => {
-  const boldParts = text.split(/(₦[\d,]+(?:\.\d{2})?|YES|CANCEL)/g);
+  const boldParts = text.split(/(_admin_|₦[\d,]+(?:\.\d{2})?|YES|CANCEL)/g);
   return boldParts.map((part, index) => {
+    if (part === "_admin_") return <em key={index}>admin</em>;
     if (/^(₦[\d,]+(?:\.\d{2})?|YES|CANCEL)$/.test(part)) {
       return <strong key={`${part}-${index}`}>{part}</strong>;
     }
@@ -533,18 +548,45 @@ const renderMessageText = (text: string) => {
   });
 };
 
-export const ConversationDetails = ({
+type ConversationDetailsProps = { userId: string; backUrl?: string };
+export const ConversationDetails = (props: ConversationDetailsProps) => (
+  <ConversationDetailsView key={props.userId} {...props} />
+);
+
+const ConversationDetailsView = ({
   userId,
   backUrl,
-}: {
-  userId: string;
-  backUrl?: string;
-}) => {
+}: ConversationDetailsProps) => {
   const router = useRouter();
   const [draft, setDraft] = useState("");
-  const scrollMessagesToLatest = useCallback((element: HTMLDivElement | null) => {
-    if (element) element.scrollTop = element.scrollHeight;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
   }, []);
+  const pendingSend = useRef<{ signature: string; id: string } | null>(null);
+  const controlState = useEntity(conversationControlStore);
+  const [now, setNow] = useState(Date.now);
+  const control =
+    controlState.userId === userId && controlState.orgId === getOrgId()
+      ? controlState.control
+      : null;
+  const human =
+    control?.mode === "HUMAN" &&
+    !!control.expiresAt &&
+    Date.parse(control.expiresAt) > now;
+  const canReply =
+    human && control?.ownedByMe && control.canSend && !controlState.busy;
+  const busy = controlState.busy;
+
+  const scrollMessagesToLatest = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (element) element.scrollTop = element.scrollHeight;
+    },
+    [],
+  );
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const page = parseConversationNumber(searchParams.get("messagePage"), 1);
@@ -559,10 +601,64 @@ export const ConversationDetails = ({
   );
   const detailState = useEntity(flowStore);
   useEffect(() => {
-    void fetchConversationDetail(userId, filters).catch(() => {});
+    let fetching = false;
+    const refresh = async (silent: boolean) => {
+      if (fetching || conversationControlStore.get().busy) return;
+      fetching = true;
+      try {
+        await Promise.allSettled([
+          fetchConversationDetail(userId, filters, silent),
+          fetchConversationControl(userId, silent),
+        ]);
+      } finally {
+        fetching = false;
+      }
+    };
+    void refresh(false);
+    const poll = setInterval(() => {
+      setNow(Date.now());
+      if (document.visibilityState === "visible") void refresh(true);
+    }, 10_000);
+    return () => clearInterval(poll);
   }, [userId, filters]);
+  async function sendMessage() {
+    if (!canReply || !draft.trim() || !control?.takeoverId) return;
+    const sendingOrg = getOrgId();
+    const signature = JSON.stringify([
+      sendingOrg,
+      userId,
+      control.takeoverId,
+      draft.trim(),
+    ]);
+    if (pendingSend.current?.signature !== signature)
+      pendingSend.current = { signature, id: crypto.randomUUID() };
+    const result = await sendConversationMessage(userId, {
+      requestId: pendingSend.current.id,
+      takeoverId: control.takeoverId,
+      text: draft.trim(),
+    });
+    if (
+      result?.status === "SENT" &&
+      mounted.current &&
+      getOrgId() === sendingOrg
+    ) {
+      setDraft("");
+      pendingSend.current = null;
+      const next = new URLSearchParams(searchParams.toString());
+      ["messagePage", "startDate", "endDate"].forEach((key) =>
+        next.delete(key),
+      );
+      router.replace(`?${next}`, { scroll: false });
+      void fetchConversationDetail(
+        userId,
+        { ...filters, page: 1, startDate: undefined, endDate: undefined },
+        true,
+      ).catch(() => {});
+    }
+  }
   const currentDetail =
-    detailState.conversationDetailQueryKey === JSON.stringify([userId, filters]) &&
+    detailState.conversationDetailQueryKey ===
+      JSON.stringify([userId, filters]) &&
     detailState.conversationDetailOrgId === getOrgId();
   const detail = {
     data: currentDetail ? detailState.conversationDetail : null,
@@ -581,7 +677,7 @@ export const ConversationDetails = ({
     .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
     .map((message) => ({
       id: message.id,
-      sender: message.sender === "KAIRO" ? "agent" : "user",
+      sender: message.sender === "USER" ? "user" : "agent",
       text: message.text,
       time: new Date(message.createdAt).toLocaleTimeString([], {
         hour: "2-digit",
@@ -606,14 +702,14 @@ export const ConversationDetails = ({
     name: conversation.user.displayName || conversation.user.channelUserId,
     phone: conversation.user.channelUserId,
     channel: conversation.user.channel,
-    statusLabel: "N/A",
+    statusLabel: human ? "Admin replying" : "Agent replying",
   };
   const firstMessage = [...conversation.messages].sort(
     (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt),
   )[0];
   const infoRows = [
     { label: "Channel", value: user.channel },
-    { label: "Status", value: "N/A" },
+    { label: "Status", value: user.statusLabel },
     {
       label: "Time started",
       value:
@@ -676,10 +772,7 @@ export const ConversationDetails = ({
         </div>
 
         <div className="MessageContent">
-          <div
-            className="MessageContent__scroll"
-            ref={scrollMessagesToLatest}
-          >
+          <div className="MessageContent__scroll" ref={scrollMessagesToLatest}>
             {messages.length === 0 && <p>No messages in this date range.</p>}
             <span className="MessageContent__date">
               {firstMessage
@@ -758,10 +851,25 @@ export const ConversationDetails = ({
           </div>
 
           <div className="MessageContent__composer">
+            {human && control?.ownedByMe && (
+              <p style={{ fontSize: "0.8125rem", marginBottom: "0.5rem" }}>
+                Kairo resumes after 30 minutes without an admin reply.
+              </p>
+            )}
             <div className="MessageContent__inputWrap">
-              <input
-                type="text"
-                placeholder="Type a message here...."
+              <textarea
+                rows={2}
+                maxLength={4085}
+                disabled={!canReply}
+                placeholder={
+                  human
+                    ? control?.ownedByMe
+                      ? control.messagingWindowOpen
+                        ? "Type a message here...."
+                        : "Wait for the customer to message again"
+                      : "Another staff member is replying"
+                    : "Take over this conversation to reply"
+                }
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 aria-label="Type a message"
@@ -770,6 +878,8 @@ export const ConversationDetails = ({
                 type="button"
                 className="sendBtn"
                 aria-label="Send message"
+                disabled={!canReply || !draft.trim()}
+                onClick={() => void sendMessage()}
               >
                 <Icon icon="tabler:send" width={20} height={20} />
               </button>
@@ -789,7 +899,22 @@ export const ConversationDetails = ({
           <ActionMenu
             actions={[
               { title: "Assign to staff" },
-              { title: "Take over conversation" },
+              {
+                title: busy
+                  ? "Updating conversation..."
+                  : human
+                    ? control?.ownedByMe
+                      ? "Return to agent"
+                      : "Another staff member is replying"
+                    : "Take over conversation",
+                onClick: () => {
+                  if (busy || !control || (human && !control.ownedByMe)) return;
+                  void changeConversationControl(
+                    userId,
+                    human ? (control.takeoverId ?? undefined) : undefined,
+                  );
+                },
+              },
               { title: "Close conversation" },
             ]}
             positions={["bottom"]}

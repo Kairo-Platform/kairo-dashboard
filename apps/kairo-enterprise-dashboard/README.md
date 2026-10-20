@@ -60,3 +60,5 @@ Services: `Users`, `Analytics`, and `Flow`. Stores: `users.ts`, `analytics.ts`, 
 `flow.ts`. Full API documentation lives in the backend repository.
 
 Broadcasts use `Broadcasts` → `broadcasts.ts`, with recipient search through `Users`.
+
+Conversation takeover uses `Flow` → `conversationControl.ts`: GET `/v1/orgs/{orgId}/flow/conversations/{userId}/control`, POST `/takeover`, `/return-to-agent`, and `/messages` under the same conversation path.
