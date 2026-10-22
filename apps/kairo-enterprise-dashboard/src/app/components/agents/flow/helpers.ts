@@ -80,16 +80,20 @@ export const createDefaultTypeConfig = (
     })),
     intent: defaults?.intent ?? "",
     message: "Hi {{first_name}}, welcome to {{business_name}}!",
-    buttons: [{
-      id: crypto.randomUUID(),
-      label: defaults?.buttonActionLabel ?? getButtonActionLabel(action, []),
-      action,
-      buttonType: defaults?.buttonType ?? "REPLY",
-      payload: {},
-      labelCustomized: false,
-    }],
+    buttons: [
+      {
+        id: crypto.randomUUID(),
+        label: defaults?.buttonActionLabel ?? getButtonActionLabel(action, []),
+        action,
+        buttonType: defaults?.buttonType ?? "REPLY",
+        payload: {},
+        labelCustomized: false,
+      },
+    ],
     fallbackLanguage: defaults?.fallbackLanguage ?? "en",
-    automationValues: getDefaultAutomationFromSchema(conversationSchema?.automation),
+    automationValues: getDefaultAutomationFromSchema(
+      conversationSchema?.automation,
+    ),
     customVariables: [],
   };
 };
@@ -102,8 +106,9 @@ export const createInitialSettingsMap = (): ConversationSettingsMap => {
   return map;
 };
 
-export const cloneTypeConfig = (config: ConversationTypeConfig): ConversationTypeConfig =>
-  structuredClone(config);
+export const cloneTypeConfig = (
+  config: ConversationTypeConfig,
+): ConversationTypeConfig => structuredClone(config);
 
 export const NO_CONVERSATION_SETTINGS_CHANGES_ERROR = "No changes to save";
 
@@ -145,9 +150,10 @@ export function fromBackendConversationType(
     conversationDefaults,
     conversationSchema,
   );
-  const conditions = backendType.triggerConditions === undefined
-    ? config.triggerConditions.map(({ condition }) => condition)
-    : getTriggerConditionOptions(backendType.triggerConditions);
+  const conditions =
+    backendType.triggerConditions === undefined
+      ? config.triggerConditions.map(({ condition }) => condition)
+      : getTriggerConditionOptions(backendType.triggerConditions);
   return {
     ...config,
     title: backendType.displayName,
@@ -156,18 +162,22 @@ export function fromBackendConversationType(
       conditions,
     ).map((condition) => ({
       condition,
-      selected: conditions.some((selected) => triggerConditionKey(selected) === triggerConditionKey(condition)),
+      selected: conditions.some(
+        (selected) =>
+          triggerConditionKey(selected) === triggerConditionKey(condition),
+      ),
     })),
     intent: backendType.intent ?? config.intent,
     message: backendType.message ?? config.message,
-    buttons: backendType.buttons?.map((button) => ({
-      id: crypto.randomUUID(),
-      label: button.label,
-      action: button.action,
-      buttonType: button.type,
-      payload: { ...button.payload },
-      labelCustomized: true,
-    })) ?? config.buttons,
+    buttons:
+      backendType.buttons?.map((button) => ({
+        id: crypto.randomUUID(),
+        label: button.label,
+        action: button.action,
+        buttonType: button.type,
+        payload: { ...button.payload },
+        labelCustomized: true,
+      })) ?? config.buttons,
     fallbackLanguage: backendType.fallbackLanguage ?? config.fallbackLanguage,
     automationValues: initAutomationValues(
       backendType.automation,
@@ -184,19 +194,25 @@ export const mergeTriggerConditionOptions = (
 ): FlowTriggerCondition[] =>
   Array.from(
     new Map(
-      lists.flat().map((condition) => [
-        triggerConditionKey(condition),
-        structuredClone(condition),
-      ]),
+      lists
+        .flat()
+        .map((condition) => [
+          triggerConditionKey(condition),
+          structuredClone(condition),
+        ]),
     ).values(),
   );
 
 export const toTriggerConditionTree = (
   conditions: FlowTriggerCondition[],
-): FlowTriggerCondition | null => {
-  if (!conditions.length) return null;
+): FlowTriggerCondition => {
+  if (!conditions.length) return { kind: "NONE", children: [] };
   if (conditions.length === 1) return structuredClone(conditions[0]);
-  return { kind: "GROUP", operator: "OR", children: structuredClone(conditions) };
+  return {
+    kind: "GROUP",
+    operator: "OR",
+    children: structuredClone(conditions),
+  };
 };
 
 export function toBackendConversationType(
@@ -212,19 +228,25 @@ export function toBackendConversationType(
     active: config.status === "ACTIVE",
     custom: config.kind === "custom",
     triggerConditions: toTriggerConditionTree(
-      config.triggerConditions.filter(({ selected }) => selected).map(({ condition }) => condition),
+      config.triggerConditions
+        .filter(({ selected }) => selected)
+        .map(({ condition }) => condition),
     ),
-    ...(config.intent ? { intent: config.intent } : {}),
+    intent: config.intent || null,
     message: config.message,
     buttons: config.buttons
-      .filter((button) => button.label.trim() && button.action && button.buttonType)
+      .filter(
+        (button) => button.label.trim() && button.action && button.buttonType,
+      )
       .map((button) => {
         const action = flowSchema?.buttonActions.find(
           (option) => option.value === button.action,
         );
-        const fields = action?.payload === "NONE"
-          ? []
-          : action?.payloadFields ?? (button.action === "OPEN_LINK" ? [{ key: "url" }] : []);
+        const fields =
+          action?.payload === "NONE"
+            ? []
+            : (action?.payloadFields ??
+              (button.action === "OPEN_LINK" ? [{ key: "url" }] : []));
         const payload = Object.fromEntries(
           fields.flatMap(({ key }) => {
             const value = button.payload[key];
@@ -240,7 +262,9 @@ export function toBackendConversationType(
       }),
     fallbackLanguage: config.fallbackLanguage,
     ...(automation !== undefined ? { automation } : {}),
-    ...(config.kind === "custom" && config.title ? { displayName: config.title } : {}),
+    ...(config.kind === "custom" && config.title
+      ? { displayName: config.title }
+      : {}),
   };
 }
 
@@ -311,22 +335,30 @@ export const formatKnowledgeDate = (date: Date) => {
 
 const formatConditionValue = (value: unknown): string => {
   if (value == null) return "";
-  if (typeof value !== "object") return String(value).replace(/_/g, " ").toLowerCase();
+  if (typeof value !== "object")
+    return String(value).replace(/_/g, " ").toLowerCase();
   const data = value as Record<string, unknown>;
   if (data.preset === "IN_DAYS") return `in ${data.amount} days`;
   if (data.preset === "DAYS_AGO") return `${data.amount} days ago`;
   if (data.preset) return formatConditionValue(data.preset);
-  if ("from" in data || "to" in data) return `${formatConditionValue(data.from)} and ${formatConditionValue(data.to)}`;
+  if ("from" in data || "to" in data)
+    return `${formatConditionValue(data.from)} and ${formatConditionValue(data.to)}`;
   return Object.values(data).map(formatConditionValue).join(" ");
 };
 
-export const formatTriggerCondition = (condition: FlowTriggerCondition): string => {
+export const formatTriggerCondition = (
+  condition: FlowTriggerCondition,
+): string => {
   if (condition.kind === "GROUP") {
     return condition.children
       .map(formatTriggerCondition)
       .join(` ${condition.operator ?? "OR"} `);
   }
   const type = humanizeActionValue(condition.conditionType ?? "");
-  const operator = (condition.conditionOperator ?? "").replace(/_/g, " ").toLowerCase();
-  return [type, operator, formatConditionValue(condition.value)].filter(Boolean).join(" ");
+  const operator = (condition.conditionOperator ?? "")
+    .replace(/_/g, " ")
+    .toLowerCase();
+  return [type, operator, formatConditionValue(condition.value)]
+    .filter(Boolean)
+    .join(" ");
 };

@@ -25,6 +25,7 @@ import {
 import { getOrgId } from "@/lib/auth/client";
 import {
   flow,
+  changedFlowSettings,
   findConversationSchema,
   fromBackendTypeId,
   getConversationDefaultsFromSchema,
@@ -40,6 +41,7 @@ import {
   fetchFlowSettings,
   fetchFlowVariables,
   flowStore,
+  saveFlowSettings,
 } from "@/app/store/flow";
 import { useEntity } from "simpler-state";
 import {
@@ -1185,19 +1187,21 @@ export const FlowConversationSettings = forwardRef<
         throw new Error("Organization not found");
       }
 
-      const conversations = toBackendConversationsMap(
-        settingsRef.current,
-        flowSchema,
-      );
-      await flow.saveSettings(orgId, { conversations });
-
       const snapshot: Record<string, ConversationTypeConfig> = {};
       for (const [id, config] of Object.entries(settingsRef.current)) {
         snapshot[id] = cloneTypeConfig(config);
       }
+      const before = toBackendConversationsMap(
+        savedSettingsRef.current,
+        flowSchema,
+      );
+      const after = toBackendConversationsMap(snapshot, flowSchema);
+      await saveFlowSettings({
+        conversations: changedFlowSettings(before, after),
+      });
       setSavedSettings(snapshot);
 
-      return toConversationSettingsSavePayload(settingsRef.current, flowSchema);
+      return toConversationSettingsSavePayload(snapshot, flowSchema);
     },
   }));
 

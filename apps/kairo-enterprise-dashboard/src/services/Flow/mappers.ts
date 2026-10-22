@@ -1,4 +1,5 @@
 import type {
+  SettingsUpdate,
   BackendConversationMemory,
   BackendEscalationIntelligence,
   BackendProactiveAssistance,
@@ -14,7 +15,9 @@ export function toBackendTypeId(frontendId: string | null | undefined): string {
 }
 
 // "financialAdvice" → "financial-advice"
-export function fromBackendTypeId(backendId: string | null | undefined): string {
+export function fromBackendTypeId(
+  backendId: string | null | undefined,
+): string {
   if (!backendId) return "";
   return backendId.replace(/([A-Z])/g, (c) => `-${c.toLowerCase()}`);
 }
@@ -147,7 +150,9 @@ export function toBackendTemplate(template: {
     id: template.id,
     name: template.name,
     trigger: template.trigger,
-    triggerConditions: template.triggerConditions.filter((value) => value.trim()),
+    triggerConditions: template.triggerConditions.filter((value) =>
+      value.trim(),
+    ),
     intent: template.intent,
     message: template.message,
     buttons: template.buttons.filter(isValidBackendButton).map((btn) => ({
@@ -298,4 +303,27 @@ export function fromBackendTemplate(t: BackendTemplate): {
     fallbackLanguage: t.fallbackLanguage,
     expanded: true,
   };
+}
+
+// Submit changed leaves only, so another settings tab cannot overwrite untouched values.
+export function changedFlowSettings<T extends object>(
+  before: T,
+  after: T,
+): SettingsUpdate<T> {
+  const changes: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(after)) {
+    const previous = (before as Record<string, unknown>)[key];
+    if (JSON.stringify(previous) === JSON.stringify(value)) continue;
+    changes[key] =
+      key !== "triggerConditions" &&
+      value &&
+      previous &&
+      typeof value === "object" &&
+      typeof previous === "object" &&
+      !Array.isArray(value) &&
+      !Array.isArray(previous)
+        ? changedFlowSettings(previous, value)
+        : value;
+  }
+  return changes as SettingsUpdate<T>;
 }

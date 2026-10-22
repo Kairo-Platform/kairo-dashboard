@@ -13,6 +13,7 @@ import type {
   BackendChannelConfig,
   BackendConversationType,
   BackendSettings,
+  SettingsUpdate,
   BackendSettingsSchema,
   BackendWhatsAppConnectRequest,
   BackendWhatsAppConnectResponse,
@@ -97,10 +98,10 @@ export const flow = {
       `${FLOW_BASE(orgId)}/agents/flow/settings`,
     ),
 
-  saveSettings: (orgId: string, body: Partial<BackendSettings>) =>
+  saveSettings: (orgId: string, body: SettingsUpdate<BackendSettings>) =>
     xApiBff.request<BackendSettings>(
       `${FLOW_BASE(orgId)}/agents/flow/settings`,
-      { method: "PUT", body },
+      { method: "PATCH", body },
     ),
 
   saveConversationType: (
@@ -108,7 +109,7 @@ export const flow = {
     typeId: string,
     body: BackendConversationType,
   ) =>
-    xApiBff.request<BackendConversationType>(
+    xApiBff.request<BackendSettings>(
       `${FLOW_BASE(orgId)}/agents/flow/settings/conversations/${typeId}`,
       { method: "PUT", body },
     ),
