@@ -25,7 +25,7 @@ import {
   booleanObjectToArray,
   CONVERSATION_MEMORY_KEY_MAP,
   ESCALATION_INTELLIGENCE_KEY_MAP,
-  flow,
+  changedFlowSettings,
   getSchemaDefaultValue,
   PROACTIVE_ASSISTANCE_KEY_MAP,
   responseStyleFromBackend,
@@ -38,6 +38,7 @@ import {
   fetchFlowSchema,
   fetchFlowSettings,
   flowStore,
+  saveFlowSettings,
 } from "@/app/store/flow";
 import { showErrorNotification, showSuccessNotification } from "@kairo/utils";
 import { useEntity } from "simpler-state";
@@ -514,7 +515,7 @@ function fromBackendKnowledgeItems(
 
   return items.map((item, index) => {
     const entry = (item ?? {}) as Record<string, unknown>;
-    const type = entry.type === "file" ? "file" : "note";
+    const type = String(entry.type).toUpperCase() === "FILE" ? "file" : "note";
     const name =
       typeof entry.name === "string" && entry.name.trim()
         ? entry.name
@@ -608,9 +609,8 @@ function toBackendGeneral(
     knowledgeBase: {
       items: knowledgeItems.map((item) => ({
         id: item.id,
-        type: item.type,
+        type: item.type.toUpperCase(),
         name: item.name,
-        subtitle: item.subtitle,
         dateAdded: item.dateAdded,
         content: item.content ?? "",
       })),
@@ -714,6 +714,7 @@ export const FlowGeneralSettings = ({
   initialSection = "setup",
 }: FlowGeneralSettingsProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const settingsHydratedRef = useRef(false);
 
   const [activeSection, setActiveSection] =
     useState<GeneralSettingsSection>(initialSection);
@@ -741,7 +742,9 @@ export const FlowGeneralSettings = ({
   const [escalationIntelligence, setEscalationIntelligence] = useState<
     string[]
   >([...INITIAL_EDITABLE_SETTINGS.escalationIntelligence]);
-  const [voiceType, setVoiceType] = useState(INITIAL_EDITABLE_SETTINGS.voiceType);
+  const [voiceType, setVoiceType] = useState(
+    INITIAL_EDITABLE_SETTINGS.voiceType,
+  );
   const [responseStyle, setResponseStyle] = useState({
     ...INITIAL_EDITABLE_SETTINGS.responseStyle,
   });
@@ -824,7 +827,8 @@ export const FlowGeneralSettings = ({
 
   useEffect(() => {
     if (isBootstrapping) return;
-    if (!flowSettings?.general) return;
+    if (!flowSettings?.general || settingsHydratedRef.current) return;
+    settingsHydratedRef.current = true;
     const mapped = fromBackendGeneral(flowSettings.general);
     const mappedKnowledgeItems = fromBackendKnowledgeItems(
       flowSettings.general,
@@ -861,7 +865,6 @@ export const FlowGeneralSettings = ({
     });
     setKnowledgeItems(mappedKnowledgeItems);
     setSavedKnowledgeItems(mappedKnowledgeItems.map((item) => ({ ...item })));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flowSettings, isBootstrapping]);
 
   const activeMeta = useMemo(
@@ -1127,23 +1130,19 @@ export const FlowGeneralSettings = ({
     };
 
     const orgId = getOrgId();
-    const knowledgeSnapshot = knowledgeItems.map((item) => ({ ...item }));
 
     if (!orgId) {
-      setSavedSettings(snapshot);
-      setSavedKnowledgeItems(knowledgeSnapshot);
-      showSuccessNotification({ message: "Settings saved" });
+      showErrorNotification({ message: "Organization not found" });
       return;
     }
 
     setIsSaving(true);
 
     try {
-      await flow.saveSettings(orgId, {
-        general: toBackendGeneral(snapshot, knowledgeSnapshot),
-      });
+      const before = toBackendGeneral(savedSettings, savedKnowledgeItems);
+      const after = toBackendGeneral(snapshot, savedKnowledgeItems);
+      await saveFlowSettings({ general: changedFlowSettings(before, after) });
       setSavedSettings(snapshot);
-      setSavedKnowledgeItems(knowledgeSnapshot);
       showSuccessNotification({ message: "Settings saved" });
     } catch (error) {
       showErrorNotification({
@@ -1163,14 +1162,17 @@ export const FlowGeneralSettings = ({
 
     const orgId = getOrgId();
     if (!orgId) {
-      setSavedKnowledgeItems(nextItems.map((item) => ({ ...item })));
-      showSuccessNotification({ message: successMessage });
+      setKnowledgeItems(previousItems);
+      showErrorNotification({ message: "Organization not found" });
       return;
     }
 
     try {
-      await flow.saveSettings(orgId, {
-        general: toBackendGeneral(currentSettings, nextItems),
+      await saveFlowSettings({
+        general: {
+          knowledgeBase: toBackendGeneral(savedSettings, nextItems)
+            .knowledgeBase,
+        },
       });
       setSavedKnowledgeItems(nextItems.map((item) => ({ ...item })));
       showSuccessNotification({ message: successMessage });

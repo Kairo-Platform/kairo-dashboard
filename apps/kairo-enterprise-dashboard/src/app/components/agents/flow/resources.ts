@@ -76,29 +76,141 @@ export const FALLBACK_RESPONSE_STYLE_OPTIONS: SelectOption[] = [
 export const FALLBACK_GUARDRAIL_OPTIONS: Record<string, FlowCheckboxOption[]> =
   {
     restrictedTopics: [
-      { value: "INVESTMENT_ADVICE", label: "Investment advice" },
-      { value: "LOAN_APPROVALS", label: "Loan approvals" },
+      {
+        value: "NON_KAIRO_SERVICES",
+        label: "Topics outside Kairo services",
+      },
+      {
+        value: "INVESTMENT_ADVICE",
+        label: "Investment advice",
+      },
+      {
+        value: "LOAN_APPROVALS",
+        label: "Loan approvals",
+      },
+      {
+        value: "LEGAL_ADVICE",
+        label: "Legal advice",
+      },
+      {
+        value: "POLITICAL_CONTENT",
+        label: "Political content",
+      },
+      {
+        value: "SENSITIVE_ACCOUNT_DETAILS",
+        label: "Sensitive account details",
+      },
+      {
+        value: "FRAUD_DISPUTE_RESOLUTION",
+        label: "Fraud dispute resolution",
+      },
+      {
+        value: "MEDICAL_ADVICE",
+        label: "Medical advice",
+      },
+      {
+        value: "NEWS",
+        label: "News",
+      },
+      {
+        value: "SPORTS",
+        label: "Sports",
+      },
+      {
+        value: "ENTERTAINMENT",
+        label: "Entertainment",
+      },
+      {
+        value: "RECIPES",
+        label: "Recipes",
+      },
+      {
+        value: "HOMEWORK",
+        label: "Homework",
+      },
+      {
+        value: "CODING",
+        label: "Coding",
+      },
+      {
+        value: "CREATIVE_WRITING",
+        label: "Creative writing",
+      },
+      {
+        value: "TRANSLATIONS",
+        label: "Translations",
+      },
     ],
     escalationConditions: [
-      { value: "FRAUD_DETECTED", label: "Fraud detected" },
-      { value: "HUMAN_AGENT", label: "User requests human agent" },
+      {
+        value: "FRAUD_DETECTED",
+        label: "Fraud detected",
+      },
+      {
+        value: "USER_REQUESTS_HUMAN_AGENT",
+        label: "User requests human agent",
+      },
+      {
+        value: "HIGH_RISK_TRANSACTION_DETECTED",
+        label: "High-risk transaction detected",
+      },
     ],
     requireApprovalFor: [
-      { value: "REFUNDS", label: "Refund requests" },
-      { value: "REVERSALS", label: "Transaction reversals" },
+      {
+        value: "REFUND_REQUESTS",
+        label: "Refund requests",
+      },
+      {
+        value: "TRANSACTION_REVERSALS",
+        label: "Transaction reversals",
+      },
+      {
+        value: "ACCOUNT_FREEZES",
+        label: "Account freezes",
+      },
+      {
+        value: "KYC_OVERRIDES",
+        label: "KYC overrides",
+      },
     ],
     responseRestrictions: [
-      { value: "OFFENSIVE_LANGUAGE", label: "Prevent offensive language" },
-      { value: "HALLUCINATED_ANSWERS", label: "Prevent hallucinated answers" },
+      {
+        value: "PREVENT_OFFENSIVE_LANGUAGE",
+        label: "Prevent offensive language",
+      },
+      {
+        value: "PREVENT_HALLUCINATED_RESPONSES",
+        label: "Prevent hallucinated responses",
+      },
+      {
+        value: "AVOID_SPECULATIVE_RESPONSES",
+        label: "Avoid speculative responses",
+      },
+      {
+        value: "REQUIRE_FACTUAL_TRANSACTION_DATA",
+        label: "Require factual transaction data",
+      },
+      {
+        value: "RESTRICT_UNSUPPORTED_CLAIMS",
+        label: "Restrict unsupported claims",
+      },
     ],
     behaviorDetection: [
       {
-        value: "SUSPICIOUS_PATTERNS",
+        value: "DETECT_SUSPICIOUS_TRANSACTION_PATTERNS",
         label: "Detect suspicious transaction patterns",
       },
       {
-        value: "ACCOUNT_TAKEOVER",
+        value: "DETECT_ACCOUNT_TAKEOVER_ATTEMPTS",
         label: "Detect account takeover attempts",
+      },
+      {
+        value: "DETECT_PANIC_OR_URGENCY_SIGNALS",
+        label: "Detect panic or urgency signals",
+      },
+      {
+        value: "DETECT_SOCIAL_ENGINEERING_ATTEMPTS",
+        label: "Detect social engineering attempts",
       },
     ],
   };

@@ -20,7 +20,7 @@ export type BackendConversationType = {
   active: boolean;
   custom: boolean;
   triggerConditions?: FlowTriggerCondition | null;
-  intent?: string;
+  intent?: string | null;
   message?: string;
   buttons?: BackendButton[];
   fallbackLanguage?: string;
@@ -299,3 +299,12 @@ export interface AdminMessageResult {
   status: "SENT" | "UNKNOWN";
   messageId?: string | null;
 }
+
+/** Partial settings objects merge on the backend; arrays replace the saved selection. */
+export type SettingsUpdate<T> = {
+  [K in keyof T]?: T[K] extends readonly unknown[]
+    ? T[K]
+    : T[K] extends object
+      ? SettingsUpdate<T[K]>
+      : T[K];
+};

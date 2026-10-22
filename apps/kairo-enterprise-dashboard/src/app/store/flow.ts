@@ -11,6 +11,7 @@ import type {
   BackendChannel,
   BackendChannelConfig,
   BackendSettings,
+  SettingsUpdate,
   BackendSettingsSchema,
   FlowMessageVariables,
   FlowTriggerCondition,
@@ -390,4 +391,21 @@ export const fetchFlowChannelConfig = async (channel: string) => {
   } finally {
     setFetchingFlowChannelConfig(false);
   }
+};
+
+export const saveFlowSettings = async (
+  changes: SettingsUpdate<BackendSettings>,
+) => {
+  const orgId = getOrgId();
+  if (!orgId) throw new Error("Organization not found");
+  const response = await flow.saveSettings(orgId, changes);
+  if (hasApiError(response)) throw response;
+  const settings = unwrapApiData<BackendSettings>(response);
+  if (!settings?.general || !settings?.conversations) {
+    throw new Error(
+      "The settings response was incomplete. Please reload and check your changes.",
+    );
+  }
+  if (getOrgId() === orgId) setFlowSettings(settings);
+  return settings;
 };
