@@ -6,6 +6,7 @@ import { parseApiError } from "@/lib/utils/parseApiError";
 import {
   broadcasts,
   type BroadcastQuery,
+  type BroadcastSchema,
   type BroadcastDetails,
   type BroadcastPage,
   type BroadcastRecipient,
@@ -16,12 +17,14 @@ import { users } from "@/services/Users";
 import type { DashboardUsersPage } from "@/services/Analytics/types";
 
 interface BroadcastState {
+  schema: BroadcastSchema | null;
   users: DashboardUsersPage | null;
   loadingUsers: boolean;
   submitting: boolean;
   orgId: string | null;
 }
 const initialState: BroadcastState = {
+  schema: null,
   users: null,
   loadingUsers: false,
   submitting: false,
@@ -35,6 +38,16 @@ const organization = async () => {
   if (!id)
     throw new Error("Please sign in to an organization to send a broadcast.");
   return id;
+};
+
+export const fetchBroadcastSchema = async () => {
+  try {
+    const orgId = await organization();
+    const schema = unwrapApiData<BroadcastSchema>(await broadcasts.schema(orgId));
+    if (getOrgId() === orgId) void broadcastsStore.set((s) => ({ ...s, schema }));
+  } catch (error) {
+    showErrorNotification({ message: parseApiError(error, "Unable to load broadcast buttons.") });
+  }
 };
 
 export const fetchBroadcastUsers = async (page: number, search: string) => {
