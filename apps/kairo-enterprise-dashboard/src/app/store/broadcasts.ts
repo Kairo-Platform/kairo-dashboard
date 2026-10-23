@@ -43,10 +43,15 @@ const organization = async () => {
 export const fetchBroadcastSchema = async () => {
   try {
     const orgId = await organization();
-    const schema = unwrapApiData<BroadcastSchema>(await broadcasts.schema(orgId));
-    if (getOrgId() === orgId) void broadcastsStore.set((s) => ({ ...s, schema }));
+    const schema = unwrapApiData<BroadcastSchema>(
+      await broadcasts.schema(orgId),
+    );
+    if (getOrgId() === orgId)
+      void broadcastsStore.set((s) => ({ ...s, schema }));
   } catch (error) {
-    showErrorNotification({ message: parseApiError(error, "Unable to load broadcast buttons.") });
+    showErrorNotification({
+      message: parseApiError(error, "Unable to load broadcast buttons."),
+    });
   }
 };
 

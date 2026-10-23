@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
+import { Icon } from "@iconify/react";
 import { useEntity } from "simpler-state";
 import {
   Button,
@@ -57,6 +58,30 @@ const CreateBroadcastModalContainer = styled.div`
   }
 `;
 
+const BroadcastButtonRow = styled.div<{ $columns: number }>`
+  display: grid;
+  grid-template-columns: repeat(${({ $columns }) => $columns}, minmax(0, 1fr));
+  gap: 0.75rem;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  padding-top: 1rem;
+  align-items: start;
+
+  > :not(.broadcast-button-remove) {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .broadcast-button-remove {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+`;
+
 type Props = { onClose: () => void; onSuccess?: () => void };
 
 export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
@@ -69,7 +94,8 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const request = useRef<{ signature: string; id: string } | null>(null);
-  const { users, loadingUsers, submitting, schema } = useEntity(broadcastsStore);
+  const { users, loadingUsers, submitting, schema } =
+    useEntity(broadcastsStore);
   const targeted =
     audience === "SELECTED" || audience === "ALL_EXCEPT_SELECTED";
 
@@ -85,13 +111,19 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
     return () => resetBroadcastUsers();
   }, []);
   const updateButton = (index: number, update: Partial<BackendButton>) =>
-    setButtons((previous) => previous.map((button, i) => i === index ? { ...button, ...update } : button));
-
+    setButtons((previous) =>
+      previous.map((button, i) =>
+        i === index ? { ...button, ...update } : button,
+      ),
+    );
 
   const options = [
     { label: "All users", value: "ALL" },
     { label: "Active users (onboarding completed)", value: "ACTIVE" },
-    { label: "Onboarded (business not activated)", value: "BUSINESS_NOT_ACTIVATED" },
+    {
+      label: "Onboarded (business not activated)",
+      value: "BUSINESS_NOT_ACTIVATED",
+    },
     { label: "Onboarded (business activated)", value: "BUSINESS_ACTIVATED" },
     { label: "Not onboarded (signup not completed)", value: "INACTIVE" },
     ...(users?.analytics.suspensionSupported
@@ -122,18 +154,50 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
       setError("Please select at least one user.");
       return;
     }
-    if (buttons.length && (!schema || buttons.some((button) => !button.label.trim() || !button.action ||
-      (schema.buttonActions.find((action) => action.value === button.action)?.payloadFields ?? [])
-        .some((field) => field.required && !button.payload?.[field.key]?.trim())))) {
-      setError("Please complete the button labels, actions and required fields.");
+    if (
+      buttons.length &&
+      (!schema ||
+        buttons.some(
+          (button) =>
+            !button.label.trim() ||
+            !button.action ||
+            (
+              schema.buttonActions.find(
+                (action) => action.value === button.action,
+              )?.payloadFields ?? []
+            ).some(
+              (field) => field.required && !button.payload?.[field.key]?.trim(),
+            ),
+        ))
+    ) {
+      setError(
+        "Please complete the button labels, actions and required fields.",
+      );
       return;
     }
-    if (buttons.length && `*${title.trim()}*\n\n${message.trim()}`.length > (schema?.maxInteractiveTextLength ?? 1024)) {
-      setError("Keep broadcasts with buttons within 1024 characters, including the title.");
+    if (
+      buttons.length &&
+      `*${title.trim()}*\n\n${message.trim()}`.length >
+        (schema?.maxInteractiveTextLength ?? 1024)
+    ) {
+      setError(
+        "Keep broadcasts with buttons within 1024 characters, including the title.",
+      );
       return;
     }
     if (buttons.some((button) => button.type === "URL") && buttons.length > 1) {
       setError("Use one link button or up to three reply buttons.");
+      return;
+    }
+    if (
+      buttons.some(
+        (button) =>
+          button.label.trim().length > (schema?.maxButtonLabelLength ?? 20),
+      )
+    ) {
+      setError(
+        `Keep button labels within ${schema?.maxButtonLabelLength ?? 20} characters.`,
+      );
       return;
     }
     const payload = {
@@ -141,7 +205,10 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
       message: message.trim(),
       audience,
       userIds: targeted ? [...selected].sort() : [],
-      buttons: buttons.map((button) => ({ ...button, label: button.label.trim() })),
+      buttons: buttons.map((button) => ({
+        ...button,
+        label: button.label.trim(),
+      })),
     };
     const signature = JSON.stringify(payload);
     if (request.current?.signature !== signature)
@@ -153,9 +220,11 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
         requestId: request.current.id,
       });
       showSuccessNotification({
-        message: audience === "BUSINESS_ACTIVATED" || audience === "BUSINESS_NOT_ACTIVATED"
-          ? "Broadcast queued. Business activation eligibility will be checked before delivery."
-          : `Broadcast queued for ${result.totalCount} user${result.totalCount === 1 ? "" : "s"}.`,
+        message:
+          audience === "BUSINESS_ACTIVATED" ||
+          audience === "BUSINESS_NOT_ACTIVATED"
+            ? "Broadcast queued. Business activation eligibility will be checked before delivery."
+            : `Broadcast queued for ${result.totalCount} user${result.totalCount === 1 ? "" : "s"}.`,
       });
       onSuccess?.();
       onClose();
@@ -197,32 +266,121 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
               <Flex direction="column" gap="0.75rem">
                 <h4>Buttons (optional)</h4>
                 {buttons.map((button, index) => (
-                  <Flex key={index} direction="column" gap="0.75rem">
+                  <BroadcastButtonRow
+                    key={index}
+                    $columns={
+                      2 +
+                      (schema?.buttonActions.find(
+                        (action) => action.value === button.action,
+                      )?.payloadFields?.length ?? 0)
+                    }
+                  >
                     <SelectInput
+                      style={{ width: "100%", maxWidth: "none", minWidth: 0 }}
                       label="Button action"
                       placeholder="Select an action"
                       value={button.action}
-                      options={(schema?.buttonActions ?? []).map((action) => ({ label: action.label, value: action.value }))}
+                      options={(schema?.buttonActions ?? []).map((action) => ({
+                        label: action.label,
+                        value: action.value,
+                      }))}
                       onChange={(value: string | { value: string }) => {
-                        const action = schema?.buttonActions.find((item) => item.value === (typeof value === "string" ? value : value.value));
-                        updateButton(index, { action: action?.value ?? "", type: action?.type ?? "REPLY", payload: {} });
+                        const action = schema?.buttonActions.find(
+                          (item) =>
+                            item.value ===
+                            (typeof value === "string" ? value : value.value),
+                        );
+                        const previousAction = schema?.buttonActions.find(
+                          (item) => item.value === button.action,
+                        );
+                        const useActionLabel =
+                          !button.label.trim() ||
+                          button.label === previousAction?.label;
+                        updateButton(index, {
+                          action: action?.value ?? "",
+                          label: useActionLabel
+                            ? (action?.label ?? "")
+                            : button.label,
+                          type: action?.type ?? "REPLY",
+                          payload: {},
+                        });
                       }}
                     />
-                    <FormInput label="Button label" value={button.label} maxLength={schema?.maxButtonLabelLength ?? 20}
-                      onChange={(event) => updateButton(index, { label: event.target.value })} />
-                    {(schema?.buttonActions.find((action) => action.value === button.action)?.payloadFields ?? []).map((field) => (
-                      <FormInput key={field.key} label={field.description ?? field.key} required={field.required}
-                        type={field.type === "URI" ? "url" : "text"} value={button.payload?.[field.key] ?? ""}
-                        onChange={(event) => updateButton(index, { payload: { ...button.payload, [field.key]: event.target.value } })} />
+                    <FormInput
+                      style={{
+                        width: "100%",
+                        maxWidth: "none",
+                        minWidth: 0,
+                        marginTop: "0.2rem",
+                      }}
+                      label="Button label"
+                      value={button.label}
+                      maxLength={schema?.maxButtonLabelLength ?? 20}
+                      onChange={(event) =>
+                        updateButton(index, { label: event.target.value })
+                      }
+                    />
+                    {(
+                      schema?.buttonActions.find(
+                        (action) => action.value === button.action,
+                      )?.payloadFields ?? []
+                    ).map((field) => (
+                      <FormInput
+                        key={field.key}
+                        style={{
+                          width: "100%",
+                          maxWidth: "none",
+                          minWidth: 0,
+                          marginTop: "0.2rem",
+                        }}
+                        label={field.description ?? field.key}
+                        required={field.required}
+                        type={field.type === "URI" ? "url" : "text"}
+                        value={button.payload?.[field.key] ?? ""}
+                        onChange={(event) =>
+                          updateButton(index, {
+                            payload: {
+                              ...button.payload,
+                              [field.key]: event.target.value,
+                            },
+                          })
+                        }
+                      />
                     ))}
-                    <Button classes={[ButtonClass.OUTLINED]} onClick={() => setButtons((previous) => previous.filter((_, i) => i !== index))}>
-                      Remove button
+                    <Button
+                      type="button"
+                      classes={[
+                        ButtonClass.ICON_ONLY,
+                        ButtonClass.OUTLINED_RED,
+                      ]}
+                      className="broadcast-button-remove"
+                      aria-label={`Remove button ${index + 1}`}
+                      title="Remove button"
+                      onClick={() =>
+                        setButtons((previous) =>
+                          previous.filter((_, i) => i !== index),
+                        )
+                      }
+                    >
+                      <Icon icon="ci:close-md" width={18} height={18} />
                     </Button>
-                  </Flex>
+                  </BroadcastButtonRow>
                 ))}
-                <Button classes={[ButtonClass.OUTLINED]}
-                  disabled={!schema || buttons.length >= schema.maxReplyButtons || buttons.some((button) => button.type === "URL")}
-                  onClick={() => setButtons((previous) => [...previous, { label: "", action: "", type: "REPLY", payload: {} }])}>
+                <Button
+                  classes={[ButtonClass.OUTLINED]}
+                  disabled={
+                    !schema ||
+                    buttons.length >= schema.maxReplyButtons ||
+                    buttons.some((button) => button.type === "URL")
+                  }
+                  onClick={() =>
+                    setButtons((previous) => [
+                      ...previous,
+                      { label: "", action: "", type: "REPLY", payload: {} },
+                    ])
+                  }
+                  style={{ height: "2rem" }}
+                >
                   Add button
                 </Button>
               </Flex>
