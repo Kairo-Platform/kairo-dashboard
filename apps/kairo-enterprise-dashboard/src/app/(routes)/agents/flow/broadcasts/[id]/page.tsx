@@ -89,6 +89,13 @@ export default function BroadcastDetailsPage() {
               <BroadcastStatusTag status={details.broadcast.status} />
             </Flex>
             <p className="message">{details.message}</p>
+            {!!details.buttons?.length && (
+              <Flex gap="0.75rem" wrap="wrap" style={{ marginBottom: "1rem" }}>
+                {details.buttons.map((button) => (
+                  <span key={button.action}>{button.label}</span>
+                ))}
+              </Flex>
+            )}
             <Flex gap="1.5rem" wrap="wrap" className="meta">
               <span>{broadcastAudienceLabel(details.broadcast.audience)}</span>
               <span>{details.broadcast.totalCount} recipients</span>

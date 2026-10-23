@@ -18,14 +18,17 @@ import {
   FormInput,
   FormTextarea,
   RadioInput,
+  SelectInput,
 } from "@kairo/ui/inputs";
 import { showSuccessNotification } from "@kairo/utils";
 import {
   broadcastsStore,
   createBroadcast,
   fetchBroadcastUsers,
+  fetchBroadcastSchema,
   resetBroadcastUsers,
 } from "@/app/store/broadcasts";
+import type { BackendButton } from "@/services/Flow";
 import type { BroadcastAudience } from "@/services/Broadcasts";
 
 const CreateBroadcastModalContainer = styled.div`
@@ -57,6 +60,7 @@ const CreateBroadcastModalContainer = styled.div`
 type Props = { onClose: () => void; onSuccess?: () => void };
 
 export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
+  const [buttons, setButtons] = useState<BackendButton[]>([]);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState<BroadcastAudience>("ALL");
@@ -65,7 +69,7 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const request = useRef<{ signature: string; id: string } | null>(null);
-  const { users, loadingUsers, submitting } = useEntity(broadcastsStore);
+  const { users, loadingUsers, submitting, schema } = useEntity(broadcastsStore);
   const targeted =
     audience === "SELECTED" || audience === "ALL_EXCEPT_SELECTED";
 
@@ -76,11 +80,19 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
     );
     return () => clearTimeout(timer);
   }, [page, search]);
-  useEffect(() => () => resetBroadcastUsers(), []);
+  useEffect(() => {
+    void fetchBroadcastSchema();
+    return () => resetBroadcastUsers();
+  }, []);
+  const updateButton = (index: number, update: Partial<BackendButton>) =>
+    setButtons((previous) => previous.map((button, i) => i === index ? { ...button, ...update } : button));
+
 
   const options = [
     { label: "All users", value: "ALL" },
     { label: "Active users (onboarding completed)", value: "ACTIVE" },
+    { label: "Onboarded (business not activated)", value: "BUSINESS_NOT_ACTIVATED" },
+    { label: "Onboarded (business activated)", value: "BUSINESS_ACTIVATED" },
     { label: "Not onboarded (signup not completed)", value: "INACTIVE" },
     ...(users?.analytics.suspensionSupported
       ? [{ label: "Suspended users", value: "SUSPENDED" }]
@@ -110,11 +122,26 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
       setError("Please select at least one user.");
       return;
     }
+    if (buttons.length && (!schema || buttons.some((button) => !button.label.trim() || !button.action ||
+      (schema.buttonActions.find((action) => action.value === button.action)?.payloadFields ?? [])
+        .some((field) => field.required && !button.payload?.[field.key]?.trim())))) {
+      setError("Please complete the button labels, actions and required fields.");
+      return;
+    }
+    if (buttons.length && `*${title.trim()}*\n\n${message.trim()}`.length > (schema?.maxInteractiveTextLength ?? 1024)) {
+      setError("Keep broadcasts with buttons within 1024 characters, including the title.");
+      return;
+    }
+    if (buttons.some((button) => button.type === "URL") && buttons.length > 1) {
+      setError("Use one link button or up to three reply buttons.");
+      return;
+    }
     const payload = {
       title: title.trim(),
       message: message.trim(),
       audience,
       userIds: targeted ? [...selected].sort() : [],
+      buttons: buttons.map((button) => ({ ...button, label: button.label.trim() })),
     };
     const signature = JSON.stringify(payload);
     if (request.current?.signature !== signature)
@@ -126,7 +153,9 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
         requestId: request.current.id,
       });
       showSuccessNotification({
-        message: `Broadcast queued for ${result.totalCount} user${result.totalCount === 1 ? "" : "s"}.`,
+        message: audience === "BUSINESS_ACTIVATED" || audience === "BUSINESS_NOT_ACTIVATED"
+          ? "Broadcast queued. Business activation eligibility will be checked before delivery."
+          : `Broadcast queued for ${result.totalCount} user${result.totalCount === 1 ? "" : "s"}.`,
       });
       onSuccess?.();
       onClose();
@@ -165,6 +194,38 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
                 required
                 onChange={(event) => setMessage(event.target.value)}
               />
+              <Flex direction="column" gap="0.75rem">
+                <h4>Buttons (optional)</h4>
+                {buttons.map((button, index) => (
+                  <Flex key={index} direction="column" gap="0.75rem">
+                    <SelectInput
+                      label="Button action"
+                      placeholder="Select an action"
+                      value={button.action}
+                      options={(schema?.buttonActions ?? []).map((action) => ({ label: action.label, value: action.value }))}
+                      onChange={(value: string | { value: string }) => {
+                        const action = schema?.buttonActions.find((item) => item.value === (typeof value === "string" ? value : value.value));
+                        updateButton(index, { action: action?.value ?? "", type: action?.type ?? "REPLY", payload: {} });
+                      }}
+                    />
+                    <FormInput label="Button label" value={button.label} maxLength={schema?.maxButtonLabelLength ?? 20}
+                      onChange={(event) => updateButton(index, { label: event.target.value })} />
+                    {(schema?.buttonActions.find((action) => action.value === button.action)?.payloadFields ?? []).map((field) => (
+                      <FormInput key={field.key} label={field.description ?? field.key} required={field.required}
+                        type={field.type === "URI" ? "url" : "text"} value={button.payload?.[field.key] ?? ""}
+                        onChange={(event) => updateButton(index, { payload: { ...button.payload, [field.key]: event.target.value } })} />
+                    ))}
+                    <Button classes={[ButtonClass.OUTLINED]} onClick={() => setButtons((previous) => previous.filter((_, i) => i !== index))}>
+                      Remove button
+                    </Button>
+                  </Flex>
+                ))}
+                <Button classes={[ButtonClass.OUTLINED]}
+                  disabled={!schema || buttons.length >= schema.maxReplyButtons || buttons.some((button) => button.type === "URL")}
+                  onClick={() => setButtons((previous) => [...previous, { label: "", action: "", type: "REPLY", payload: {} }])}>
+                  Add button
+                </Button>
+              </Flex>
               <Flex direction="column" gap="0.75rem">
                 <h4>Choose recipients</h4>
                 <RadioInput

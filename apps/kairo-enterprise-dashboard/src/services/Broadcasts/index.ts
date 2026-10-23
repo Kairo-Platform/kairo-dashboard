@@ -1,8 +1,11 @@
+import type { BackendButton, BackendButtonAction } from "@/services/Flow";
 import { xApiBff } from "@/lib/bff/client";
 
 export type BroadcastAudience =
   | "ALL"
   | "ACTIVE"
+  | "BUSINESS_ACTIVATED"
+  | "BUSINESS_NOT_ACTIVATED"
   | "INACTIVE"
   | "SUSPENDED"
   | "SELECTED"
@@ -13,6 +16,7 @@ export interface BroadcastRequest {
   message: string;
   audience: BroadcastAudience;
   userIds: string[];
+  buttons?: BackendButton[];
 }
 export interface BroadcastSummary {
   id: string;
@@ -49,9 +53,17 @@ export interface BroadcastPage<T> {
   limit: number;
   totalCount: number;
 }
+export interface BroadcastSchema {
+  buttonActions: BackendButtonAction[];
+  maxReplyButtons: number;
+  maxUrlButtons: number;
+  maxButtonLabelLength: number;
+  maxInteractiveTextLength: number;
+}
 export interface BroadcastDetails {
   broadcast: BroadcastSummary;
   message: string;
+  buttons: BackendButton[];
 }
 export interface BroadcastRecipient {
   id: string;
@@ -69,6 +81,9 @@ const queryParams = (query: BroadcastQuery) =>
     ),
   );
 export const broadcasts = {
+  schema: (orgId: string) => xApiBff.request<BroadcastSchema>(
+    `v1/orgs/${encodeURIComponent(orgId)}/flow/broadcasts/schema`,
+  ),
   list: (orgId: string, query: BroadcastQuery) =>
     xApiBff.request<BroadcastPage<BroadcastSummary>>(
       `v1/orgs/${encodeURIComponent(orgId)}/flow/broadcasts`,

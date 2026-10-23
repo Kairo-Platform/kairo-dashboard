@@ -22,6 +22,8 @@ export const broadcastAudienceLabel = (audience: string) =>
   ({
     ALL: "All users",
     ACTIVE: "Active users",
+    BUSINESS_ACTIVATED: "Onboarded (business activated)",
+    BUSINESS_NOT_ACTIVATED: "Onboarded (business not activated)",
     INACTIVE: "Not onboarded",
     SUSPENDED: "Suspended users",
     SELECTED: "Selected users",
@@ -51,6 +53,8 @@ const reasonLabel = (reason: string | null) => {
     DELIVERY_DEADLINE: "Delivery deadline passed",
     SEND_OUTCOME_UNKNOWN: "Send outcome could not be confirmed",
     CHANNEL_UNAVAILABLE: "Channel unavailable",
+    AUDIENCE_NOT_MATCHED: "Does not match the activation audience",
+    ACTIVATION_STATUS_UNAVAILABLE: "Waiting for business activation status",
     DELIVERY_UNAVAILABLE: "Delivery temporarily unavailable",
     WORKFLOW_STATE_UNAVAILABLE: "Waiting for conversation state",
     USER_UNAVAILABLE: "User unavailable",
