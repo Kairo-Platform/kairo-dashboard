@@ -1,5 +1,6 @@
 "use client";
 
+import { SEARCH_DEBOUNCE_MS } from "@/lib/constants/SEARCH_DEBOUNCE_MS";
 import styled from "styled-components";
 import { FC, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -83,7 +84,10 @@ const UserFiltersForm: FC = () => {
     else params.delete("search");
 
     if (filterStartDate) {
-      const formattedStart = formatDate(new Date(filterStartDate), "YYYY-MM-DD");
+      const formattedStart = formatDate(
+        new Date(filterStartDate),
+        "YYYY-MM-DD",
+      );
       params.set("startDate", String(formattedStart));
     } else {
       params.delete("startDate");
@@ -122,7 +126,7 @@ const UserFiltersForm: FC = () => {
   useEffect(() => {
     const handler = setTimeout(() => {
       setSearch(searchInput);
-    }, 400);
+    }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handler);
   }, [searchInput]);
 
