@@ -1,5 +1,6 @@
 "use client";
 
+import { SEARCH_DEBOUNCE_MS } from "@/lib/constants/SEARCH_DEBOUNCE_MS";
 import styled from "styled-components";
 import { FC, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -118,7 +119,7 @@ export const StaffTableFilters: FC = () => {
   useEffect(() => {
     const handler = setTimeout(() => {
       setSearch(searchInput);
-    }, 400);
+    }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handler);
   }, [searchInput]);
 

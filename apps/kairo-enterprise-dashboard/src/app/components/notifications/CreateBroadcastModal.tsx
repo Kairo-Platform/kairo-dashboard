@@ -1,5 +1,6 @@
 "use client";
 
+import { SEARCH_DEBOUNCE_MS } from "@/lib/constants/SEARCH_DEBOUNCE_MS";
 import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { Icon } from "@iconify/react";
@@ -91,6 +92,7 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
   const [audience, setAudience] = useState<BroadcastAudience>("ALL");
   const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const lastRequestedSearch = useRef("");
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const request = useRef<{ signature: string; id: string } | null>(null);
@@ -100,9 +102,13 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
     audience === "SELECTED" || audience === "ALL_EXCEPT_SELECTED";
 
   useEffect(() => {
+    const query = search.trim();
     const timer = setTimeout(
-      () => void fetchBroadcastUsers(page, search.trim()),
-      300,
+      () => {
+        lastRequestedSearch.current = query;
+        void fetchBroadcastUsers(page, query);
+      },
+      query === lastRequestedSearch.current ? 0 : SEARCH_DEBOUNCE_MS,
     );
     return () => clearTimeout(timer);
   }, [page, search]);

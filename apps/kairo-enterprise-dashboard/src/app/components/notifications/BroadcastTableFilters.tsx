@@ -1,5 +1,6 @@
 "use client";
 
+import { SEARCH_DEBOUNCE_MS } from "@/lib/constants/SEARCH_DEBOUNCE_MS";
 import styled from "styled-components";
 import { FC, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -155,7 +156,7 @@ const BroadcastFiltersForm: FC<{ recipients: boolean }> = ({ recipients }) => {
   useEffect(() => {
     const handler = setTimeout(() => {
       setSearch(searchInput);
-    }, 400);
+    }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handler);
   }, [searchInput]);
 
