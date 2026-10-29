@@ -1,6 +1,8 @@
 import type { ConversationDetail } from "@/services/Analytics/types";
 import { xApiBff } from "@/lib/bff/client";
 import type {
+  FlowKnowledgeBase,
+  FlowKnowledgeNote,
   ConversationControl,
   AdminMessageRequest,
   AdminMessageResult,
@@ -102,6 +104,33 @@ export const flow = {
     xApiBff.request<BackendSettings>(
       `${FLOW_BASE(orgId)}/agents/flow/settings`,
       { method: "PATCH", body },
+    ),
+
+  addKnowledgeNote: (orgId: string, body: FlowKnowledgeNote) =>
+    xApiBff.request<FlowKnowledgeBase>(
+      `${FLOW_BASE(orgId)}/agents/flow/settings/knowledge/notes`,
+      { method: "POST", body },
+    ),
+
+  editKnowledgeNote: (orgId: string, itemId: string, body: FlowKnowledgeNote) =>
+    xApiBff.request<FlowKnowledgeBase>(
+      `${FLOW_BASE(orgId)}/agents/flow/settings/knowledge/notes/${encodeURIComponent(itemId)}`,
+      { method: "PUT", body },
+    ),
+
+  uploadKnowledgeFile: (orgId: string, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return xApiBff.request<FlowKnowledgeBase>(
+      `${FLOW_BASE(orgId)}/agents/flow/settings/knowledge/files`,
+      { method: "POST", body },
+    );
+  },
+
+  deleteKnowledge: (orgId: string, itemId: string) =>
+    xApiBff.request<FlowKnowledgeBase>(
+      `${FLOW_BASE(orgId)}/agents/flow/settings/knowledge/${encodeURIComponent(itemId)}`,
+      { method: "DELETE" },
     ),
 
   saveConversationType: (
