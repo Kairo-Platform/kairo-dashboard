@@ -308,3 +308,21 @@ export type SettingsUpdate<T> = {
       ? SettingsUpdate<T[K]>
       : T[K];
 };
+
+export interface FlowKnowledgeItem {
+  id: string;
+  name: string;
+  type: "NOTE" | "FILE";
+  content: string;
+  mimeType?: string;
+  dateAdded: string;
+}
+
+export interface FlowKnowledgeBase {
+  items: FlowKnowledgeItem[];
+}
+
+export interface FlowKnowledgeNote {
+  title: string;
+  content: string;
+}

@@ -32,6 +32,7 @@ import {
   responseStyleToBackend,
   toSelectOptions,
   type BackendSettings,
+  type FlowKnowledgeBase,
   type BackendSchemaField,
 } from "@/services/Flow";
 import {
@@ -39,6 +40,10 @@ import {
   fetchFlowSettings,
   flowStore,
   saveFlowSettings,
+  addFlowKnowledgeNote,
+  editFlowKnowledgeNote,
+  uploadFlowKnowledgeFile,
+  deleteFlowKnowledge,
 } from "@/app/store/flow";
 import { showErrorNotification, showSuccessNotification } from "@kairo/utils";
 import { useEntity } from "simpler-state";
@@ -508,7 +513,7 @@ function fromBackendGeneral(
 }
 
 function fromBackendKnowledgeItems(
-  general: BackendSettings["general"],
+  general: Pick<BackendSettings["general"], "knowledgeBase">,
 ): KnowledgeItem[] {
   const items = general.knowledgeBase?.items;
   if (!Array.isArray(items)) return [];
@@ -540,8 +545,13 @@ function fromBackendKnowledgeItems(
           : crypto.randomUUID(),
       type,
       name,
-      subtitle,
-      dateAdded,
+      subtitle:
+        type === "file" && !content?.trim()
+          ? "Upload again to make this file available"
+          : subtitle,
+      dateAdded: Number.isNaN(Date.parse(dateAdded))
+        ? dateAdded
+        : formatKnowledgeDate(new Date(dateAdded)),
       content,
     };
   });
@@ -549,8 +559,7 @@ function fromBackendKnowledgeItems(
 
 function toBackendGeneral(
   s: EditableSettingsState,
-  knowledgeItems: KnowledgeItem[],
-): BackendSettings["general"] {
+): Omit<BackendSettings["general"], "knowledgeBase"> {
   const DEFAULT_MEM = {
     rememberOnboardingProgress: false,
     rememberPreferredLanguage: false,
@@ -605,15 +614,6 @@ function toBackendGeneral(
       requireApprovalFor: s.requireApproval,
       responseRestrictions: s.responseRestrictions,
       behaviorDetection: s.behaviorDetection,
-    },
-    knowledgeBase: {
-      items: knowledgeItems.map((item) => ({
-        id: item.id,
-        type: item.type.toUpperCase(),
-        name: item.name,
-        dateAdded: item.dateAdded,
-        content: item.content ?? "",
-      })),
     },
   };
 }
@@ -783,10 +783,11 @@ export const FlowGeneralSettings = ({
     }),
   );
 
+  const [isSavingKnowledge, setIsSavingKnowledge] = useState(false);
+  const knowledgeBusyRef = useRef(false);
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItem[]>([]);
-  const [savedKnowledgeItems, setSavedKnowledgeItems] = useState<
-    KnowledgeItem[]
-  >([]);
+  const [viewKnowledgeItem, setViewKnowledgeItem] =
+    useState<KnowledgeItem | null>(null);
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
   const [showEditNoteModal, setShowEditNoteModal] = useState(false);
   const [showDeleteKnowledgeModal, setShowDeleteKnowledgeModal] =
@@ -864,7 +865,6 @@ export const FlowGeneralSettings = ({
       behaviorDetection: [...mapped.behaviorDetection],
     });
     setKnowledgeItems(mappedKnowledgeItems);
-    setSavedKnowledgeItems(mappedKnowledgeItems.map((item) => ({ ...item })));
   }, [flowSettings, isBootstrapping]);
 
   const activeMeta = useMemo(
@@ -1139,8 +1139,8 @@ export const FlowGeneralSettings = ({
     setIsSaving(true);
 
     try {
-      const before = toBackendGeneral(savedSettings, savedKnowledgeItems);
-      const after = toBackendGeneral(snapshot, savedKnowledgeItems);
+      const before = toBackendGeneral(savedSettings);
+      const after = toBackendGeneral(snapshot);
       await saveFlowSettings({ general: changedFlowSettings(before, after) });
       setSavedSettings(snapshot);
       showSuccessNotification({ message: "Settings saved" });
@@ -1153,77 +1153,59 @@ export const FlowGeneralSettings = ({
     }
   };
 
-  const persistKnowledgeItems = async (
-    nextItems: KnowledgeItem[],
+  const persistKnowledge = async (
+    request: () => Promise<FlowKnowledgeBase>,
     successMessage: string,
+    onSuccess?: () => void,
   ) => {
-    const previousItems = savedKnowledgeItems.map((item) => ({ ...item }));
-    setKnowledgeItems(nextItems);
-
+    if (knowledgeBusyRef.current) return;
+    knowledgeBusyRef.current = true;
     const orgId = getOrgId();
-    if (!orgId) {
-      setKnowledgeItems(previousItems);
-      showErrorNotification({ message: "Organization not found" });
-      return;
-    }
-
+    setIsSavingKnowledge(true);
     try {
-      await saveFlowSettings({
-        general: {
-          knowledgeBase: toBackendGeneral(savedSettings, nextItems)
-            .knowledgeBase,
-        },
-      });
-      setSavedKnowledgeItems(nextItems.map((item) => ({ ...item })));
+      const knowledgeBase = await request();
+      if (orgId !== getOrgId()) return;
+      const items = fromBackendKnowledgeItems({ knowledgeBase });
+      setKnowledgeItems(items);
+      onSuccess?.();
       showSuccessNotification({ message: successMessage });
     } catch (error) {
-      setKnowledgeItems(previousItems);
       showErrorNotification({
         message: parseApiError(error, "Failed to save knowledge"),
       });
+    } finally {
+      knowledgeBusyRef.current = false;
+      setIsSavingKnowledge(false);
     }
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-
-    const extension = file.name.split(".").pop()?.toUpperCase() ?? "FILE";
-    const name = file.name.replace(/\.[^/.]+$/, "");
-    const nextItems = [
-      ...knowledgeItems,
-      {
-        id: crypto.randomUUID(),
-        type: "file" as const,
-        name,
-        subtitle: extension,
-        dateAdded: formatKnowledgeDate(new Date()),
-      },
-    ];
-
-    void persistKnowledgeItems(nextItems, "Knowledge file added");
     event.target.value = "";
+    if (!file || knowledgeBusyRef.current) return;
+    if (file.size > 10 * 1024 * 1024) {
+      showErrorNotification({
+        message: "Knowledge files must be 10 MB or smaller",
+      });
+      return;
+    }
+    void persistKnowledge(
+      () => uploadFlowKnowledgeFile(file),
+      "Knowledge file added",
+    );
   };
 
   const handleAddNote = () => {
-    if (!noteTitle.trim()) return;
-
-    const nextItems = [
-      ...knowledgeItems,
-      {
-        id: crypto.randomUUID(),
-        type: "note" as const,
-        name: noteTitle.trim(),
-        subtitle: "Note",
-        dateAdded: formatKnowledgeDate(new Date()),
-        content: noteContent,
-      },
-    ];
-
-    setNoteTitle("");
-    setNoteContent("");
-    setShowAddNoteModal(false);
-    void persistKnowledgeItems(nextItems, "Note added");
+    if (!noteTitle.trim() || !noteContent.trim()) return;
+    void persistKnowledge(
+      () =>
+        addFlowKnowledgeNote({
+          title: noteTitle.trim(),
+          content: noteContent.trim(),
+        }),
+      "Note added",
+      closeAddNoteModal,
+    );
   };
 
   const closeAddNoteModal = () => {
@@ -1248,20 +1230,21 @@ export const FlowGeneralSettings = ({
   };
 
   const handleEditNote = () => {
-    if (!selectedKnowledgeItem || !editNoteTitle.trim()) return;
-
-    const nextItems = knowledgeItems.map((item) =>
-      item.id === selectedKnowledgeItem.id
-        ? {
-            ...item,
-            name: editNoteTitle.trim(),
-            content: editNoteContent,
-          }
-        : item,
+    if (
+      !selectedKnowledgeItem ||
+      !editNoteTitle.trim() ||
+      !editNoteContent.trim()
+    )
+      return;
+    void persistKnowledge(
+      () =>
+        editFlowKnowledgeNote(selectedKnowledgeItem.id, {
+          title: editNoteTitle.trim(),
+          content: editNoteContent.trim(),
+        }),
+      "Note updated",
+      closeEditNoteModal,
     );
-
-    closeEditNoteModal();
-    void persistKnowledgeItems(nextItems, "Note updated");
   };
 
   const openDeleteKnowledgeModal = (item: KnowledgeItem) => {
@@ -1274,13 +1257,13 @@ export const FlowGeneralSettings = ({
     setShowDeleteKnowledgeModal(false);
   };
 
-  const handleDeleteKnowledge = () => {
+  const handleDeleteKnowledge = async () => {
     if (!selectedKnowledgeItem) return;
-    const nextItems = knowledgeItems.filter(
-      (item) => item.id !== selectedKnowledgeItem.id,
+    await persistKnowledge(
+      () => deleteFlowKnowledge(selectedKnowledgeItem.id),
+      "Knowledge deleted",
+      closeDeleteKnowledgeModal,
     );
-    closeDeleteKnowledgeModal();
-    void persistKnowledgeItems(nextItems, "Knowledge deleted");
   };
 
   return (
@@ -1341,33 +1324,40 @@ export const FlowGeneralSettings = ({
                 <ActionMenu
                   positions={["bottom", "left"]}
                   actionItemWidth="13.6875rem"
-                  children={
-                    <Button
-                      classes={[ButtonClass.OUTLINED, ButtonClass.WITH_ICON]}
-                      style={{ height: "2.5rem" }}
-                    >
-                      Add
-                      <Icon
-                        icon="iconamoon:arrow-down-2-light"
-                        width={20}
-                        height={20}
-                      />
-                    </Button>
-                  }
                   actions={[
                     {
                       title: "Upload",
-                      onClick: () => fileInputRef.current?.click(),
+                      onClick: () => {
+                        if (!knowledgeBusyRef.current)
+                          fileInputRef.current?.click();
+                      },
                     },
                     {
                       title: "Add note",
-                      onClick: () => setShowAddNoteModal(true),
+                      onClick: () => {
+                        if (!knowledgeBusyRef.current)
+                          setShowAddNoteModal(true);
+                      },
                     },
                   ]}
-                />
+                >
+                  <Button
+                    classes={[ButtonClass.OUTLINED, ButtonClass.WITH_ICON]}
+                    style={{ height: "2.5rem" }}
+                  >
+                    {isSavingKnowledge ? "Saving..." : "Add"}
+                    <Icon
+                      icon="iconamoon:arrow-down-2-light"
+                      width={20}
+                      height={20}
+                    />
+                  </Button>
+                </ActionMenu>
                 <input
                   ref={fileInputRef}
                   type="file"
+                  accept=".pdf,.doc,.docx,.txt,.md,.csv,.xlsx"
+                  disabled={isSavingKnowledge}
                   hidden
                   onChange={handleFileUpload}
                 />
@@ -1548,6 +1538,12 @@ export const FlowGeneralSettings = ({
               </>
             )}
 
+            {activeSection === "knowledge" && (
+              <p className="FlowGeneralSettings__panelHeader-description">
+                PDF, Word, TXT, Markdown, CSV or XLSX. Up to 10 MB per file.
+                Scanned documents need selectable text.
+              </p>
+            )}
             {activeSection === "knowledge" &&
               (knowledgeItems.length === 0 ? (
                 <EmptyState
@@ -1605,31 +1601,40 @@ export const FlowGeneralSettings = ({
                           <ActionMenu
                             positions={["bottom", "left"]}
                             actionItemWidth="13.6875rem"
-                            children={
-                              <Button
-                                classes={[ButtonClass.ICON_ONLY]}
-                                style={{ height: "2.5rem" }}
-                              >
-                                <Icon
-                                  icon="pepicons-pencil:dots-y"
-                                  width={20}
-                                  height={20}
-                                />
-                              </Button>
-                            }
                             actions={[
+                              {
+                                title: "View content",
+                                onClick: () => setViewKnowledgeItem(item),
+                              },
                               {
                                 title: "Edit",
                                 hidden: item.type === "file",
-                                onClick: () => openEditNoteModal(item),
+                                onClick: () => {
+                                  if (!knowledgeBusyRef.current)
+                                    openEditNoteModal(item);
+                                },
                               },
                               {
                                 title: "Delete",
                                 classes: "delete-action",
-                                onClick: () => openDeleteKnowledgeModal(item),
+                                onClick: () => {
+                                  if (!knowledgeBusyRef.current)
+                                    openDeleteKnowledgeModal(item);
+                                },
                               },
                             ]}
-                          />
+                          >
+                            <Button
+                              classes={[ButtonClass.ICON_ONLY]}
+                              style={{ height: "2.5rem" }}
+                            >
+                              <Icon
+                                icon="pepicons-pencil:dots-y"
+                                width={20}
+                                height={20}
+                              />
+                            </Button>
+                          </ActionMenu>
                         </Flex>
                       </div>
                     ))}
@@ -1638,12 +1643,38 @@ export const FlowGeneralSettings = ({
               ))}
           </section>
 
+          {viewKnowledgeItem && (
+            <Modal
+              title={viewKnowledgeItem.name}
+              onClose={() => setViewKnowledgeItem(null)}
+            >
+              <div
+                style={{
+                  whiteSpace: "pre-wrap",
+                  overflowWrap: "anywhere",
+                  maxHeight: "60vh",
+                  overflowY: "auto",
+                }}
+              >
+                {viewKnowledgeItem.content?.trim() ||
+                  "This file has no saved content. Delete it and upload it again."}
+              </div>
+            </Modal>
+          )}
+
           {showAddNoteModal && (
-            <Modal title="Add note" onClose={closeAddNoteModal}>
+            <Modal
+              title="Add note"
+              onClose={() => {
+                if (!knowledgeBusyRef.current) closeAddNoteModal();
+              }}
+            >
               <Flex direction="column" gap="1.5rem">
                 <FormInput
                   label="Title"
                   name="noteTitle"
+                  disabled={isSavingKnowledge}
+                  maxLength={200}
                   value={noteTitle}
                   onChange={(e) => setNoteTitle(e.target.value)}
                   placeholder="Enter title"
@@ -1651,6 +1682,8 @@ export const FlowGeneralSettings = ({
                 <FormTextarea
                   label="Note"
                   name="noteContent"
+                  disabled={isSavingKnowledge}
+                  maxLength={100000}
                   value={noteContent}
                   onChange={(e) => setNoteContent(e.target.value)}
                   placeholder="Write something here....."
@@ -1666,6 +1699,7 @@ export const FlowGeneralSettings = ({
                     size={ButtonSize.WIDTH_140}
                     type="button"
                     onClick={closeAddNoteModal}
+                    disabled={isSavingKnowledge}
                   >
                     Cancel
                   </Button>
@@ -1674,7 +1708,12 @@ export const FlowGeneralSettings = ({
                     size={ButtonSize.WIDTH_140}
                     type="button"
                     onClick={handleAddNote}
-                    disabled={!noteTitle.trim()}
+                    disabled={
+                      isSavingKnowledge ||
+                      !noteTitle.trim() ||
+                      !noteContent.trim()
+                    }
+                    loading={isSavingKnowledge}
                   >
                     Add
                   </Button>
@@ -1684,11 +1723,18 @@ export const FlowGeneralSettings = ({
           )}
 
           {showEditNoteModal && selectedKnowledgeItem && (
-            <Modal title="Edit note" onClose={closeEditNoteModal}>
+            <Modal
+              title="Edit note"
+              onClose={() => {
+                if (!knowledgeBusyRef.current) closeEditNoteModal();
+              }}
+            >
               <Flex direction="column" gap="1.5rem">
                 <FormInput
                   label="Title"
                   name="editNoteTitle"
+                  disabled={isSavingKnowledge}
+                  maxLength={200}
                   value={editNoteTitle}
                   onChange={(e) => setEditNoteTitle(e.target.value)}
                   placeholder="Enter title"
@@ -1696,6 +1742,8 @@ export const FlowGeneralSettings = ({
                 <FormTextarea
                   label="Note"
                   name="editNoteContent"
+                  disabled={isSavingKnowledge}
+                  maxLength={100000}
                   value={editNoteContent}
                   onChange={(e) => setEditNoteContent(e.target.value)}
                   placeholder="Write something here....."
@@ -1711,6 +1759,7 @@ export const FlowGeneralSettings = ({
                     size={ButtonSize.WIDTH_140}
                     type="button"
                     onClick={closeEditNoteModal}
+                    disabled={isSavingKnowledge}
                   >
                     Cancel
                   </Button>
@@ -1719,7 +1768,12 @@ export const FlowGeneralSettings = ({
                     size={ButtonSize.WIDTH_140}
                     type="button"
                     onClick={handleEditNote}
-                    disabled={!editNoteTitle.trim()}
+                    disabled={
+                      isSavingKnowledge ||
+                      !editNoteTitle.trim() ||
+                      !editNoteContent.trim()
+                    }
+                    loading={isSavingKnowledge}
                   >
                     Save
                   </Button>
@@ -1734,9 +1788,15 @@ export const FlowGeneralSettings = ({
               confirmButtonText="Delete"
               cancelButtonText="Cancel"
               confirmButtonClasses={[ButtonClass.SOLID_RED]}
-              onClose={closeDeleteKnowledgeModal}
-              onCancel={closeDeleteKnowledgeModal}
+              onClose={() => {
+                if (!knowledgeBusyRef.current) closeDeleteKnowledgeModal();
+              }}
+              onCancel={() => {
+                if (!knowledgeBusyRef.current) closeDeleteKnowledgeModal();
+              }}
               onConfirm={handleDeleteKnowledge}
+              confirming={isSavingKnowledge}
+              closeOnConfirm={false}
             >
               <p style={{ textAlign: "center", margin: 0 }}>
                 Are you sure you want to delete{" "}

@@ -6,6 +6,8 @@ import { flow } from "@/services/Flow";
 import type { ConversationDetail } from "@/services/Analytics/types";
 import { getOrgId, hydrateSession } from "@/lib/auth/client";
 import type {
+  FlowKnowledgeBase,
+  FlowKnowledgeNote,
   FlowConversationsQuery,
   FlowConversationsResponse,
   BackendChannel,
@@ -409,3 +411,46 @@ export const saveFlowSettings = async (
   if (getOrgId() === orgId) setFlowSettings(settings);
   return settings;
 };
+
+// Knowledge mutations update only this section, preserving other settings in the store.
+const mutateFlowKnowledge = async (
+  request: (orgId: string) => Promise<FlowKnowledgeBase>,
+) => {
+  const orgId = getOrgId();
+  if (!orgId) throw new Error("Organization not found");
+  const response = await request(orgId);
+  if (hasApiError(response)) throw response;
+  const knowledge = unwrapApiData<FlowKnowledgeBase>(response);
+  if (!Array.isArray(knowledge?.items)) {
+    throw new Error(
+      "The knowledge response was incomplete. Please reload and check your changes.",
+    );
+  }
+  if (getOrgId() === orgId) {
+    flowStore.set((state) => ({
+      ...state,
+      flowSettings: state.flowSettings
+        ? {
+            ...state.flowSettings,
+            general: {
+              ...state.flowSettings.general,
+              knowledgeBase: knowledge,
+            },
+          }
+        : null,
+    }));
+  }
+  return knowledge;
+};
+
+export const addFlowKnowledgeNote = (note: FlowKnowledgeNote) =>
+  mutateFlowKnowledge((orgId) => flow.addKnowledgeNote(orgId, note));
+export const editFlowKnowledgeNote = (
+  itemId: string,
+  note: FlowKnowledgeNote,
+) =>
+  mutateFlowKnowledge((orgId) => flow.editKnowledgeNote(orgId, itemId, note));
+export const uploadFlowKnowledgeFile = (file: File) =>
+  mutateFlowKnowledge((orgId) => flow.uploadKnowledgeFile(orgId, file));
+export const deleteFlowKnowledge = (itemId: string) =>
+  mutateFlowKnowledge((orgId) => flow.deleteKnowledge(orgId, itemId));
