@@ -5,6 +5,7 @@ import {
   Button,
   ButtonClass,
   ButtonSize,
+  ConfirmationModal,
   Flex,
   InitialsAvatar,
   Loading,
@@ -36,6 +37,7 @@ import {
 } from "@/services/Flow";
 import {
   createFlowConversation,
+  deleteFlowConversation,
   fetchFlowSchema,
   fetchFlowSettings,
   fetchFlowVariables,
@@ -160,6 +162,35 @@ const FlowConversationSettingsContainer = styled.div`
       border-bottom: 1px solid ${({ theme }) => theme.colors.gray_02};
       padding-bottom: 1rem;
       margin-bottom: 1rem;
+    }
+  }
+
+  .FlowConversationSettings__navRow {
+    position: relative;
+
+    &.is-custom .FlowConversationSettings__navItem {
+      padding-right: 2.75rem;
+    }
+
+    .FlowConversationSettings__deleteConversation {
+      position: absolute;
+      top: 0.25rem;
+      right: 0.25rem;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    &:hover .FlowConversationSettings__deleteConversation,
+    &:focus-within .FlowConversationSettings__deleteConversation {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    @media (hover: none) {
+      .FlowConversationSettings__deleteConversation {
+        opacity: 1;
+        pointer-events: auto;
+      }
     }
   }
 
@@ -986,6 +1017,10 @@ export const FlowConversationSettings = forwardRef<
   );
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [showAddCustomModal, setShowAddCustomModal] = useState(false);
+  const [deletingConversation, setDeletingConversation] =
+    useState<ConversationTypeMeta | null>(null);
+  const [isDeletingConversation, setIsDeletingConversation] = useState(false);
+  const deletingConversationRef = useRef(false);
   const [customForm, setCustomForm] = useState<CustomConversationForm>(
     EMPTY_CUSTOM_CONVERSATION_FORM,
   );
@@ -1092,14 +1127,19 @@ export const FlowConversationSettings = forwardRef<
         conversationSchema,
         flowSchema,
       );
-      newCatalog.push({
+      const customMeta: ConversationTypeMeta = {
         id: frontendId,
         title,
         description: "Custom conversation",
         icon: CUSTOM_CONVERSATION_ICON,
         conversationsTitle: title,
         kind: "custom",
-      });
+      };
+      const catalogIndex = newCatalog.findIndex(
+        (entry) => entry.id === frontendId,
+      );
+      if (catalogIndex === -1) newCatalog.push(customMeta);
+      else newCatalog[catalogIndex] = customMeta;
       newSettings[frontendId] = fromBackendConversationType(
         backendType as BackendConversationType,
         "custom",
@@ -1416,6 +1456,41 @@ export const FlowConversationSettings = forwardRef<
     // Keep the exact server ID. Display names may contain spaces; IDs may not.
     addToState(created.type, created.conversation);
     closeAddCustomModal();
+  };
+
+  const closeDeleteConversation = () => {
+    if (!deletingConversationRef.current) setDeletingConversation(null);
+  };
+
+  const handleDeleteConversation = async () => {
+    if (
+      !deletingConversation ||
+      deletingConversation.kind !== "custom" ||
+      deletingConversationRef.current
+    )
+      return;
+    const id = deletingConversation.id;
+    deletingConversationRef.current = true;
+    setIsDeletingConversation(true);
+    try {
+      if (!(await deleteFlowConversation(id))) return;
+      setTypeCatalog((previous) => previous.filter((entry) => entry.id !== id));
+      const remaining = { ...settingsRef.current };
+      const saved = { ...savedSettingsRef.current };
+      delete remaining[id];
+      delete saved[id];
+      settingsRef.current = remaining;
+      savedSettingsRef.current = saved;
+      setSettings(remaining);
+      setSavedSettings(saved);
+      setActiveTypeId((current) => (current === id ? "welcome" : current));
+      setActiveTabIndex(0);
+      setEmojiOpenFor(null);
+      setDeletingConversation(null);
+    } finally {
+      deletingConversationRef.current = false;
+      setIsDeletingConversation(false);
+    }
   };
 
   const handleSelectConversationType = (typeId: ConversationTypeId) => {
@@ -1892,26 +1967,47 @@ export const FlowConversationSettings = forwardRef<
               aria-label="Conversation types"
             >
               {typeCatalog.map((type) => (
-                <button
+                <div
                   key={type.id}
-                  type="button"
-                  className={`FlowConversationSettings__navItem${
-                    activeTypeId === type.id ? " is-active" : ""
-                  }`}
-                  onClick={() => handleSelectConversationType(type.id)}
+                  className={`FlowConversationSettings__navRow${type.kind === "custom" ? " is-custom" : ""}`}
                 >
-                  <span className="FlowConversationSettings__navItem-icon">
-                    <Icon icon={type.icon} width={20} height={20} />
-                  </span>
-                  <span className="FlowConversationSettings__navItem-text">
-                    <span className="FlowConversationSettings__navItem-title">
-                      {type.title}
+                  <button
+                    type="button"
+                    className={`FlowConversationSettings__navItem${
+                      activeTypeId === type.id ? " is-active" : ""
+                    }`}
+                    onClick={() => handleSelectConversationType(type.id)}
+                  >
+                    <span className="FlowConversationSettings__navItem-icon">
+                      <Icon icon={type.icon} width={20} height={20} />
                     </span>
-                    <span className="FlowConversationSettings__navItem-description">
-                      {type.description}
+                    <span className="FlowConversationSettings__navItem-text">
+                      <span className="FlowConversationSettings__navItem-title">
+                        {type.title}
+                      </span>
+                      <span className="FlowConversationSettings__navItem-description">
+                        {type.description}
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  {type.kind === "custom" && (
+                    <Button
+                      type="button"
+                      classes={[ButtonClass.ICON_ONLY]}
+                      className="FlowConversationSettings__deleteConversation"
+                      aria-label={`Delete ${type.title}`}
+                      title={`Delete ${type.title}`}
+                      onClick={() => setDeletingConversation(type)}
+                      disabled={isDeletingConversation}
+                    >
+                      <Icon
+                        icon="solar:trash-bin-trash-linear"
+                        width={18}
+                        height={18}
+                      />
+                    </Button>
+                  )}
+                </div>
               ))}
               <button
                 type="button"
@@ -2125,6 +2221,25 @@ export const FlowConversationSettings = forwardRef<
               </aside>
             )}
           </div>
+
+          {deletingConversation && (
+            <ConfirmationModal
+              title="Delete custom conversation"
+              confirmButtonText="Delete"
+              cancelButtonText="Cancel"
+              confirmButtonClasses={[ButtonClass.SOLID_RED]}
+              onClose={closeDeleteConversation}
+              onCancel={closeDeleteConversation}
+              onConfirm={handleDeleteConversation}
+              confirming={isDeletingConversation}
+              closeOnConfirm={false}
+            >
+              <p style={{ textAlign: "center", margin: 0 }}>
+                Delete <strong>{deletingConversation.title}</strong> and its
+                message settings? This action cannot be undone.
+              </p>
+            </ConfirmationModal>
+          )}
 
           {showAddCustomModal && (
             <Modal

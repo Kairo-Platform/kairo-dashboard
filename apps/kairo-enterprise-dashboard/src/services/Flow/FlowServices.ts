@@ -143,6 +143,12 @@ export const flow = {
       { method: "PUT", body },
     ),
 
+  deleteCustomConversation: (orgId: string, typeId: string) =>
+    xApiBff.request<{ status: string }>(
+      `${FLOW_BASE(orgId)}/agents/flow/settings/conversations/${encodeURIComponent(typeId)}`,
+      { method: "DELETE" },
+    ),
+
   createCustomConversation: (orgId: string, name: string) =>
     xApiBff.request<{
       type: string;

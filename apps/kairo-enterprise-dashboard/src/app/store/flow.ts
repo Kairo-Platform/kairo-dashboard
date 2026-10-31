@@ -2,7 +2,7 @@ import { entity } from "simpler-state";
 import { showErrorNotification } from "@kairo/utils";
 import { parseApiError } from "@/lib/utils/parseApiError";
 import { hasApiError, unwrapApiData } from "@/lib/utils/apiResponse";
-import { flow } from "@/services/Flow";
+import { flow, resolveConversationSchemaTypeId } from "@/services/Flow";
 import type { ConversationDetail } from "@/services/Analytics/types";
 import { getOrgId, hydrateSession } from "@/lib/auth/client";
 import type {
@@ -493,5 +493,47 @@ export const createFlowConversation = async (name: string) => {
       ),
     });
     return null;
+  }
+};
+
+export const deleteFlowConversation = async (typeId: string) => {
+  try {
+    const orgId = getOrgId();
+    if (!orgId) throw new Error("Organization not found");
+    const response = await flow.deleteCustomConversation(orgId, typeId);
+    if (hasApiError(response)) throw response;
+    if (unwrapApiData<{ status: string }>(response)?.status !== "deleted") {
+      throw new Error(
+        "Unable to confirm deletion. Please reload and try again.",
+      );
+    }
+    if (getOrgId() !== orgId) return false;
+    flowStore.set((state) => {
+      const conversations = { ...state.flowSettings?.conversations };
+      delete conversations[typeId];
+      return {
+        ...state,
+        flowSettings: state.flowSettings
+          ? { ...state.flowSettings, conversations }
+          : null,
+        flowSchema: state.flowSchema
+          ? {
+              ...state.flowSchema,
+              conversations: state.flowSchema.conversations.filter(
+                (entry) => resolveConversationSchemaTypeId(entry) !== typeId,
+              ),
+            }
+          : null,
+      };
+    });
+    return true;
+  } catch (error) {
+    showErrorNotification({
+      message: parseApiError(
+        error,
+        "Unable to delete the conversation. Please try again.",
+      ),
+    });
+    return false;
   }
 };
