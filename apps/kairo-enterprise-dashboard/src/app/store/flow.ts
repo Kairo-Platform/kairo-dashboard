@@ -10,6 +10,7 @@ import type {
   FlowKnowledgeNote,
   FlowConversationsQuery,
   FlowConversationsResponse,
+  BackendConversationType,
   BackendChannel,
   BackendChannelConfig,
   BackendSettings,
@@ -454,3 +455,43 @@ export const uploadFlowKnowledgeFile = (file: File) =>
   mutateFlowKnowledge((orgId) => flow.uploadKnowledgeFile(orgId, file));
 export const deleteFlowKnowledge = (itemId: string) =>
   mutateFlowKnowledge((orgId) => flow.deleteKnowledge(orgId, itemId));
+
+export const createFlowConversation = async (name: string) => {
+  try {
+    const orgId = getOrgId();
+    if (!orgId) throw new Error("Organization not found");
+    const response = await flow.createCustomConversation(orgId, name);
+    if (hasApiError(response)) throw response;
+    const created = unwrapApiData<{
+      type: string;
+      conversation: BackendConversationType;
+    }>(response);
+    if (!created?.type || !created.conversation) {
+      throw new Error(
+        "Unable to create the conversation. Please reload and try again.",
+      );
+    }
+    if (getOrgId() !== orgId) return null;
+    flowStore.set((state) => ({
+      ...state,
+      flowSettings: state.flowSettings
+        ? {
+            ...state.flowSettings,
+            conversations: {
+              ...state.flowSettings.conversations,
+              [created.type]: created.conversation,
+            },
+          }
+        : null,
+    }));
+    return created;
+  } catch (error) {
+    showErrorNotification({
+      message: parseApiError(
+        error,
+        "Unable to create the conversation. Please try again.",
+      ),
+    });
+    return null;
+  }
+};
