@@ -371,9 +371,11 @@ export function mergeBuiltInCatalogWithSchema<
     const label =
       resolveConversationSchemaLabel(entry) ?? builtIn?.title ?? frontendId;
 
+    const existingCustom = customTypes.find((meta) => meta.id === frontendId);
     return [
       {
         ...(builtIn ??
+          existingCustom ??
           ({
             id: frontendId,
             title: label,
@@ -385,10 +387,15 @@ export function mergeBuiltInCatalogWithSchema<
         title: label,
         description: entry.description ?? builtIn?.description ?? "",
         conversationsTitle: `${label} conversations`,
-        kind: "built-in",
+        kind: builtIn ? "built-in" : "custom",
       } as T,
     ];
   });
 
-  return [...fromSchema, ...customTypes];
+  return [
+    ...fromSchema,
+    ...customTypes.filter(
+      (custom) => !fromSchema.some((entry) => entry.id === custom.id),
+    ),
+  ];
 }
