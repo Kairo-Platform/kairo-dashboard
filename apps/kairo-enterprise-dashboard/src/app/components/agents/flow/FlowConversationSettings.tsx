@@ -24,7 +24,6 @@ import {
 } from "@kairo/ui/inputs";
 import { getOrgId } from "@/lib/auth/client";
 import {
-  flow,
   changedFlowSettings,
   findConversationSchema,
   fromBackendTypeId,
@@ -33,10 +32,10 @@ import {
   mergeConversationMessageVariables,
   toBackendTypeId,
   toSelectOptions,
-  unwrapFlowResponse,
   type BackendConversationType,
 } from "@/services/Flow";
 import {
+  createFlowConversation,
   fetchFlowSchema,
   fetchFlowSettings,
   fetchFlowVariables,
@@ -1372,7 +1371,7 @@ export const FlowConversationSettings = forwardRef<
     setCustomForm(EMPTY_CUSTOM_CONVERSATION_FORM);
   };
 
-  const handleAddCustomConversation = () => {
+  const handleAddCustomConversation = async () => {
     if (!canAddCustomConversation) return;
 
     const title = customForm.name.trim();
@@ -1381,7 +1380,7 @@ export const FlowConversationSettings = forwardRef<
       ? "ACTIVE"
       : "DRAFT";
 
-    const addToState = (id: string) => {
+    const addToState = (id: string, persisted: BackendConversationType) => {
       const meta: ConversationTypeMeta = {
         id,
         title,
@@ -1404,30 +1403,19 @@ export const FlowConversationSettings = forwardRef<
 
       setTypeCatalog((prev) => [...prev, meta]);
       setSettings((prev) => ({ ...prev, [id]: config }));
-      setSavedSettings((prev) => ({ ...prev, [id]: cloneTypeConfig(config) }));
+      setSavedSettings((prev) => ({
+        ...prev,
+        [id]: fromBackendConversationType(persisted, "custom"),
+      }));
       setActiveTypeId(id);
       setActiveTabIndex(0);
     };
 
+    const created = await createFlowConversation(title);
+    if (!created) return;
+    // Keep the exact server ID. Display names may contain spaces; IDs may not.
+    addToState(created.type, created.conversation);
     closeAddCustomModal();
-
-    const orgId = getOrgId();
-    if (orgId) {
-      flow
-        .createCustomConversation(orgId, title)
-        .then((res) => {
-          const data = unwrapFlowResponse<{ type?: string }>(res);
-          const backendId = data?.type ?? `cnv_custom_${crypto.randomUUID()}`;
-          // Use backend-generated slug as the frontend id (converted to kebab if needed)
-          addToState(fromBackendTypeId(backendId));
-        })
-        .catch(() => {
-          // API call failed — still add locally with a UUID-based id
-          addToState(`cnv_custom_${crypto.randomUUID()}`);
-        });
-    } else {
-      addToState(`cnv_custom_${crypto.randomUUID()}`);
-    }
   };
 
   const handleSelectConversationType = (typeId: ConversationTypeId) => {

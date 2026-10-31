@@ -7,10 +7,7 @@ import type {
   BackendSettingsSchema,
   FlowTriggerCondition,
 } from "./types";
-import {
-  fromBackendTypeId,
-  toBackendTypeId,
-} from "./mappers";
+import { fromBackendTypeId, toBackendTypeId } from "./mappers";
 
 export type SchemaSelectOption = {
   label: string;
@@ -289,11 +286,29 @@ export function mergeConversationMessageVariables(
 export function getTriggerConditionOptions(
   conditions?: FlowTriggerCondition | FlowTriggerCondition[] | null,
 ): FlowTriggerCondition[] {
+  const clean = (node: FlowTriggerCondition): FlowTriggerCondition | null => {
+    if (node.kind === "NONE") return null;
+    if (node.kind === "GROUP") {
+      const children = (node.children ?? [])
+        .map(clean)
+        .filter((child): child is FlowTriggerCondition => child !== null);
+      if (!children.length) return null;
+      return children.length === 1 ? children[0] : { ...node, children };
+    }
+    return node.kind === "CONDITION" &&
+      node.conditionType &&
+      node.conditionOperator &&
+      node.value != null
+      ? node
+      : null;
+  };
   if (!conditions) return [];
-  if (Array.isArray(conditions)) return conditions;
-  return conditions.kind === "GROUP" && conditions.operator === "OR"
-    ? conditions.children
-    : [conditions];
+  const nodes = (Array.isArray(conditions) ? conditions : [conditions])
+    .map(clean)
+    .filter((node): node is FlowTriggerCondition => node !== null);
+  return nodes.flatMap((node) =>
+    node.kind === "GROUP" && node.operator === "OR" ? node.children : [node],
+  );
 }
 
 export function getConversationDefaultsFromSchema(
@@ -306,7 +321,9 @@ export function getConversationDefaultsFromSchema(
   );
 
   return {
-    triggerConditions: getTriggerConditionOptions(conversationSchema?.triggerConditions),
+    triggerConditions: getTriggerConditionOptions(
+      conversationSchema?.triggerConditions,
+    ),
     intent: getSchemaDefaultValue(conversationSchema?.intents, ""),
     fallbackLanguage: getSchemaDefaultValue(flowSchema?.languages, "en"),
     buttonAction: defaultButtonAction,

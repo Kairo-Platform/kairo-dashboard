@@ -18,7 +18,6 @@ import {
   DatePickerInput,
   FormInput,
   SelectInput,
-  SwitchInput,
 } from "@kairo/ui/inputs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchFlowTriggerConditions, flowStore } from "@/app/store/flow";
@@ -157,7 +156,7 @@ function normalizeValueForPayload(
       };
     }
     if (typeof row.value === "string" && operatorConfig.values?.length) {
-      return { preset: row.value };
+      return row.value;
     }
     return row.value;
   }
@@ -448,10 +447,14 @@ export const AddFlowTriggerConditionModal = ({
     // BOOLEAN
     if (input === "BOOLEAN") {
       return (
-        <SwitchInput
-          label="True"
-          value={!!row.value}
-          onChange={(checked) => updateRow(row.id, { value: checked })}
+        <SelectInput
+          label="Value"
+          options={values.map((option: { value: string; label: string }) => ({ value: option.value, label: option.label }))}
+          value={typeof row.value === "boolean" ? String(row.value).toUpperCase() : ""}
+          onChange={(value: string) => updateRow(row.id, { value: value === "TRUE" })}
+          placeholder="Select value"
+          required
+          message={row.errors.value ? { type: "error", content: row.errors.value } : undefined}
         />
       );
     }

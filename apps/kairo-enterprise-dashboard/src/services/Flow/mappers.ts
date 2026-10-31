@@ -6,20 +6,17 @@ import type {
   BackendTemplate,
 } from "./types";
 
-// "financial-advice" → "financialAdvice"
+// Only the built-in financialAdvice type uses camelCase. Custom IDs are server slugs.
 export function toBackendTypeId(frontendId: string | null | undefined): string {
   if (!frontendId) return "";
-  return frontendId.replace(/-([a-z])/g, (_, c: string) =>
-    (c as string).toUpperCase(),
-  );
+  return frontendId === "financial-advice" ? "financialAdvice" : frontendId;
 }
 
-// "financialAdvice" → "financial-advice"
 export function fromBackendTypeId(
   backendId: string | null | undefined,
 ): string {
   if (!backendId) return "";
-  return backendId.replace(/([A-Z])/g, (c) => `-${c.toLowerCase()}`);
+  return backendId === "financialAdvice" ? "financial-advice" : backendId;
 }
 
 export const CONVERSATION_MEMORY_KEY_MAP: Record<
