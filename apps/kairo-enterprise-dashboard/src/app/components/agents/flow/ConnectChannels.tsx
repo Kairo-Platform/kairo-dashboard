@@ -650,17 +650,6 @@ export const ConnectChannels = ({
                           </Flex>
                         );
                       })}
-                    {config.schema.helpText && (
-                      <p className="ConnectChannels__help">
-                        {config.schema.helpText}
-                      </p>
-                    )}
-                    {!config.enabled && (
-                      <p>
-                        {config.unavailableReason ??
-                          "This channel is not available yet."}
-                      </p>
-                    )}
                   </>
                 )
               )}
