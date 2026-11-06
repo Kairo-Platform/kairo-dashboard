@@ -1,8 +1,7 @@
 import type { ConversationDetail } from "@/services/Analytics/types";
 import { xApiBff } from "@/lib/bff/client";
 import type {
-  InstagramConnectRequest,
-  InstagramConnection,
+  ChannelConnectRequest,
   FlowKnowledgeBase,
   FlowKnowledgeNote,
   ConversationControl,
@@ -19,8 +18,6 @@ import type {
   BackendSettings,
   SettingsUpdate,
   BackendSettingsSchema,
-  BackendWhatsAppConnectRequest,
-  BackendWhatsAppConnectResponse,
 } from "./types";
 
 // Unwraps the future { statusCode, data } envelope; falls back to the raw response
@@ -173,26 +170,19 @@ export const flow = {
       `${FLOW_BASE(orgId)}/agents/flow/settings/conditions`,
     ),
 
-  getInstagramConnection: (orgId: string) =>
-    xApiBff.request<InstagramConnection>(
-      `${FLOW_BASE(orgId)}/flow/channels/instagram/connection`,
-    ),
-
-  connectInstagram: (orgId: string, body: InstagramConnectRequest) =>
-    xApiBff.request<InstagramConnection>(
-      `${FLOW_BASE(orgId)}/flow/channels/instagram`,
-      { method: "PUT", body },
-    ),
-
-  connectWhatsApp: (orgId: string, body: BackendWhatsAppConnectRequest) =>
-    xApiBff.request<BackendWhatsAppConnectResponse>(
-      `${FLOW_BASE(orgId)}/flow/channels/whatsapp`,
+  connectChannel: (
+    orgId: string,
+    channel: string,
+    body: ChannelConnectRequest,
+  ) =>
+    xApiBff.request<{ status: string }>(
+      `${FLOW_BASE(orgId)}/flow/channels/${encodeURIComponent(channel)}`,
       { method: "PUT", body },
     ),
 
   getChannelConfig: (orgId: string, channel: string) =>
     xApiBff.request<BackendChannelConfig>(
-      `${FLOW_BASE(orgId)}/flow/channels/${channel}/config`,
+      `${FLOW_BASE(orgId)}/flow/channels/${encodeURIComponent(channel)}/config`,
     ),
 
   getBankingBackend: (orgId: string) =>

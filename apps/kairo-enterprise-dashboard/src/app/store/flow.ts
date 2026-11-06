@@ -6,8 +6,7 @@ import { flow, resolveConversationSchemaTypeId } from "@/services/Flow";
 import type { ConversationDetail } from "@/services/Analytics/types";
 import { getOrgId, hydrateSession } from "@/lib/auth/client";
 import type {
-  InstagramConnectRequest,
-  InstagramConnection,
+  ChannelConnectRequest,
   FlowKnowledgeBase,
   FlowKnowledgeNote,
   FlowConversationsQuery,
@@ -540,50 +539,52 @@ export const deleteFlowConversation = async (typeId: string) => {
   }
 };
 
-// Credentials remain in the form/request only, never in the shared or persisted store.
-export const fetchInstagramConnection =
-  async (): Promise<InstagramConnection> => {
-    try {
-      const orgId = getOrgId();
-      if (!orgId) throw new Error("Session expired. Please sign in again.");
-      const response = await flow.getInstagramConnection(orgId);
-      if (hasApiError(response)) throw response;
-      if (orgId !== getOrgId())
-        throw new Error("Organization changed. Please reopen the connection.");
-      return unwrapApiData<InstagramConnection>(response);
-    } catch (error) {
-      showErrorNotification({
-        message: parseApiError(
-          error,
-          "Unable to load Instagram. Check that Instagram is enabled for this organization.",
-        ),
-      });
-      throw error;
-    }
-  };
-
-export const saveInstagramConnection = async (
-  body: InstagramConnectRequest,
-): Promise<InstagramConnection> => {
+// New credentials live only in the form/request, not shared state.
+export const loadChannelForm = async (
+  channel: string,
+): Promise<BackendChannelConfig> => {
   try {
     const orgId = getOrgId();
     if (!orgId) throw new Error("Session expired. Please sign in again.");
-    const response = await flow.connectInstagram(orgId, body);
+    const response = await flow.getChannelConfig(orgId, channel);
     if (hasApiError(response)) throw response;
-    const connection = unwrapApiData<InstagramConnection>(response);
-    if (connection.status !== "CONNECTED")
+    if (orgId !== getOrgId())
+      throw new Error("Organization changed. Please reopen the connection.");
+    const config = unwrapApiData<BackendChannelConfig>(response);
+    if (config.schema?.version !== 1 || !Array.isArray(config.schema.fields))
       throw new Error(
-        "Instagram has not confirmed the connection. Please try again.",
+        "This backend does not provide the channel form schema. Deploy the channel configuration update first.",
+      );
+    return config;
+  } catch (error) {
+    showErrorNotification({
+      message: parseApiError(error, "Unable to load channel configuration."),
+    });
+    throw error;
+  }
+};
+
+export const saveChannelForm = async (
+  channel: string,
+  body: ChannelConnectRequest,
+): Promise<void> => {
+  try {
+    const orgId = getOrgId();
+    if (!orgId) throw new Error("Session expired. Please sign in again.");
+    const response = await flow.connectChannel(orgId, channel, body);
+    if (hasApiError(response)) throw response;
+    if (
+      unwrapApiData<{ status: string }>(response).status?.toUpperCase() !==
+      "CONNECTED"
+    )
+      throw new Error(
+        "The channel has not confirmed the connection. Please try again.",
       );
     if (orgId !== getOrgId())
       throw new Error("Organization changed. Please reopen the connection.");
-    return connection;
   } catch (error) {
     showErrorNotification({
-      message: parseApiError(
-        error,
-        "Unable to connect Instagram. Please try again.",
-      ),
+      message: parseApiError(error, "Unable to save channel configuration."),
     });
     throw error;
   }
