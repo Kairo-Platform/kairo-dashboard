@@ -111,6 +111,21 @@ export type BackendWhatsAppConnectResponse = {
   publicKey: string;
 };
 
+export type InstagramConnectRequest = {
+  accountId: string;
+  accessToken?: string;
+  expiresAt?: string;
+};
+
+export type InstagramConnection = {
+  status: "CONNECTED" | "DISCONNECTED" | "RECONNECT_REQUIRED";
+  accountId: string;
+  username: string | null;
+  expiresAt: string | null;
+  webhookUrl: string;
+  verifyToken: string;
+};
+
 export type BackendChannelConfigEntry = {
   key: string;
   displayName: string;

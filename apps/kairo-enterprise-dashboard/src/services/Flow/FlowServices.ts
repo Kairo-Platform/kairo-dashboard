@@ -1,6 +1,8 @@
 import type { ConversationDetail } from "@/services/Analytics/types";
 import { xApiBff } from "@/lib/bff/client";
 import type {
+  InstagramConnectRequest,
+  InstagramConnection,
   FlowKnowledgeBase,
   FlowKnowledgeNote,
   ConversationControl,
@@ -169,6 +171,17 @@ export const flow = {
   getTriggerConditions: (orgId: string) =>
     xApiBff.request<BackendChannel[]>(
       `${FLOW_BASE(orgId)}/agents/flow/settings/conditions`,
+    ),
+
+  getInstagramConnection: (orgId: string) =>
+    xApiBff.request<InstagramConnection>(
+      `${FLOW_BASE(orgId)}/flow/channels/instagram/connection`,
+    ),
+
+  connectInstagram: (orgId: string, body: InstagramConnectRequest) =>
+    xApiBff.request<InstagramConnection>(
+      `${FLOW_BASE(orgId)}/flow/channels/instagram`,
+      { method: "PUT", body },
     ),
 
   connectWhatsApp: (orgId: string, body: BackendWhatsAppConnectRequest) =>

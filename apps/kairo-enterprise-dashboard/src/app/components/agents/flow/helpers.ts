@@ -28,6 +28,9 @@ export const getChannelBrandColor = (channel: FlowChannel) =>
 export const isWhatsAppChannel = (channel: FlowChannel | null) =>
   channel?.id === "whatsapp" || channel?.name.toLowerCase() === "whatsapp";
 
+export const isInstagramChannel = (channel: FlowChannel | null) =>
+  channel?.id === "instagram" || channel?.name.toLowerCase() === "instagram";
+
 export const cloneAutomationValues = (
   values: Record<string, unknown>,
 ): Record<string, unknown> =>

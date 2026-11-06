@@ -164,7 +164,7 @@ export async function handleBffRequest(
     }
   }
 
-  return proxy({
+  const response = await proxy({
     path: pathSegments.join("/"),
     method: request.method as ProxyServiceOptions["method"],
     query,
@@ -173,4 +173,12 @@ export async function handleBffRequest(
       ? { "X-Api-Key": request.headers.get("x-api-key")! }
       : undefined,
   });
+  if (
+    /^v1\/orgs\/[^/]+\/flow\/channels\/instagram(?:\/|$)/.test(
+      pathSegments.join("/"),
+    )
+  ) {
+    response.headers.set("Cache-Control", "no-store");
+  }
+  return response;
 }

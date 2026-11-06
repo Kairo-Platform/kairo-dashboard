@@ -6,6 +6,8 @@ import { flow, resolveConversationSchemaTypeId } from "@/services/Flow";
 import type { ConversationDetail } from "@/services/Analytics/types";
 import { getOrgId, hydrateSession } from "@/lib/auth/client";
 import type {
+  InstagramConnectRequest,
+  InstagramConnection,
   FlowKnowledgeBase,
   FlowKnowledgeNote,
   FlowConversationsQuery,
@@ -535,5 +537,54 @@ export const deleteFlowConversation = async (typeId: string) => {
       ),
     });
     return false;
+  }
+};
+
+// Credentials remain in the form/request only, never in the shared or persisted store.
+export const fetchInstagramConnection =
+  async (): Promise<InstagramConnection> => {
+    try {
+      const orgId = getOrgId();
+      if (!orgId) throw new Error("Session expired. Please sign in again.");
+      const response = await flow.getInstagramConnection(orgId);
+      if (hasApiError(response)) throw response;
+      if (orgId !== getOrgId())
+        throw new Error("Organization changed. Please reopen the connection.");
+      return unwrapApiData<InstagramConnection>(response);
+    } catch (error) {
+      showErrorNotification({
+        message: parseApiError(
+          error,
+          "Unable to load Instagram. Check that Instagram is enabled for this organization.",
+        ),
+      });
+      throw error;
+    }
+  };
+
+export const saveInstagramConnection = async (
+  body: InstagramConnectRequest,
+): Promise<InstagramConnection> => {
+  try {
+    const orgId = getOrgId();
+    if (!orgId) throw new Error("Session expired. Please sign in again.");
+    const response = await flow.connectInstagram(orgId, body);
+    if (hasApiError(response)) throw response;
+    const connection = unwrapApiData<InstagramConnection>(response);
+    if (connection.status !== "CONNECTED")
+      throw new Error(
+        "Instagram has not confirmed the connection. Please try again.",
+      );
+    if (orgId !== getOrgId())
+      throw new Error("Organization changed. Please reopen the connection.");
+    return connection;
+  } catch (error) {
+    showErrorNotification({
+      message: parseApiError(
+        error,
+        "Unable to connect Instagram. Please try again.",
+      ),
+    });
+    throw error;
   }
 };
