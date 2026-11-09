@@ -14,6 +14,7 @@ import {
   isNigerianPhone,
   personalSchema,
   phoneSchema,
+  verificationCodeSchema,
   pinSchema,
   type SecureSession,
 } from "@/services/secure-forms/onboarding/schema";
@@ -94,10 +95,24 @@ export default function SecureOnboardingForm() {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState("");
   const initial = useRef<Promise<SecureSession> | null>(null);
   const conversation = formConversation(session?.origin);
   const returnLink = formReturnLink(session?.origin);
+  const resendSeconds = Math.max(
+    0,
+    Math.ceil(
+      ((session?.resendAvailableAt
+        ? Date.parse(session.resendAvailableAt)
+        : 0) -
+        now) /
+        1000,
+    ),
+  );
+  const codeExpired =
+    session?.codeExpired ||
+    (!!session?.codeExpiresAt && Date.parse(session.codeExpiresAt) <= now);
 
   useEffect(() => {
     let mounted = true;
@@ -118,7 +133,10 @@ export default function SecureOnboardingForm() {
     }
     void initial.current
       .then((value) => {
-        if (mounted) setSession(value);
+        if (mounted) {
+          setSession(value);
+          setNow(Date.now());
+        }
       })
       .catch(() => {
         if (mounted)
@@ -144,31 +162,9 @@ export default function SecureOnboardingForm() {
 
   useEffect(() => {
     if (session?.stage !== "VERIFY") return;
-    let mounted = true;
-    const timer = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      void service
-        .session()
-        .then((value) => {
-          if (mounted) {
-            setSession(value);
-            setError("");
-          }
-        })
-        .catch(() => {
-          if (mounted) {
-            setError(
-              `Verification expired. Return to ${conversation} to open a new form.`,
-            );
-            window.clearInterval(timer);
-          }
-        });
-    }, 3000);
-    return () => {
-      mounted = false;
-      window.clearInterval(timer);
-    };
-  }, [session?.stage, conversation]);
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [session?.stage]);
 
   useEffect(() => {
     if (session?.stage === "DONE") void service.close().catch(() => {});
@@ -207,6 +203,18 @@ export default function SecureOnboardingForm() {
       });
       if (!result.success) {
         setError(result.error.issues[0]?.message ?? "Check your phone number.");
+        return;
+      }
+      payload = result.data;
+    } else if (session.stage === "VERIFY") {
+      const result = verificationCodeSchema.safeParse({
+        action: "verify_code",
+        code: fields.code ?? "",
+      });
+      if (!result.success) {
+        setError(
+          result.error.issues[0]?.message ?? "Check your verification code.",
+        );
         return;
       }
       payload = result.data;
@@ -254,14 +262,17 @@ export default function SecureOnboardingForm() {
       setFields({});
       setConsent(false);
       setSession(next);
+      setNow(Date.now());
     } catch (failure) {
       setError(
         failure instanceof Error ? failure.message : "Please try again.",
       );
-      if (session.stage === "PIN_SETUP") setFields({});
+      if (session.stage === "PIN_SETUP" || session.stage === "VERIFY")
+        setFields({});
       // A network interruption can hide a successful submission. Resume the saved step.
       try {
         const current = await service.session();
+        setSession(current);
         if (current.stage !== session.stage) {
           setFields({});
           setSession(current);
@@ -269,6 +280,30 @@ export default function SecureOnboardingForm() {
         }
       } catch {
         /* Keep the original error; the user can reopen from their Kairo conversation. */
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendCode() {
+    if (busy || resendSeconds > 0 || session?.codeLocked) return;
+    setBusy(true);
+    setError("");
+    setFields({});
+    try {
+      setSession(await service.submit({ action: "resend_code" }));
+      setNow(Date.now());
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "Could not request another code. Please try again.",
+      );
+      try {
+        setSession(await service.session());
+      } catch {
+        /* Keep the request error. */
       }
     } finally {
       setBusy(false);
@@ -293,8 +328,8 @@ export default function SecureOnboardingForm() {
                 : "Let’s get you started"}
             </h1>
             <p>
-              Enter your WhatsApp number. You’ll approve the connection from
-              WhatsApp to confirm it belongs to you.
+              Enter your WhatsApp number. We’ll send a six-digit code to verify
+              it belongs to you. Only enter the code on this secure form.
             </p>
             <form onSubmit={submit} autoComplete="off">
               {field("phone", "WhatsApp number", {
@@ -328,30 +363,72 @@ export default function SecureOnboardingForm() {
                 type="submit"
                 disabled={busy}
               >
-                {busy ? "Continuing…" : "Continue"}
+                {busy ? "Sending code…" : "Send verification code"}
               </Button>
             </form>
           </>
         )}
         {session?.stage === "VERIFY" && (
           <>
-            <h1>Verify on WhatsApp</h1>
+            <h1>Verify your WhatsApp number</h1>
             <p>
-              Open WhatsApp from {session.maskedPhone}, send the prefilled
-              message, then tap Approve. Return to this page to continue.
+              Enter the six-digit code sent to {session.maskedPhone}. You can
+              copy it from WhatsApp and paste it here.
             </p>
-            {session.approvalExpired ? (
+            {session.codeDelivery !== "ACCEPTED" && (
+              <p role="status">
+                We couldn’t confirm that the code was sent. If it arrived, enter
+                it below; otherwise request another code when available.
+              </p>
+            )}
+            {session.codeLocked ? (
               <ErrorText>
-                Verification expired. Return to {conversation} and request a new
-                form.
+                Too many incorrect codes. Return to {conversation} and request a
+                new secure form.
               </ErrorText>
             ) : (
-              <LinkButton href={session.verificationUrl} rel="noreferrer">
-                Open WhatsApp to verify
-              </LinkButton>
+              <>
+                {codeExpired && (
+                  <p role="status">
+                    Your code has expired. Request a new code below.
+                  </p>
+                )}
+                <form onSubmit={submit} autoComplete="off">
+                  {field("code", "Verification code", {
+                    type: "text",
+                    inputMode: "numeric",
+                    autoComplete: "one-time-code",
+                    pattern: "[0-9]{6}",
+                    minLength: 6,
+                    maxLength: 6,
+                    required: true,
+                    placeholder: "6-digit code",
+                    disabled: busy,
+                  })}
+                  <Button
+                    classes={[ButtonClass.SOLID]}
+                    size={ButtonSize.FULL}
+                    type="submit"
+                    disabled={busy || !!codeExpired}
+                  >
+                    {busy ? "Please wait…" : "Verify and continue"}
+                  </Button>
+                  <Button
+                    size={ButtonSize.FULL}
+                    type="button"
+                    disabled={busy || resendSeconds > 0}
+                    onClick={resendCode}
+                  >
+                    {resendSeconds > 0
+                      ? `Resend code in ${resendSeconds}s`
+                      : "Resend code"}
+                  </Button>
+                </form>
+              </>
             )}
             <small>
-              This page will continue when you return after approving.
+              Codes expire after five minutes. Never share this code with
+              anyone.
             </small>
           </>
         )}
@@ -538,9 +615,16 @@ export default function SecureOnboardingForm() {
           </>
         )}
         {error && <ErrorText role="alert">{error}</ErrorText>}
-        <small style={{ marginTop: 24 }}>
-          Secure Kairo form. Your identity details and PIN are not saved in
-          browser storage.
+        <small
+          style={{
+            marginTop: "2rem",
+            marginInline: "0 auto",
+            display: "block",
+            textAlign: "center",
+          }}
+        >
+          Secure Kairo form. No data is saved in browser storage. All
+          information is encrypted and sent directly to Kairo’s secure servers.
         </small>
       </Card>
     </Main>

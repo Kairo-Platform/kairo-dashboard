@@ -75,7 +75,14 @@ export const pinSchema = z
     message: "The PINs do not match.",
   });
 
+export const verificationCodeSchema = z.object({
+  action: z.literal("verify_code"),
+  code: z.string().trim().regex(/^[0-9]{6}$/, "Enter the six-digit code sent to your WhatsApp."),
+});
+
 export const submissionSchema = z.union([
+  verificationCodeSchema,
+  z.object({ action: z.literal("resend_code") }),
   phoneSchema,
   z.object({
     action: z.literal("submit"),
@@ -104,7 +111,10 @@ export type SecureSession = {
   nigerianPhone: string;
   completed: boolean;
   maskedPhone?: string;
-  verificationUrl?: string;
-  approvalExpired?: boolean;
+  codeDelivery?: "NOT_SENT" | "ACCEPTED" | "UNCONFIRMED";
+  codeExpired?: boolean;
+  codeLocked?: boolean;
+  codeExpiresAt?: string;
+  resendAvailableAt?: string;
   origin?: SecureFormOrigin;
 };
