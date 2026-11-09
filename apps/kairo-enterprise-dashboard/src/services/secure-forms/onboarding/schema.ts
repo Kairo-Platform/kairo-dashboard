@@ -36,8 +36,6 @@ export const phoneSchema = z
   });
 
 export const personalSchema = z.object({
-  first_name: z.string().trim().max(255).optional(),
-  last_name: z.string().trim().max(255).optional(),
   dob: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter your date of birth.")
@@ -77,7 +75,10 @@ export const pinSchema = z
 
 export const verificationCodeSchema = z.object({
   action: z.literal("verify_code"),
-  code: z.string().trim().regex(/^[0-9]{6}$/, "Enter the six-digit code sent to your WhatsApp."),
+  code: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{6}$/, "Enter the six-digit code sent to your WhatsApp."),
 });
 
 export const submissionSchema = z.union([

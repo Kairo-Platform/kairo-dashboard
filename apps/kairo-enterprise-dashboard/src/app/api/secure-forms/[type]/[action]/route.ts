@@ -4,11 +4,18 @@ import { z } from "zod";
 import { resolveXApiBaseUrl } from "@/lib/bff/proxyRoute";
 import { submissionSchema } from "@/services/secure-forms/onboarding/schema";
 
+import {
+  transferPinSchema,
+  businessSetupSchema,
+} from "@/services/secure-forms/actions";
+
 export const dynamic = "force-dynamic";
 const production = process.env.NODE_ENV === "production";
 // Only registered handlers can accept a capability; never construct arbitrary backend paths.
 const handlers = {
   onboarding: { path: "onboarding", schema: submissionSchema },
+  transfer_pin: { path: "transfer_pin", schema: transferPinSchema },
+  business_setup: { path: "business_setup", schema: businessSetupSchema },
 } as const;
 const capability = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 const headers = {
@@ -151,7 +158,11 @@ async function handle(request: NextRequest, context: Context) {
         error:
           error instanceof z.ZodError
             ? "Please check the details you entered."
-            : "Unable to continue. Please try again or open a new form from your Kairo conversation.",
+            : type === "transfer_pin" &&
+                action === "session" &&
+                request.method === "POST"
+              ? "I couldn’t confirm this authorization. Return to your conversation to check its status before trying again."
+              : "Unable to continue. Please try again or open a new form from your Kairo conversation.",
       },
       { status: 400, headers },
     );

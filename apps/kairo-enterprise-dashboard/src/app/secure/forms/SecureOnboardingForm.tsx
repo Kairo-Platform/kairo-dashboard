@@ -478,8 +478,22 @@ export default function SecureOnboardingForm() {
               identity and create your Kairo account.
             </p>
             <form onSubmit={submit} autoComplete="off">
-              {field("first_name", "First name (optional)", { maxLength: 255 })}
-              {field("last_name", "Last name (optional)", { maxLength: 255 })}
+              {field("bvn", "BVN", {
+                type: "password",
+                inputMode: "numeric",
+                pattern: "[0-9]{11}",
+                minLength: 11,
+                maxLength: 11,
+                required: true,
+              })}
+              {field("nin", "NIN", {
+                type: "password",
+                inputMode: "numeric",
+                pattern: "[0-9]{11}",
+                minLength: 11,
+                maxLength: 11,
+                required: true,
+              })}
               {field("dob", "Date of birth", {
                 type: "date",
                 required: true,
@@ -502,22 +516,6 @@ export default function SecureOnboardingForm() {
                 inputMode: "email",
                 required: true,
                 maxLength: 255,
-              })}
-              {field("bvn", "BVN", {
-                type: "password",
-                inputMode: "numeric",
-                pattern: "[0-9]{11}",
-                minLength: 11,
-                maxLength: 11,
-                required: true,
-              })}
-              {field("nin", "NIN", {
-                type: "password",
-                inputMode: "numeric",
-                pattern: "[0-9]{11}",
-                minLength: 11,
-                maxLength: 11,
-                required: true,
               })}
               {session.phoneRequired && (
                 <FormInput
