@@ -63,6 +63,10 @@ const Card = styled.section`
     line-height: 1.6;
   }
 `;
+const FormFooter = styled.small`
+  display: block;
+  margin-top: 2rem;
+`;
 const LinkButton = styled.a`
   display: block;
   padding: 14px 20px;
@@ -615,17 +619,10 @@ export default function SecureOnboardingForm() {
           </>
         )}
         {error && <ErrorText role="alert">{error}</ErrorText>}
-        <small
-          style={{
-            marginTop: "2rem",
-            marginInline: "0 auto",
-            display: "block",
-            textAlign: "center",
-          }}
-        >
+        <FormFooter>
           Secure Kairo form. No data is saved in browser storage. All
           information is encrypted and sent directly to Kairo’s secure servers.
-        </small>
+        </FormFooter>
       </Card>
     </Main>
   );
