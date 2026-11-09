@@ -6,6 +6,9 @@ export function proxy(req: NextRequest) {
     globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 
   const isDev = process.env.NODE_ENV !== "production";
+  const secureForm =
+    req.nextUrl.pathname.startsWith("/secure/forms") ||
+    req.nextUrl.pathname.startsWith("/api/secure-forms/");
 
   const styleSrc = `style-src 'self' 'nonce-${nonce}'`;
   const scriptSrc = isDev
@@ -21,7 +24,11 @@ export function proxy(req: NextRequest) {
     styleSrc,
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    connectSrc,
+    secureForm
+      ? isDev
+        ? "connect-src 'self' ws: wss:"
+        : "connect-src 'self'"
+      : connectSrc,
     "frame-ancestors 'none'",
     "object-src 'none'",
     "base-uri 'self'",
@@ -37,6 +44,11 @@ export function proxy(req: NextRequest) {
 
   res.headers.set("Content-Security-Policy", csp);
   res.headers.set("x-nonce", nonce);
+  if (secureForm) {
+    res.headers.set("Cache-Control", "no-store, private");
+    res.headers.set("Referrer-Policy", "no-referrer");
+    res.headers.set("X-Content-Type-Options", "nosniff");
+  }
   res.headers.set(
     "Permissions-Policy",
     "camera=(self), microphone=(), geolocation=()",
