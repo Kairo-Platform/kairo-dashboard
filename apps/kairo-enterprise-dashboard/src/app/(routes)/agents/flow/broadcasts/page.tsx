@@ -24,10 +24,11 @@ export default function BroadcastsPage() {
   const search = params.get("search") || undefined;
   const startDate = params.get("startDate") || undefined;
   const endDate = params.get("endDate") || undefined;
+  const channel = params.get("channel") || undefined;
   const status = params.get("status") || undefined;
   const query = useMemo(
-    () => ({ page, limit, search, startDate, endDate, status }),
-    [page, limit, search, startDate, endDate, status],
+    () => ({ page, limit, search, startDate, endDate, channel, status }),
+    [page, limit, search, startDate, endDate, channel, status],
   );
   const state = useEntity(broadcastHistoryStore);
   useEffect(() => {

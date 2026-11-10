@@ -86,6 +86,7 @@ const BroadcastButtonRow = styled.div<{ $columns: number }>`
 type Props = { onClose: () => void; onSuccess?: () => void };
 
 export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
+  const [channel, setChannel] = useState("WHATSAPP");
   const [buttons, setButtons] = useState<BackendButton[]>([]);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -106,12 +107,12 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
     const timer = setTimeout(
       () => {
         lastRequestedSearch.current = query;
-        void fetchBroadcastUsers(page, query);
+        void fetchBroadcastUsers(page, query, channel);
       },
       query === lastRequestedSearch.current ? 0 : SEARCH_DEBOUNCE_MS,
     );
     return () => clearTimeout(timer);
-  }, [page, search]);
+  }, [page, search, channel]);
   useEffect(() => {
     void fetchBroadcastSchema();
     return () => resetBroadcastUsers();
@@ -138,7 +139,7 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
     { label: "Selected users", value: "SELECTED" },
     { label: "All users except selected", value: "ALL_EXCEPT_SELECTED" },
   ];
-  const rows = users?.items.filter((user) => user.channel === "WHATSAPP") ?? [];
+  const rows = users?.items.filter((user) => user.channel === channel) ?? [];
   const visibleIds = rows.map((user) => user.id);
 
   const submit = async (event: React.FormEvent) => {
@@ -210,6 +211,7 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
       title: title.trim(),
       message: message.trim(),
       audience,
+      channel,
       userIds: targeted ? [...selected].sort() : [],
       buttons: buttons.map((button) => ({
         ...button,
@@ -251,6 +253,29 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
         <form onSubmit={submit}>
           <fieldset disabled={submitting}>
             <Flex direction="column" gap="1.5rem">
+              <SelectInput
+                label="Channel"
+                value={channel}
+                options={(schema?.channels ?? ["WHATSAPP"]).map((value) => ({
+                  label:
+                    value === "WHATSAPP"
+                      ? "WhatsApp"
+                      : value === "INSTAGRAM"
+                        ? "Instagram"
+                        : value,
+                  value,
+                }))}
+                onChange={(option: string | { value: string } | null) => {
+                  setChannel(
+                    typeof option === "string"
+                      ? option
+                      : (option?.value ?? "WHATSAPP"),
+                  );
+                  setSelected([]);
+                  setPage(1);
+                  setError("");
+                }}
+              />
               <FormInput
                 label="Title"
                 aria-label="Title"
@@ -410,7 +435,7 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
                         ? "Select recipients"
                         : "Exclude users"
                     }
-                    placeholder="Search users by name"
+                    placeholder="Search name, username or phone"
                     aria-label="Search users by name"
                     value={search}
                     onChange={(event) => {
@@ -445,7 +470,7 @@ export default function CreateBroadcastModal({ onClose, onSuccess }: Props) {
                       <CheckboxInput
                         options={rows.map((user) => ({
                           value: user.id,
-                          label: `${user.displayName || "Unnamed user"} (${user.channelUserId})`,
+                          label: `${user.displayName || "Unnamed user"} (${user.channel === "INSTAGRAM" ? (user.username ? `@${user.username}` : "Instagram") : user.channelUserId})`,
                         }))}
                         value={selected.filter((id) => visibleIds.includes(id))}
                         onChange={(values) =>

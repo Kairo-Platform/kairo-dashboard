@@ -255,12 +255,16 @@ export interface FlowConversation {
     displayName?: string | null;
     channel: string;
     channelUserId: string;
+    username?: string | null;
+    linkedWhatsAppNumber?: string | null;
+    accountId?: string | null;
   };
   messages: FlowConversationMessage[];
   lastMessageAt: string;
 }
 
 export interface FlowConversationsQuery {
+  channel?: string;
   search?: string;
   startDate?: string;
   endDate?: string;
@@ -297,6 +301,7 @@ export interface ConversationControl {
   ownedByMe: boolean;
   canSend: boolean;
   messagingWindowOpen: boolean;
+  takeoverSupported?: boolean;
 }
 export interface AdminMessageRequest {
   requestId: string;

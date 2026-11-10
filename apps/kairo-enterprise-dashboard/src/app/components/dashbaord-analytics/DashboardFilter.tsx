@@ -4,10 +4,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import styled from "styled-components";
 import { Button, ButtonClass, Flex } from "@/app/components/ui";
-import { DatePickerInput } from "@/app/components/ui/inputs";
+import { DatePickerInput, SelectInput } from "@/app/components/ui/inputs";
 import { formatDate } from "@kairo/lib/utils";
 
-const DateFiltersContainer = styled.div`
+const DashboardFilterContainer = styled.div`
   position: relative;
 
   .FilterAction {
@@ -53,13 +53,15 @@ const DateFiltersContainer = styled.div`
   }
 `;
 
-export function DashboardDateFilters() {
+export function DashboardFilter() {
   const params = useSearchParams();
   return (
-    <DateFilters key={`${params.get("startDate")}:${params.get("endDate")}`} />
+    <DashboardFilterForm
+      key={`${params.get("startDate")}:${params.get("endDate")}:${params.get("channel")}`}
+    />
   );
 }
-function DateFilters() {
+function DashboardFilterForm() {
   const params = useSearchParams();
   const router = useRouter();
   const boardId = useId();
@@ -88,9 +90,12 @@ function DateFilters() {
       document.removeEventListener("pointerdown", handlePointerDown, true);
   }, [showFilter, calendarPopupClass]);
   const today = String(formatDate(new Date(), "YYYY-MM-DD"));
-  const isFiltered = [params.get("startDate"), params.get("endDate")].some(
-    (date) => date && date !== today,
-  );
+  const isFiltered =
+    Boolean(params.get("channel")) ||
+    [params.get("startDate"), params.get("endDate")].some(
+      (date) => date && date !== today,
+    );
+  const [channel, setChannel] = useState(params.get("channel") || "");
   const [start, setStart] = useState<Date | null>(
     params.get("startDate") ? new Date(params.get("startDate")!) : null,
   );
@@ -107,12 +112,14 @@ function DateFilters() {
         next.set(name, String(formatDate(date, "YYYY-MM-DD")));
       else next.delete(name);
     }
+    if (channel && !clear) next.set("channel", channel);
+    else next.delete("channel");
     next.delete("page");
     router.replace(`?${next}`);
     setShowFilter(false);
   }
   return (
-    <DateFiltersContainer ref={filtersRef}>
+    <DashboardFilterContainer ref={filtersRef}>
       <Button
         classes={[ButtonClass.OUTLINED_GREY_TO_PRIMARY, ButtonClass.WITH_ICON]}
         aria-expanded={showFilter}
@@ -128,7 +135,7 @@ function DateFilters() {
             <h3>Filter by:</h3>
             <Button
               classes={[ButtonClass.ICON_ONLY]}
-              aria-label="Close date filters"
+              aria-label="Close dashboard filters"
               onClick={() => setShowFilter(false)}
             >
               <Icon icon="ic:round-close" width={20} height={20} />
@@ -149,6 +156,20 @@ function DateFilters() {
               onChange={setEnd}
               popupClassName={calendarPopupClass}
             />
+            <SelectInput
+              label="Channel"
+              placeholder="All channels"
+              value={channel}
+              options={[
+                { label: "WhatsApp", value: "WHATSAPP" },
+                { label: "Instagram", value: "INSTAGRAM" },
+              ]}
+              onChange={(option: string | { value: string } | null) =>
+                setChannel(
+                  typeof option === "string" ? option : (option?.value ?? ""),
+                )
+              }
+            />
           </div>
           <Flex
             justify="flex-end"
@@ -162,6 +183,7 @@ function DateFilters() {
               onClick={() => {
                 setStart(null);
                 setEnd(null);
+                setChannel("");
                 apply(true);
               }}
             >
@@ -177,6 +199,6 @@ function DateFilters() {
           </Flex>
         </div>
       )}
-    </DateFiltersContainer>
+    </DashboardFilterContainer>
   );
 }

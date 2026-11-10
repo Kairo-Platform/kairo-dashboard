@@ -11,6 +11,7 @@ export type BroadcastAudience =
   | "SELECTED"
   | "ALL_EXCEPT_SELECTED";
 export interface BroadcastRequest {
+  channel?: string;
   requestId: string;
   title: string;
   message: string;
@@ -19,6 +20,7 @@ export interface BroadcastRequest {
   buttons?: BackendButton[];
 }
 export interface BroadcastSummary {
+  channel?: string;
   id: string;
   status: BroadcastStatus;
   title: string;
@@ -40,6 +42,7 @@ export type RecipientStatus =
   | "CANCELLED";
 export type BroadcastStatus = RecipientStatus | "PARTIAL";
 export interface BroadcastQuery {
+  channel?: string;
   page?: number;
   limit?: number;
   search?: string;
@@ -54,6 +57,7 @@ export interface BroadcastPage<T> {
   totalCount: number;
 }
 export interface BroadcastSchema {
+  channels: string[];
   buttonActions: BackendButtonAction[];
   maxReplyButtons: number;
   maxUrlButtons: number;
@@ -66,6 +70,8 @@ export interface BroadcastDetails {
   buttons: BackendButton[];
 }
 export interface BroadcastRecipient {
+  username?: string | null;
+  channel?: string;
   id: string;
   userId: string;
   displayName: string | null;
@@ -81,9 +87,10 @@ const queryParams = (query: BroadcastQuery) =>
     ),
   );
 export const broadcasts = {
-  schema: (orgId: string) => xApiBff.request<BroadcastSchema>(
-    `v1/orgs/${encodeURIComponent(orgId)}/flow/broadcasts/schema`,
-  ),
+  schema: (orgId: string) =>
+    xApiBff.request<BroadcastSchema>(
+      `v1/orgs/${encodeURIComponent(orgId)}/flow/broadcasts/schema`,
+    ),
   list: (orgId: string, query: BroadcastQuery) =>
     xApiBff.request<BroadcastPage<BroadcastSummary>>(
       `v1/orgs/${encodeURIComponent(orgId)}/flow/broadcasts`,

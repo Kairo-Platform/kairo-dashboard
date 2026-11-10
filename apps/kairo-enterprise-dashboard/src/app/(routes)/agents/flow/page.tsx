@@ -31,7 +31,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import styled from "styled-components";
-import { DashboardDateFilters } from "@/app/components/dashbaord-analytics/DashboardDateFilters";
+import { DashboardFilter } from "@/app/components/dashbaord-analytics/DashboardFilter";
 import CreateBroadcastModal from "@/app/components/notifications/CreateBroadcastModal";
 
 const FlowPageContainer = styled.div`
@@ -164,7 +164,7 @@ export default function FlowPage() {
       appendElementToHeading={
         showDashboard && (
           <Flex align="center" gap="1rem">
-            <DashboardDateFilters />
+            <DashboardFilter />
             <Button
               classes={[ButtonClass.OUTLINED, ButtonClass.WITH_ICON]}
               onClick={() => router.push(URL.AGENTS_FLOW_SETTINGS_URL)}

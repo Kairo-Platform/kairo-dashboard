@@ -55,12 +55,21 @@ export const fetchBroadcastSchema = async () => {
   }
 };
 
-export const fetchBroadcastUsers = async (page: number, search: string) => {
+export const fetchBroadcastUsers = async (
+  page: number,
+  search: string,
+  channel = "WHATSAPP",
+) => {
   const request = ++latestSearch;
   void broadcastsStore.set((s) => ({ ...s, users: null, loadingUsers: true }));
   try {
     const orgId = await organization();
-    const response = await users.getUsers(orgId, { page, limit: 10, search });
+    const response = await users.getUsers(orgId, {
+      page,
+      limit: 10,
+      search,
+      channel,
+    });
     if (request === latestSearch && getOrgId() === orgId) {
       void broadcastsStore.set((s) => ({
         ...s,
