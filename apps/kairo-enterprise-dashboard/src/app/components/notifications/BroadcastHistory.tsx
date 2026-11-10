@@ -53,6 +53,10 @@ const reasonLabel = (reason: string | null) => {
     DELIVERY_DEADLINE: "Delivery deadline passed",
     SEND_OUTCOME_UNKNOWN: "Send outcome could not be confirmed",
     CHANNEL_UNAVAILABLE: "Channel unavailable",
+    INSTAGRAM_WINDOW_CLOSED:
+      "Waiting for an Instagram message from the customer",
+    CHANNEL_MESSAGING_UNAVAILABLE:
+      "Channel cannot currently message this customer",
     AUDIENCE_NOT_MATCHED: "Does not match the activation audience",
     ACTIVATION_STATUS_UNAVAILABLE: "Waiting for business activation status",
     DELIVERY_UNAVAILABLE: "Delivery temporarily unavailable",
@@ -87,6 +91,10 @@ export function BroadcastListTable({
           rows={data.items}
           headers={[
             { title: "Title", render: (row: BroadcastSummary) => row.title },
+            {
+              title: "Channel",
+              render: (row: BroadcastSummary) => row.channel || "WHATSAPP",
+            },
             {
               title: "Audience",
               render: (row: BroadcastSummary) =>
@@ -156,8 +164,13 @@ export function BroadcastRecipientsTable({
               render: (row: BroadcastRecipient) => row.displayName ?? "N/A",
             },
             {
-              title: "WhatsApp number",
-              render: (row: BroadcastRecipient) => row.channelUserId,
+              title: "Contact",
+              render: (row: BroadcastRecipient) =>
+                row.channel === "INSTAGRAM"
+                  ? row.username
+                    ? `@${row.username}`
+                    : "Instagram user"
+                  : row.channelUserId,
             },
             {
               title: "Status",

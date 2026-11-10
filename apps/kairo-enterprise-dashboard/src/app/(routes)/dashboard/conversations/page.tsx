@@ -22,10 +22,19 @@ export default function ConversationsPage() {
   const search = searchParams.get("search") || undefined;
   const startDate = searchParams.get("startDate") || undefined;
   const endDate = searchParams.get("endDate") || undefined;
+  const channel = searchParams.get("channel") || undefined;
 
   const conversationFilters = useMemo(
-    () => ({ agent: "all" as const, page, limit, search, startDate, endDate }),
-    [page, limit, search, startDate, endDate],
+    () => ({
+      agent: "all" as const,
+      page,
+      limit,
+      search,
+      startDate,
+      endDate,
+      channel,
+    }),
+    [page, limit, search, startDate, endDate, channel],
   );
   const conversationState = useEntity(flowStore);
   useEffect(() => {

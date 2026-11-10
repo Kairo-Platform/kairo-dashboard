@@ -6,6 +6,7 @@ import { flow, resolveConversationSchemaTypeId } from "@/services/Flow";
 import type { ConversationDetail } from "@/services/Analytics/types";
 import { getOrgId, hydrateSession } from "@/lib/auth/client";
 import type {
+  ChannelConnectRequest,
   FlowKnowledgeBase,
   FlowKnowledgeNote,
   FlowConversationsQuery,
@@ -535,5 +536,56 @@ export const deleteFlowConversation = async (typeId: string) => {
       ),
     });
     return false;
+  }
+};
+
+// New credentials live only in the form/request, not shared state.
+export const loadChannelForm = async (
+  channel: string,
+): Promise<BackendChannelConfig> => {
+  try {
+    const orgId = getOrgId();
+    if (!orgId) throw new Error("Session expired. Please sign in again.");
+    const response = await flow.getChannelConfig(orgId, channel);
+    if (hasApiError(response)) throw response;
+    if (orgId !== getOrgId())
+      throw new Error("Organization changed. Please reopen the connection.");
+    const config = unwrapApiData<BackendChannelConfig>(response);
+    if (config.schema?.version !== 1 || !Array.isArray(config.schema.fields))
+      throw new Error(
+        "This backend does not provide the channel form schema. Deploy the channel configuration update first.",
+      );
+    return config;
+  } catch (error) {
+    showErrorNotification({
+      message: parseApiError(error, "Unable to load channel configuration."),
+    });
+    throw error;
+  }
+};
+
+export const saveChannelForm = async (
+  channel: string,
+  body: ChannelConnectRequest,
+): Promise<void> => {
+  try {
+    const orgId = getOrgId();
+    if (!orgId) throw new Error("Session expired. Please sign in again.");
+    const response = await flow.connectChannel(orgId, channel, body);
+    if (hasApiError(response)) throw response;
+    if (
+      unwrapApiData<{ status: string }>(response).status?.toUpperCase() !==
+      "CONNECTED"
+    )
+      throw new Error(
+        "The channel has not confirmed the connection. Please try again.",
+      );
+    if (orgId !== getOrgId())
+      throw new Error("Organization changed. Please reopen the connection.");
+  } catch (error) {
+    showErrorNotification({
+      message: parseApiError(error, "Unable to save channel configuration."),
+    });
+    throw error;
   }
 };

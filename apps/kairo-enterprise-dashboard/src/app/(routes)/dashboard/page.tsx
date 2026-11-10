@@ -19,7 +19,7 @@ import {
   DashboardLineChart,
 } from "@/app/components/dashbaord-analytics";
 import { chartPoints, metricValue } from "@/services/Analytics/mappers";
-import { DashboardDateFilters } from "@/app/components/dashbaord-analytics/DashboardDateFilters";
+import { DashboardFilter } from "@/app/components/dashbaord-analytics/DashboardFilter";
 import { AskKairoAI } from "@/app/components/ask-kairo";
 import { useRouter, useSearchParams } from "next/navigation";
 import { URL } from "@/lib/constants";
@@ -102,6 +102,7 @@ export default function DashboardPage() {
   const search = searchParams.get("search") || undefined;
   const startDate = searchParams.get("startDate") || undefined;
   const endDate = searchParams.get("endDate") || undefined;
+  const channel = searchParams.get("channel") || undefined;
   const today = String(formatDate(new Date(), "YYYY-MM-DD"));
 
   const conversationFilters = useMemo(
@@ -110,10 +111,11 @@ export default function DashboardPage() {
       page,
       limit,
       search,
+      channel,
       startDate: startDate || today,
       endDate: endDate || today,
     }),
-    [page, limit, search, startDate, endDate, today],
+    [page, limit, search, startDate, endDate, channel, today],
   );
   const conversationState = useEntity(flowStore);
   useEffect(() => {
@@ -132,8 +134,8 @@ export default function DashboardPage() {
   const fetchingFlowConversations = conversations.loading;
 
   const analyticsFilters = useMemo(
-    () => ({ agent: "all" as const, startDate, endDate }),
-    [startDate, endDate],
+    () => ({ agent: "all" as const, startDate, endDate, channel }),
+    [startDate, endDate, channel],
   );
   const analyticsState = useEntity(analyticsStore);
   useEffect(() => {
@@ -206,7 +208,7 @@ export default function DashboardPage() {
       subTitle="Monitor operations, agents, alerts, and insights in real time."
       appendElementToHeading={
         <Flex>
-          <DashboardDateFilters />
+          <DashboardFilter />
           <AskKairoAI iconOnly />
         </Flex>
       }

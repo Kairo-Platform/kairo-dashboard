@@ -5,6 +5,7 @@ export interface UsersQuery {
   page?: number;
   limit?: number;
   search?: string;
+  channel?: string;
   startDate?: string;
   endDate?: string;
   timezone?: string;

@@ -4,9 +4,9 @@ Monorepo for Kairo dashboard applications and shared frontend packages.
 
 ## Apps
 
-| App                                                             | Package                       | Port | Description                   |
-| --------------------------------------------------------------- | ----------------------------- | ---- | ----------------------------- |
-| [kairo-admin-dashboard](./apps/kairo-admin-dashboard)           | `@kairo/admin-dashboard`      | 3000 | Admin operations dashboard    |
+| App                                                             | Package                       | Port | Description                          |
+| --------------------------------------------------------------- | ----------------------------- | ---- | ------------------------------------ |
+| [kairo-admin-dashboard](./apps/kairo-admin-dashboard)           | `@kairo/admin-dashboard`      | 3000 | Admin operations dashboard           |
 | [kairo-enterprise-dashboard](./apps/kairo-enterprise-dashboard) | `@kairo/enterprise-dashboard` | 3001 | Enterprise customer dashboard (xApi) |
 
 ## Packages
@@ -53,3 +53,5 @@ Open a focused VS Code workspace:
 ## Environment
 
 Each app has its own `.env.sample`. Copy to `.env.local` inside the app directory.
+
+Secure forms use `/secure/forms?type=onboarding` in the enterprise app (no dashboard login). Set backend `KAIRO_HOSTED_FORMS_URL` to the public HTTPS `/secure/forms` base URL (no query); the form BFF uses the existing `KAIRO_X_API_URL`. Deploy frontend and backend together.

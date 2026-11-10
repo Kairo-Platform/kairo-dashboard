@@ -7,11 +7,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button, ButtonClass, Flex } from "@/app/components/ui";
 import {
   DatePickerInput,
-  FormInput,
+  SelectInput,
   SearchInput,
 } from "@/app/components/ui/inputs";
 import { Icon } from "@iconify/react";
-import { parseConversationNumber } from "@/services/Flow/conversations";
 import { formatDate } from "@kairo/lib/utils";
 
 const ConversationsTableFiltersContainer = styled.div`
@@ -69,14 +68,10 @@ export const ConversationsTableFilters: FC = () => {
 const ConversationFiltersForm: FC = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [size, setSize] = useState(
-    String(
-      parseConversationNumber(
-        searchParams.get("limit") ?? searchParams.get("size"),
-      ),
-    ),
-  );
   const [showFilter, setShowFilter] = useState(false);
+  const [filterChannel, setFilterChannel] = useState(
+    searchParams.get("channel") || "",
+  );
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const previousSearch = useRef(search);
   const [searchInput, setSearchInput] = useState(
@@ -91,6 +86,9 @@ const ConversationFiltersForm: FC = () => {
 
   const applyParams = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
+
+    if (filterChannel) params.set("channel", filterChannel);
+    else params.delete("channel");
 
     if (searchInput) params.set("search", searchInput);
     else params.delete("search");
@@ -113,8 +111,6 @@ const ConversationFiltersForm: FC = () => {
     }
 
     params.delete("page");
-    params.delete("size");
-    params.set("limit", String(parseConversationNumber(size)));
     router.replace(`?${params.toString()}`);
   };
 
@@ -124,14 +120,14 @@ const ConversationFiltersForm: FC = () => {
   };
 
   const handleClearFilter = () => {
-    setSize("10");
     setSearch("");
     setSearchInput("");
+    setFilterChannel("");
     setFilterStartDate("");
     setFilterEndDate("");
 
     const params = new URLSearchParams(Array.from(searchParams.entries()));
-    ["page", "size", "limit", "startDate", "endDate", "search"].forEach((key) =>
+    ["page", "channel", "startDate", "endDate", "search"].forEach((key) =>
       params.delete(key),
     );
     router.replace(`?${params.toString()}`);
@@ -158,7 +154,7 @@ const ConversationFiltersForm: FC = () => {
 
   return (
     <ConversationsTableFiltersContainer>
-      <Flex gap="1rem" align="center">
+      <Flex gap="1rem" align="center" wrap="wrap">
         <SearchInput
           placeholder="Search conversations..."
           value={searchInput}
@@ -203,16 +199,6 @@ const ConversationFiltersForm: FC = () => {
             </Flex>
 
             <div className="FilterGrid">
-              <FormInput
-                label="Conversations per page"
-                type="number"
-                min={1}
-                max={100}
-                step={1}
-                required
-                value={size}
-                onChange={(event) => setSize(event.target.value)}
-              />
               <DatePickerInput
                 label="Start date"
                 placeholder="Select start date"
@@ -227,6 +213,20 @@ const ConversationFiltersForm: FC = () => {
                 value={filterEndDate ? new Date(filterEndDate) : undefined}
                 onChange={(val: Date | null) =>
                   setFilterEndDate(val ? String(val) : "")
+                }
+              />
+              <SelectInput
+                label="Channel"
+                placeholder="All channels"
+                value={filterChannel}
+                options={[
+                  { label: "WhatsApp", value: "WHATSAPP" },
+                  { label: "Instagram", value: "INSTAGRAM" },
+                ]}
+                onChange={(option: string | { value: string } | null) =>
+                  setFilterChannel(
+                    typeof option === "string" ? option : (option?.value ?? ""),
+                  )
                 }
               />
             </div>

@@ -699,8 +699,17 @@ const ConversationDetailsView = ({
       />
     );
   const user = {
-    name: conversation.user.displayName || conversation.user.channelUserId,
-    phone: conversation.user.channelUserId,
+    name:
+      conversation.user.displayName ||
+      (conversation.user.username
+        ? `@${conversation.user.username}`
+        : conversation.user.channelUserId),
+    phone:
+      conversation.user.channel === "WHATSAPP"
+        ? conversation.user.channelUserId
+        : conversation.user.username
+          ? `@${conversation.user.username}`
+          : "Instagram user",
     channel: conversation.user.channel,
     statusLabel: human ? "Admin replying" : "Agent replying",
   };
@@ -709,6 +718,14 @@ const ConversationDetailsView = ({
   )[0];
   const infoRows = [
     { label: "Channel", value: user.channel },
+    ...(conversation.user.linkedWhatsAppNumber
+      ? [
+          {
+            label: "Linked WhatsApp",
+            value: conversation.user.linkedWhatsAppNumber,
+          },
+        ]
+      : []),
     { label: "Status", value: user.statusLabel },
     {
       label: "Time started",
@@ -908,7 +925,13 @@ const ConversationDetailsView = ({
                       : "Another staff member is replying"
                     : "Take over conversation",
                 onClick: () => {
-                  if (busy || !control || (human && !control.ownedByMe)) return;
+                  if (
+                    busy ||
+                    !control ||
+                    control.takeoverSupported === false ||
+                    (human && !control.ownedByMe)
+                  )
+                    return;
                   void changeConversationControl(
                     userId,
                     human ? (control.takeoverId ?? undefined) : undefined,

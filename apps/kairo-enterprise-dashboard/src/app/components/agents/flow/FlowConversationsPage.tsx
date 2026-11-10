@@ -44,6 +44,7 @@ export const FlowConversationsPage = () => {
   const search = searchParams.get("search") || undefined;
   const startDate = searchParams.get("startDate") || undefined;
   const endDate = searchParams.get("endDate") || undefined;
+  const channel = searchParams.get("channel") || undefined;
   const today = String(formatDate(new Date(), "YYYY-MM-DD"));
 
   const conversationFilters = useMemo(
@@ -52,10 +53,11 @@ export const FlowConversationsPage = () => {
       page,
       limit,
       search,
+      channel,
       startDate: startDate || today,
       endDate: endDate || today,
     }),
-    [page, limit, search, startDate, endDate, today],
+    [page, limit, search, startDate, endDate, channel, today],
   );
   const conversationState = useEntity(flowStore);
   useEffect(() => {
@@ -74,8 +76,8 @@ export const FlowConversationsPage = () => {
   const fetchingFlowConversations = conversations.loading;
 
   const analyticsFilters = useMemo(
-    () => ({ agent: "flow" as const, startDate, endDate }),
-    [startDate, endDate],
+    () => ({ agent: "flow" as const, startDate, endDate, channel }),
+    [startDate, endDate, channel],
   );
   const analyticsState = useEntity(analyticsStore);
   useEffect(() => {

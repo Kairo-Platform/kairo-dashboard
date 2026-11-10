@@ -25,9 +25,6 @@ import type {
 export const getChannelBrandColor = (channel: FlowChannel) =>
   channel.brandColor ?? CHANNEL_BRAND_COLORS[channel.id] ?? "#46AE70";
 
-export const isWhatsAppChannel = (channel: FlowChannel | null) =>
-  channel?.id === "whatsapp" || channel?.name.toLowerCase() === "whatsapp";
-
 export const cloneAutomationValues = (
   values: Record<string, unknown>,
 ): Record<string, unknown> =>

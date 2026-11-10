@@ -81,6 +81,9 @@ const BroadcastFiltersForm: FC<{ recipients: boolean }> = ({ recipients }) => {
       ),
     ),
   );
+  const [filterChannel, setFilterChannel] = useState(
+    searchParams.get("channel") || "",
+  );
   const [status, setStatus] = useState(searchParams.get("status") || "");
   const [showFilter, setShowFilter] = useState(false);
   const [search, setSearch] = useState(searchParams.get("search") || "");
@@ -118,6 +121,10 @@ const BroadcastFiltersForm: FC<{ recipients: boolean }> = ({ recipients }) => {
       params.delete("endDate");
     }
 
+    if (!recipients) {
+      if (filterChannel) params.set("channel", filterChannel);
+      else params.delete("channel");
+    }
     if (status) params.set("status", status);
     else params.delete("status");
     params.delete("page");
@@ -133,6 +140,7 @@ const BroadcastFiltersForm: FC<{ recipients: boolean }> = ({ recipients }) => {
 
   const handleClearFilter = () => {
     setStatus("");
+    setFilterChannel("");
     setSize("10");
     setSearch("");
     setSearchInput("");
@@ -149,6 +157,7 @@ const BroadcastFiltersForm: FC<{ recipients: boolean }> = ({ recipients }) => {
       "search",
       "status",
     ].forEach((key) => params.delete(key));
+    if (!recipients) params.delete("channel");
     router.replace(`?${params.toString()}`);
     setShowFilter(false);
   };
@@ -221,6 +230,24 @@ const BroadcastFiltersForm: FC<{ recipients: boolean }> = ({ recipients }) => {
             </Flex>
 
             <div className="FilterGrid">
+              {!recipients && (
+                <SelectInput
+                  label="Channel"
+                  placeholder="All channels"
+                  value={filterChannel}
+                  options={[
+                    { label: "WhatsApp", value: "WHATSAPP" },
+                    { label: "Instagram", value: "INSTAGRAM" },
+                  ]}
+                  onChange={(option: string | { value: string } | null) =>
+                    setFilterChannel(
+                      typeof option === "string"
+                        ? option
+                        : (option?.value ?? ""),
+                    )
+                  }
+                />
+              )}
               <SelectInput
                 label="Status"
                 value={status}

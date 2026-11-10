@@ -25,6 +25,7 @@ export interface AnalyticsPoint {
   sampleCount?: number | null;
 }
 export interface DashboardAnalytics {
+  channel?: string | null;
   agent: AgentFilter;
   startDate: string;
   endDate: string;
@@ -76,6 +77,9 @@ export interface DashboardUsersPage {
     displayName?: string | null;
     channel: string;
     channelUserId: string;
+    username?: string | null;
+    linkedWhatsAppNumber?: string | null;
+    accountId?: string | null;
     status: "ACTIVE" | "INACTIVE" | "UNKNOWN";
     onboardingStatus: string;
     createdAt: string;

@@ -13,6 +13,8 @@ export const UsersTableContainer = styled.div`
 export type UserRow = {
   id: string;
   user: string;
+  channel?: string;
+  contact?: string;
   status: string;
   dateAdded: Date | string;
 };
@@ -53,6 +55,14 @@ export const UsersTable = ({
     {
       title: "User",
       render: (row: UserRow) => row.user ?? "N/A",
+    },
+    {
+      title: "Channel",
+      render: (row: UserRow) => row.channel || "N/A",
+    },
+    {
+      title: "Contact",
+      render: (row: UserRow) => row.contact || "N/A",
     },
     {
       title: "Status",

@@ -22,9 +22,10 @@ export default function UsersPage() {
   const search = params.get("search") || undefined;
   const startDate = params.get("startDate") || undefined;
   const endDate = params.get("endDate") || undefined;
+  const channel = params.get("channel") || undefined;
   const filters = useMemo(
-    () => ({ page, limit, search, startDate, endDate }),
-    [page, limit, search, startDate, endDate],
+    () => ({ page, limit, search, startDate, endDate, channel }),
+    [page, limit, search, startDate, endDate, channel],
   );
   const usersState = useEntity(usersStore);
   useEffect(() => {
@@ -84,15 +85,21 @@ export default function UsersPage() {
         <UsersTable
           onViewConversation={(userId) =>
             router.push(
-              URL.USERS_CONVERSATION_DETAILS_URL.replace(
-                ":userId",
-                encodeURIComponent(userId),
-              ),
+              `${URL.USERS_CONVERSATION_DETAILS_URL.replace(":userId", encodeURIComponent(userId))}?${params.toString()}`,
             )
           }
           users={(users.data?.items ?? []).map((user) => ({
             id: user.id,
-            user: user.displayName || user.channelUserId,
+            user:
+              user.displayName ||
+              (user.username ? `@${user.username}` : user.channelUserId),
+            channel: user.channel,
+            contact:
+              user.channel === "INSTAGRAM"
+                ? user.username
+                  ? `@${user.username}`
+                  : "N/A"
+                : user.channelUserId,
             status: user.status.toLowerCase(),
             dateAdded: user.createdAt,
           }))}

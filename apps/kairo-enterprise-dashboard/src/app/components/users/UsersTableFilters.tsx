@@ -5,7 +5,11 @@ import styled from "styled-components";
 import { FC, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, ButtonClass, Flex } from "@/app/components/ui";
-import { DatePickerInput, SearchInput } from "@/app/components/ui/inputs";
+import {
+  DatePickerInput,
+  SearchInput,
+  SelectInput,
+} from "@/app/components/ui/inputs";
 import { Icon } from "@iconify/react";
 import { formatDate } from "@kairo/lib/utils";
 
@@ -65,6 +69,9 @@ const UserFiltersForm: FC = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [showFilter, setShowFilter] = useState(false);
+  const [filterChannel, setFilterChannel] = useState(
+    searchParams.get("channel") || "",
+  );
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const previousSearch = useRef(search);
   const [searchInput, setSearchInput] = useState(
@@ -79,6 +86,9 @@ const UserFiltersForm: FC = () => {
 
   const applyParams = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
+
+    if (filterChannel) params.set("channel", filterChannel);
+    else params.delete("channel");
 
     if (searchInput) params.set("search", searchInput);
     else params.delete("search");
@@ -112,11 +122,12 @@ const UserFiltersForm: FC = () => {
   const handleClearFilter = () => {
     setSearch("");
     setSearchInput("");
+    setFilterChannel("");
     setFilterStartDate("");
     setFilterEndDate("");
 
     const params = new URLSearchParams(Array.from(searchParams.entries()));
-    ["page", "limit", "startDate", "endDate", "search"].forEach((key) =>
+    ["page", "channel", "startDate", "endDate", "search"].forEach((key) =>
       params.delete(key),
     );
     router.replace(`?${params.toString()}`);
@@ -143,7 +154,7 @@ const UserFiltersForm: FC = () => {
 
   return (
     <UsersTableFiltersContainer>
-      <Flex gap="1rem" align="center">
+      <Flex gap="1rem" align="center" wrap="wrap">
         <SearchInput
           placeholder="Search users..."
           value={searchInput}
@@ -202,6 +213,20 @@ const UserFiltersForm: FC = () => {
                 value={filterEndDate ? new Date(filterEndDate) : undefined}
                 onChange={(val: Date | null) =>
                   setFilterEndDate(val ? String(val) : "")
+                }
+              />
+              <SelectInput
+                label="Channel"
+                placeholder="All channels"
+                value={filterChannel}
+                options={[
+                  { label: "WhatsApp", value: "WHATSAPP" },
+                  { label: "Instagram", value: "INSTAGRAM" },
+                ]}
+                onChange={(option: string | { value: string } | null) =>
+                  setFilterChannel(
+                    typeof option === "string" ? option : (option?.value ?? ""),
+                  )
                 }
               />
             </div>

@@ -6,6 +6,7 @@ import type {
 
 export interface AnalyticsQuery {
   agent?: AgentFilter;
+  channel?: string;
   startDate?: string;
   endDate?: string;
   timezone?: string;

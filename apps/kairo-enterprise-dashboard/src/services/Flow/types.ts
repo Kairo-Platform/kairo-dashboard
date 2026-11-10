@@ -91,31 +91,12 @@ export type BackendChannel = {
   status: "CONNECTED" | "DISCONNECTED" | string;
 };
 
-export type BackendWhatsAppConnectRequest = {
-  phoneNumberId: string;
-  phoneNumber: string;
-  whatsappBusinessAccountId: string;
-  accessToken: string;
-  appSecret: string;
-  onboardingFlowId: string;
-  verifyToken?: string;
-  businessFlowId?: string;
-  transferAuthorizationTemplateName?: string;
-  transferPinFlowId?: string;
-};
-
-export type BackendWhatsAppConnectResponse = {
-  status: string;
-  webhookUrl: string;
-  verifyToken: string;
-  publicKey: string;
-};
-
 export type BackendChannelConfigEntry = {
   key: string;
   displayName: string;
   value: string;
   sensitive: boolean;
+  showOnSuccess?: boolean;
 };
 
 export type FlowMessageVariables = {
@@ -164,7 +145,35 @@ export type ConditionRowState = {
 export type BackendChannelConfig = {
   channel: string;
   entries: BackendChannelConfigEntry[];
+  status: string;
+  enabled: boolean;
+  unavailableReason?: string | null;
+  schema: {
+    version: number;
+    fields: ChannelFormField[];
+    helpText?: string | null;
+  };
 };
+
+export type ChannelFormField = {
+  key: string;
+  label: string;
+  type: string;
+  required: boolean;
+  visible: boolean;
+  readOnly: boolean;
+  placeholder: string;
+  helpText?: string | null;
+  inputMode?: "text" | "numeric" | "decimal" | "tel" | "email" | "url" | null;
+  pattern?: string | null;
+  maxLength?: number | null;
+  hasValue: boolean;
+  defaultValue?: string | null;
+  options: { label: string; value: string }[];
+  valueType: "string" | "number" | "boolean";
+};
+export type ChannelFormValues = Record<string, string | boolean>;
+export type ChannelConnectRequest = Record<string, string | number | boolean>;
 
 export type BackendSchemaOption = {
   value: string;
@@ -246,12 +255,16 @@ export interface FlowConversation {
     displayName?: string | null;
     channel: string;
     channelUserId: string;
+    username?: string | null;
+    linkedWhatsAppNumber?: string | null;
+    accountId?: string | null;
   };
   messages: FlowConversationMessage[];
   lastMessageAt: string;
 }
 
 export interface FlowConversationsQuery {
+  channel?: string;
   search?: string;
   startDate?: string;
   endDate?: string;
@@ -288,6 +301,7 @@ export interface ConversationControl {
   ownedByMe: boolean;
   canSend: boolean;
   messagingWindowOpen: boolean;
+  takeoverSupported?: boolean;
 }
 export interface AdminMessageRequest {
   requestId: string;
