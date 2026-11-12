@@ -1,6 +1,14 @@
 "use client";
 
-import { EmptyState, Flex, Loading, Table, Tag, TagType } from "@kairo/ui";
+import {
+  CopyText,
+  EmptyState,
+  Flex,
+  Loading,
+  Table,
+  Tag,
+  TagType,
+} from "@kairo/ui";
 import styled from "styled-components";
 import { DATE_FORMAT, formatDate } from "@kairo/lib/utils";
 import { UsersTableFilters } from "./UsersTableFilters";
@@ -62,7 +70,8 @@ export const UsersTable = ({
     },
     {
       title: "Contact",
-      render: (row: UserRow) => row.contact || "N/A",
+      render: (row: UserRow) =>
+        row.contact ? <CopyText text={row.contact} /> : "N/A",
     },
     {
       title: "Status",
