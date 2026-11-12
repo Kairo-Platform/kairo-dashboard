@@ -71,7 +71,11 @@ export const UsersTable = ({
     {
       title: "Contact",
       render: (row: UserRow) =>
-        row.contact ? <CopyText text={row.contact} /> : "N/A",
+        row.contact ? (
+          <CopyText text={row.contact}>{row.contact}</CopyText>
+        ) : (
+          "N/A"
+        ),
     },
     {
       title: "Status",
