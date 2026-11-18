@@ -6,7 +6,7 @@ Before changing code, read [.agents/rules/engineering.md](.agents/rules/engineer
 
 For Figma implementation, also read [.agents/skills/kairo-figma-to-code/SKILL.md](.agents/skills/kairo-figma-to-code/SKILL.md). Other changes do not require that skill.
 
-`.agents/` is the canonical, version-controlled source of project rules and skills. `.cursor/` contains compatibility adapters only. Agents that do not automatically discover `AGENTS.md` must load it explicitly before editing; keep adapters pointed here rather than duplicating the rules.
+`.agents/` is the canonical, version-controlled source of project rules and skills. All agents must start with `AGENTS.md` and follow the applicable guidance in `.agents/`.
 
 ## Git commits
 

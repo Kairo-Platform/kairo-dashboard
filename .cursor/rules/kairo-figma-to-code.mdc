@@ -1,6 +1,0 @@
----
-description: Load the canonical repository agent instructions before making changes.
-alwaysApply: true
----
-
-Read and follow `AGENTS.md` and `.agents/rules/engineering.md` before editing this repository. Follow the applicable skill linked from `AGENTS.md`. The canonical guidance lives in `.agents/`; update it there rather than duplicating rules in Cursor files.
