@@ -624,8 +624,14 @@ export const ConnectChannels = ({
                             ) : channelInputTypes.has(field.type) ? (
                               <FormInput
                                 {...common}
-                                type={field.type}
-                                inputMode={field.inputMode ?? undefined}
+                                type={
+                                  field.type === "tel" ? "text" : field.type
+                                }
+                                inputMode={
+                                  field.type === "tel"
+                                    ? "tel"
+                                    : (field.inputMode ?? undefined)
+                                }
                                 autoComplete={
                                   field.type === "password"
                                     ? "new-password"
