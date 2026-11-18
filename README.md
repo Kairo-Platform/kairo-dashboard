@@ -58,4 +58,4 @@ Secure forms use `/secure/forms?type=onboarding` in the enterprise app (no dashb
 
 ## Agent guidance
 
-Start with [AGENTS.md](AGENTS.md) before making changes. Shared rules and project skills live in the version-controlled `.agents/` directory; `.cursor/` contains adapters to that guidance.
+Start with [AGENTS.md](AGENTS.md) before making changes. Shared rules and project skills live in the version-controlled `.agents/` directory.
