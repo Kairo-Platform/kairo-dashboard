@@ -19,7 +19,9 @@ export const broadcastStatusLabel = (status: string) =>
       ? "Partially sent"
       : status.charAt(0) + status.slice(1).toLowerCase();
 export const broadcastSentCount = (broadcast: BroadcastSummary) =>
-  (broadcast.counts.SENT ?? 0) + (broadcast.counts.DELIVERED ?? 0) + (broadcast.counts.READ ?? 0);
+  (broadcast.counts.SENT ?? 0) +
+  (broadcast.counts.DELIVERED ?? 0) +
+  (broadcast.counts.READ ?? 0);
 export const broadcastAudienceLabel = (audience: string) =>
   ({
     ALL: "All users",
@@ -51,12 +53,17 @@ const reasonLabel = (reason: string | null) => {
   const labels: Record<string, string> = {
     OUTSIDE_WHATSAPP_WINDOW: "Waiting for the user to message again",
     WHATSAPP_WINDOW_CLOSED: "Waiting for the user to message again",
-    WHATSAPP_TEMPLATE_PENDING: "Waiting for Meta approval (checked every 10 minutes)",
+    WHATSAPP_TEMPLATE_PENDING:
+      "Waiting for Meta approval (checked every 5 minutes)",
     WHATSAPP_TEMPLATE_REJECTED: "Meta rejected or disabled the template",
-    WHATSAPP_TEMPLATE_INVALID: "Message needs changes before template submission",
-    WHATSAPP_TEMPLATE_REQUIRED: "Waiting for a matching approved template or a reply",
-    WHATSAPP_TEMPLATE_UNAVAILABLE: "Waiting for the WhatsApp template to become available",
-    WHATSAPP_ERROR_131047: "WhatsApp rejected delivery outside the 24-hour window",
+    WHATSAPP_TEMPLATE_INVALID:
+      "Message needs changes before template submission",
+    WHATSAPP_TEMPLATE_REQUIRED:
+      "Waiting for a matching approved template or a reply",
+    WHATSAPP_TEMPLATE_UNAVAILABLE:
+      "Waiting for the WhatsApp template to become available",
+    WHATSAPP_ERROR_131047:
+      "WhatsApp rejected delivery outside the 24-hour window",
     WHATSAPP_ERROR_132001: "WhatsApp template is missing or not approved",
     WHATSAPP_ERROR_132015: "WhatsApp template is paused",
     WHATSAPP_ERROR_132016: "WhatsApp template is disabled",
@@ -193,9 +200,10 @@ export function BroadcastRecipientsTable({
             {
               title: "Details",
               style: { whiteSpace: "normal", overflowWrap: "anywhere" },
-              render: (row: BroadcastRecipient) => row.templateError
-                ? `${reasonLabel(row.reason)}: ${row.templateError}`
-                : reasonLabel(row.reason),
+              render: (row: BroadcastRecipient) =>
+                row.templateError
+                  ? `${reasonLabel(row.reason)}: ${row.templateError}`
+                  : reasonLabel(row.reason),
             },
             {
               title: "Last updated",
