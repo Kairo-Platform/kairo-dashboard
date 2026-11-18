@@ -55,3 +55,7 @@ Open a focused VS Code workspace:
 Each app has its own `.env.sample`. Copy to `.env.local` inside the app directory.
 
 Secure forms use `/secure/forms?type=onboarding` in the enterprise app (no dashboard login). Set backend `KAIRO_HOSTED_FORMS_URL` to the public HTTPS `/secure/forms` base URL (no query); the form BFF uses the existing `KAIRO_X_API_URL`. Deploy frontend and backend together.
+
+## Agent guidance
+
+Start with [AGENTS.md](AGENTS.md) before making changes. Shared rules and project skills live in the version-controlled `.agents/` directory.
