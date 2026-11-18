@@ -18,6 +18,8 @@ export const broadcastStatusLabel = (status: string) =>
     : status === "PARTIAL"
       ? "Partially sent"
       : status.charAt(0) + status.slice(1).toLowerCase();
+export const broadcastSentCount = (broadcast: BroadcastSummary) =>
+  (broadcast.counts.SENT ?? 0) + (broadcast.counts.DELIVERED ?? 0) + (broadcast.counts.READ ?? 0);
 export const broadcastAudienceLabel = (audience: string) =>
   ({
     ALL: "All users",
@@ -31,9 +33,9 @@ export const broadcastAudienceLabel = (audience: string) =>
   })[audience] ?? audience;
 export function BroadcastStatusTag({ status }: { status: BroadcastStatus }) {
   const type =
-    status === "SENT"
+    status === "SENT" || status === "DELIVERED" || status === "READ"
       ? TagType.GREEN
-      : status === "UNKNOWN"
+      : status === "UNKNOWN" || status === "FAILED"
         ? TagType.RED
         : status === "QUEUED" || status === "SENDING" || status === "PARTIAL"
           ? TagType.YELLOW
@@ -49,6 +51,16 @@ const reasonLabel = (reason: string | null) => {
   const labels: Record<string, string> = {
     OUTSIDE_WHATSAPP_WINDOW: "Waiting for the user to message again",
     WHATSAPP_WINDOW_CLOSED: "Waiting for the user to message again",
+    WHATSAPP_TEMPLATE_PENDING: "Waiting for Meta approval (checked every 10 minutes)",
+    WHATSAPP_TEMPLATE_REJECTED: "Meta rejected or disabled the template",
+    WHATSAPP_TEMPLATE_INVALID: "Message needs changes before template submission",
+    WHATSAPP_TEMPLATE_REQUIRED: "Waiting for a matching approved template or a reply",
+    WHATSAPP_TEMPLATE_UNAVAILABLE: "Waiting for the WhatsApp template to become available",
+    WHATSAPP_ERROR_131047: "WhatsApp rejected delivery outside the 24-hour window",
+    WHATSAPP_ERROR_132001: "WhatsApp template is missing or not approved",
+    WHATSAPP_ERROR_132015: "WhatsApp template is paused",
+    WHATSAPP_ERROR_132016: "WhatsApp template is disabled",
+    WHATSAPP_DELIVERY_FAILED: "WhatsApp rejected delivery",
     RECENT_ACTIVITY: "Waiting for a quiet moment",
     DELIVERY_DEADLINE: "Delivery deadline passed",
     SEND_OUTCOME_UNKNOWN: "Send outcome could not be confirmed",
@@ -106,7 +118,7 @@ export function BroadcastListTable({
             },
             {
               title: "Sent",
-              render: (row: BroadcastSummary) => row.counts.SENT,
+              render: (row: BroadcastSummary) => broadcastSentCount(row),
             },
             {
               title: "Status",
@@ -180,7 +192,10 @@ export function BroadcastRecipientsTable({
             },
             {
               title: "Details",
-              render: (row: BroadcastRecipient) => reasonLabel(row.reason),
+              style: { whiteSpace: "normal", overflowWrap: "anywhere" },
+              render: (row: BroadcastRecipient) => row.templateError
+                ? `${reasonLabel(row.reason)}: ${row.templateError}`
+                : reasonLabel(row.reason),
             },
             {
               title: "Last updated",
