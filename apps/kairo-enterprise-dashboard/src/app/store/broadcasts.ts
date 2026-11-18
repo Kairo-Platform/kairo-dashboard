@@ -111,6 +111,22 @@ export const createBroadcast = async (
   }
 };
 
+export const retryBroadcast = async (id: string): Promise<BroadcastSummary> => {
+  try {
+    return unwrapApiData<BroadcastSummary>(
+      await broadcasts.retry(await organization(), id),
+    );
+  } catch (error) {
+    showErrorNotification({
+      message: parseApiError(
+        error,
+        "Unable to retry broadcast. Please try again.",
+      ),
+    });
+    throw error;
+  }
+};
+
 export const cancelBroadcast = async (
   id: string,
 ): Promise<BroadcastSummary> => {

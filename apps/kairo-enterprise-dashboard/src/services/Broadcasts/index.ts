@@ -29,7 +29,15 @@ export interface BroadcastSummary {
   expiresAt: string;
   totalCount: number;
   counts: Record<
-    "QUEUED" | "SENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "UNKNOWN" | "EXPIRED" | "CANCELLED",
+    | "QUEUED"
+    | "SENDING"
+    | "SENT"
+    | "DELIVERED"
+    | "READ"
+    | "FAILED"
+    | "UNKNOWN"
+    | "EXPIRED"
+    | "CANCELLED",
     number
   >;
 }
@@ -117,6 +125,11 @@ export const broadcasts = {
   get: (orgId: string, id: string) =>
     xApiBff.request<BroadcastSummary>(
       `v1/orgs/${encodeURIComponent(orgId)}/flow/broadcasts/${encodeURIComponent(id)}`,
+    ),
+  retry: (orgId: string, id: string) =>
+    xApiBff.request<BroadcastSummary>(
+      `v1/orgs/${encodeURIComponent(orgId)}/flow/broadcasts/${encodeURIComponent(id)}/retry`,
+      { method: "POST" },
     ),
   cancel: (orgId: string, id: string) =>
     xApiBff.request<BroadcastSummary>(
