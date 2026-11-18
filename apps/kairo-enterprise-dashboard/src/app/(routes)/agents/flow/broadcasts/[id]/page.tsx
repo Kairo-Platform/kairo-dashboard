@@ -18,6 +18,7 @@ import {
   BroadcastRecipientsTable,
   BroadcastStatusTag,
   broadcastAudienceLabel,
+  broadcastSentCount,
 } from "@/app/components/notifications/BroadcastHistory";
 import {
   broadcastHistoryStore,
@@ -144,9 +145,10 @@ export default function BroadcastDetailsPage() {
               <span>{broadcastAudienceLabel(details.broadcast.audience)}</span>
               <span>{details.broadcast.totalCount} recipients</span>
               <span>
-                {details.broadcast.counts.SENT} sent ·{" "}
+                {broadcastSentCount(details.broadcast)} sent ·{" "}
                 {details.broadcast.counts.QUEUED} queued
               </span>
+              {!!details.broadcast.counts.FAILED && <span>{details.broadcast.counts.FAILED} failed</span>}
               <span>
                 Created:{" "}
                 {String(
@@ -163,8 +165,8 @@ export default function BroadcastDetailsPage() {
           </MessageCard>
           <h2>Recipients</h2>
           <p style={{ marginBottom: "1rem" }}>
-            Sent means WhatsApp accepted the message; it does not confirm
-            delivery or that it was read.
+            Sent means the channel accepted the message. WhatsApp delivery updates
+            appear as Delivered, Read or Failed when received.
           </p>
           <BroadcastRecipientsTable
             data={state.recipients}

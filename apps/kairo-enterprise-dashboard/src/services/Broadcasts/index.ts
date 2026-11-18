@@ -29,7 +29,7 @@ export interface BroadcastSummary {
   expiresAt: string;
   totalCount: number;
   counts: Record<
-    "QUEUED" | "SENDING" | "SENT" | "UNKNOWN" | "EXPIRED" | "CANCELLED",
+    "QUEUED" | "SENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "UNKNOWN" | "EXPIRED" | "CANCELLED",
     number
   >;
 }
@@ -37,6 +37,9 @@ export type RecipientStatus =
   | "QUEUED"
   | "SENDING"
   | "SENT"
+  | "DELIVERED"
+  | "READ"
+  | "FAILED"
   | "UNKNOWN"
   | "EXPIRED"
   | "CANCELLED";
@@ -78,6 +81,7 @@ export interface BroadcastRecipient {
   channelUserId: string;
   status: RecipientStatus;
   reason: string | null;
+  templateError?: string | null;
   updatedAt: string;
 }
 const queryParams = (query: BroadcastQuery) =>
