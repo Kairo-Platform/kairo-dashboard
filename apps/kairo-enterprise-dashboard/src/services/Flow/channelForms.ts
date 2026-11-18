@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type {
   BackendChannelConfig,
   ChannelFormField,
@@ -20,34 +21,66 @@ export const channelInputTypes = new Set([
   "boolean",
 ]);
 
+export function channelFormFields(
+  config: BackendChannelConfig,
+  values: ChannelFormValues,
+) {
+  const key = config.schema.variantKey;
+  if (!key || !config.schema.variants?.length) return config.schema.fields;
+  return (
+    config.schema.variants.find((variant) => variant.value === values[key])
+      ?.fields ?? []
+  );
+}
+
 export function channelFormValues(
   config: BackendChannelConfig,
+  variant?: string,
 ): ChannelFormValues {
   const saved = new Map(
     config.entries.map((entry) => [entry.key, entry.value]),
   );
-  return Object.fromEntries(
-    config.schema.fields
-      .filter((field) => field.visible)
-      .map((field) => {
-        const value =
-          field.type === "password"
-            ? ""
-            : (saved.get(field.key) ?? field.defaultValue ?? "");
-        if (field.valueType === "boolean") return [field.key, value === "true"];
-        if (field.type === "datetime-local" && value) {
-          const date = new Date(value);
-          if (Number.isFinite(date.getTime()))
-            return [
-              field.key,
-              new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-                .toISOString()
-                .slice(0, 16),
-            ];
-        }
-        return [field.key, value];
-      }),
-  );
+  const key = config.schema.variantKey;
+  const selected =
+    variant ??
+    (key ? saved.get(key) : undefined) ??
+    config.schema.defaultVariant;
+  const switching =
+    variant &&
+    variant !== (saved.get(key ?? "") ?? config.schema.defaultVariant);
+  const fields =
+    key && config.schema.variants?.length
+      ? (config.schema.variants.find((item) => item.value === selected)
+          ?.fields ?? [])
+      : config.schema.fields;
+  return {
+    ...(key && selected ? { [key]: selected } : {}),
+    ...Object.fromEntries(
+      fields
+        .filter((field) => field.visible)
+        .map((field) => {
+          const value =
+            field.type === "password"
+              ? ""
+              : ((!switching ? saved.get(field.key) : undefined) ??
+                field.defaultValue ??
+                "");
+          if (field.valueType === "boolean")
+            return [field.key, value === "true"];
+          if (field.type === "datetime-local" && value) {
+            const date = new Date(value);
+            if (Number.isFinite(date.getTime()))
+              return [
+                field.key,
+                new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                  .toISOString()
+                  .slice(0, 16),
+              ];
+          }
+          return [field.key, value];
+        }),
+    ),
+  };
 }
 
 function normalizeChannelPhoneNumber(value: string): string {
@@ -88,7 +121,9 @@ export function channelFormPayload(
     }
     if (value && field.pattern) {
       try {
-        if (!new RegExp(field.pattern).test(value))
+        if (
+          !z.string().regex(new RegExp(field.pattern)).safeParse(value).success
+        )
           errors[field.key] = `Enter a valid ${field.label.toLowerCase()}`;
       } catch {
         errors[field.key] = "This field has invalid validation settings.";
