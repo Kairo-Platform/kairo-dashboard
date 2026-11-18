@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEntity } from "simpler-state";
-import { Button, ButtonClass, EmptyState, Flex, Loading } from "@kairo/ui";
+import {
+  Button,
+  ButtonClass,
+  ConfirmationModal,
+  EmptyState,
+  Flex,
+  Loading,
+} from "@kairo/ui";
+import { showSuccessNotification } from "@kairo/utils";
 import styled from "styled-components";
 import { DashboardLayout } from "@/app/components/dashboard";
 import {
@@ -13,6 +21,7 @@ import {
 } from "@/app/components/notifications/BroadcastHistory";
 import {
   broadcastHistoryStore,
+  cancelBroadcast,
   fetchBroadcastHistory,
 } from "@/app/store/broadcasts";
 import { getOrgId } from "@/lib/auth/client";
@@ -48,6 +57,9 @@ export default function BroadcastDetailsPage() {
     [page, limit, search, status],
   );
   const state = useEntity(broadcastHistoryStore);
+  const [showCancel, setShowCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const cancellationPending = useRef(false);
   useEffect(() => {
     void fetchBroadcastHistory(query, id);
   }, [query, id]);
@@ -56,6 +68,25 @@ export default function BroadcastDetailsPage() {
     state.queryKey === JSON.stringify({ id, query });
   const details = current ? state.details : null;
   const loading = !current || state.loading;
+  const closeCancel = () => {
+    if (!cancellationPending.current) setShowCancel(false);
+  };
+  const handleCancel = async () => {
+    if (cancellationPending.current || !details) return;
+    cancellationPending.current = true;
+    setCancelling(true);
+    try {
+      await cancelBroadcast(id);
+      setShowCancel(false);
+      showSuccessNotification({
+        message: "Remaining queued messages cancelled.",
+      });
+      await fetchBroadcastHistory(query, id);
+    } finally {
+      cancellationPending.current = false;
+      setCancelling(false);
+    }
+  };
   return (
     <DashboardLayout
       pageTitle="Broadcast details"
@@ -71,12 +102,25 @@ export default function BroadcastDetailsPage() {
         { title: "Details" },
       ]}
       appendElementToHeading={
-        <Button
-          classes={[ButtonClass.OUTLINED]}
-          onClick={() => void fetchBroadcastHistory(query, id)}
-        >
-          Refresh
-        </Button>
+        <Flex gap="0.75rem" wrap="wrap">
+          <Button
+            classes={[ButtonClass.OUTLINED]}
+            disabled={cancelling || loading}
+            onClick={() => void fetchBroadcastHistory(query, id)}
+          >
+            Refresh
+          </Button>
+          {!!details?.broadcast.counts.QUEUED && (
+            <Button
+              classes={[ButtonClass.SOLID_RED]}
+              onClick={() => setShowCancel(true)}
+              disabled={cancelling || loading}
+              loading={cancelling}
+            >
+              Cancel broadcast
+            </Button>
+          )}
+        </Flex>
       }
     >
       {loading ? (
@@ -134,6 +178,24 @@ export default function BroadcastDetailsPage() {
           title="Broadcast unavailable"
           message="This broadcast could not be loaded."
         />
+      )}
+      {showCancel && details && (
+        <ConfirmationModal
+          title="Cancel broadcast?"
+          confirmButtonText="Cancel broadcast"
+          cancelButtonText="Keep broadcast"
+          confirmButtonClasses={[ButtonClass.SOLID_RED]}
+          onClose={closeCancel}
+          onConfirm={handleCancel}
+          confirming={cancelling}
+          closeOnConfirm={false}
+        >
+          <p>
+            Stop the remaining queued messages for{" "}
+            <strong>{details.broadcast.title}</strong>? Messages already sent or
+            currently sending cannot be recalled.
+          </p>
+        </ConfirmationModal>
       )}
     </DashboardLayout>
   );
