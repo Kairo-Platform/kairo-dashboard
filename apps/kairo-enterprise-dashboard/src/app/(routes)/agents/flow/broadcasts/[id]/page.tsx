@@ -23,6 +23,7 @@ import {
 import {
   broadcastHistoryStore,
   cancelBroadcast,
+  retryBroadcast,
   fetchBroadcastHistory,
 } from "@/app/store/broadcasts";
 import { getOrgId } from "@/lib/auth/client";
@@ -61,6 +62,8 @@ export default function BroadcastDetailsPage() {
   const [showCancel, setShowCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const cancellationPending = useRef(false);
+  const [retrying, setRetrying] = useState(false);
+  const retryPending = useRef(false);
   useEffect(() => {
     void fetchBroadcastHistory(query, id);
   }, [query, id]);
@@ -69,11 +72,34 @@ export default function BroadcastDetailsPage() {
     state.queryKey === JSON.stringify({ id, query });
   const details = current ? state.details : null;
   const loading = !current || state.loading;
+  const canRetry =
+    details &&
+    (details.broadcast.counts.FAILED > 0 ||
+      details.broadcast.counts.QUEUED > 0);
+  const handleRetry = async () => {
+    if (retryPending.current || cancellationPending.current || !canRetry)
+      return;
+    retryPending.current = true;
+    setRetrying(true);
+    try {
+      await retryBroadcast(id);
+      showSuccessNotification({
+        message:
+          "Retry queued. Sent messages and uncertain outcomes will be skipped.",
+      });
+      await fetchBroadcastHistory(query, id);
+    } catch {
+      // The store displays the API error notification.
+    } finally {
+      retryPending.current = false;
+      setRetrying(false);
+    }
+  };
   const closeCancel = () => {
     if (!cancellationPending.current) setShowCancel(false);
   };
   const handleCancel = async () => {
-    if (cancellationPending.current || !details) return;
+    if (cancellationPending.current || retryPending.current || !details) return;
     cancellationPending.current = true;
     setCancelling(true);
     try {
@@ -106,16 +132,26 @@ export default function BroadcastDetailsPage() {
         <Flex gap="0.75rem" wrap="wrap">
           <Button
             classes={[ButtonClass.OUTLINED]}
-            disabled={cancelling || loading}
+            disabled={cancelling || retrying || loading}
             onClick={() => void fetchBroadcastHistory(query, id)}
           >
             Refresh
           </Button>
+          {canRetry && (
+            <Button
+              classes={[ButtonClass.OUTLINED]}
+              disabled={retrying || cancelling || loading}
+              loading={retrying}
+              onClick={() => void handleRetry()}
+            >
+              Retry
+            </Button>
+          )}
           {!!details?.broadcast.counts.QUEUED && (
             <Button
               classes={[ButtonClass.SOLID_RED]}
               onClick={() => setShowCancel(true)}
-              disabled={cancelling || loading}
+              disabled={cancelling || retrying || loading}
               loading={cancelling}
             >
               Cancel broadcast
@@ -148,7 +184,9 @@ export default function BroadcastDetailsPage() {
                 {broadcastSentCount(details.broadcast)} sent ·{" "}
                 {details.broadcast.counts.QUEUED} queued
               </span>
-              {!!details.broadcast.counts.FAILED && <span>{details.broadcast.counts.FAILED} failed</span>}
+              {!!details.broadcast.counts.FAILED && (
+                <span>{details.broadcast.counts.FAILED} failed</span>
+              )}
               <span>
                 Created:{" "}
                 {String(
@@ -165,8 +203,8 @@ export default function BroadcastDetailsPage() {
           </MessageCard>
           <h2>Recipients</h2>
           <p style={{ marginBottom: "1rem" }}>
-            Sent means the channel accepted the message. WhatsApp delivery updates
-            appear as Delivered, Read or Failed when received.
+            Sent means the channel accepted the message. WhatsApp delivery
+            updates appear as Delivered, Read or Failed when received.
           </p>
           <BroadcastRecipientsTable
             data={state.recipients}
