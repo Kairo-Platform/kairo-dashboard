@@ -50,6 +50,14 @@ export function channelFormValues(
   );
 }
 
+function normalizeChannelPhoneNumber(value: string): string {
+  if (!/^\+?[\d\s()-]+$/.test(value)) return value;
+  const compact = value.replace(/[\s()-]/g, "");
+  if (/^0\d{10}$/.test(compact)) return `+234${compact.slice(1)}`;
+  if (/^[1-9]\d{6,14}$/.test(compact)) return `+${compact}`;
+  return compact;
+}
+
 export function channelFormPayload(
   fields: ChannelFormField[],
   values: ChannelFormValues,
@@ -59,7 +67,11 @@ export function channelFormPayload(
   for (const field of fields) {
     if (!field.visible || field.readOnly) continue;
     const raw = values[field.key];
-    const value = typeof raw === "boolean" ? raw : (raw ?? "").trim();
+    const trimmed = typeof raw === "boolean" ? raw : (raw ?? "").trim();
+    const value =
+      field.type === "tel" && typeof trimmed === "string"
+        ? normalizeChannelPhoneNumber(trimmed)
+        : trimmed;
     if (!channelInputTypes.has(field.type)) {
       errors[field.key] =
         "This input type is not supported by this dashboard version.";
