@@ -39,5 +39,13 @@ coverage
 # Contracts
 contracts/
 
-# Local editor state
-.cursor/
+# Track only project guidance adapters; keep other Cursor state local.
+.cursor/*
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/kairo-figma-to-code.mdc
+!.cursor/skills/
+.cursor/skills/*
+!.cursor/skills/kairo-figma-to-code/
+.cursor/skills/kairo-figma-to-code/*
+!.cursor/skills/kairo-figma-to-code/SKILL.md
