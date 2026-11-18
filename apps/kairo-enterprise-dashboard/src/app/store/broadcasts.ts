@@ -111,6 +111,24 @@ export const createBroadcast = async (
   }
 };
 
+export const cancelBroadcast = async (
+  id: string,
+): Promise<BroadcastSummary> => {
+  try {
+    return unwrapApiData<BroadcastSummary>(
+      await broadcasts.cancel(await organization(), id),
+    );
+  } catch (error) {
+    showErrorNotification({
+      message: parseApiError(
+        error,
+        "Unable to cancel broadcast. Please try again.",
+      ),
+    });
+    throw error;
+  }
+};
+
 export const resetBroadcastUsers = () => {
   latestSearch++;
   void broadcastsStore.set((s) => ({

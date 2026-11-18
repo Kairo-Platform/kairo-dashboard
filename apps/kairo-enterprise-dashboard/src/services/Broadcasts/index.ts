@@ -114,4 +114,9 @@ export const broadcasts = {
     xApiBff.request<BroadcastSummary>(
       `v1/orgs/${encodeURIComponent(orgId)}/flow/broadcasts/${encodeURIComponent(id)}`,
     ),
+  cancel: (orgId: string, id: string) =>
+    xApiBff.request<BroadcastSummary>(
+      `v1/orgs/${encodeURIComponent(orgId)}/flow/broadcasts/${encodeURIComponent(id)}/cancel`,
+      { method: "POST" },
+    ),
 };
