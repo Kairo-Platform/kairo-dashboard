@@ -19,7 +19,11 @@ export default async function SecureFormsPage({
 }) {
   const { type } = await searchParams;
   if (type === "onboarding") return <SecureOnboardingForm />;
-  if (type === "transfer_pin" || type === "business_setup")
+  if (
+    type === "transfer_pin" ||
+    type === "business_setup" ||
+    type === "dashboard_login"
+  )
     return <SecureActionForm key={type} type={type} />;
   return <SecureFormUnavailable />;
 }

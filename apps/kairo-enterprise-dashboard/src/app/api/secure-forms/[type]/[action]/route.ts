@@ -5,6 +5,7 @@ import { resolveXApiBaseUrl } from "@/lib/bff/proxyRoute";
 import { submissionSchema } from "@/services/secure-forms/onboarding/schema";
 
 import {
+  dashboardLoginSchema,
   transferPinSchema,
   businessSetupSchema,
 } from "@/services/secure-forms/actions";
@@ -13,6 +14,7 @@ export const dynamic = "force-dynamic";
 const production = process.env.NODE_ENV === "production";
 // Only registered handlers can accept a capability; never construct arbitrary backend paths.
 const handlers = {
+  dashboard_login: { path: "dashboard_login", schema: dashboardLoginSchema },
   onboarding: { path: "onboarding", schema: submissionSchema },
   transfer_pin: { path: "transfer_pin", schema: transferPinSchema },
   business_setup: { path: "business_setup", schema: businessSetupSchema },
@@ -158,11 +160,15 @@ async function handle(request: NextRequest, context: Context) {
         error:
           error instanceof z.ZodError
             ? "Please check the details you entered."
-            : type === "transfer_pin" &&
+            : type === "dashboard_login" &&
                 action === "session" &&
                 request.method === "POST"
-              ? "I couldn’t confirm this authorization. Return to your conversation to check its status before trying again."
-              : "Unable to continue. Please try again or open a new form from your Kairo conversation.",
+              ? "I couldn’t confirm your login setup. Return to your Kairo conversation to check its status, or use dashboard login/reset. Please don’t submit again."
+              : type === "transfer_pin" &&
+                  action === "session" &&
+                  request.method === "POST"
+                ? "I couldn’t confirm this authorization. Return to your conversation to check its status before trying again."
+                : "Unable to continue. Please try again or open a new form from your Kairo conversation.",
       },
       { status: 400, headers },
     );

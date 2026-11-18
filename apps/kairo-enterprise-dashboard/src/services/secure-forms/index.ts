@@ -1,5 +1,9 @@
 // Add a type only when its browser UI, BFF validator and backend handler are ready.
-export type HostedFormType = "onboarding" | "transfer_pin" | "business_setup";
+export type HostedFormType =
+  | "onboarding"
+  | "transfer_pin"
+  | "business_setup"
+  | "dashboard_login";
 
 export function createSecureFormService<T extends { type: HostedFormType }>(
   type: T["type"],

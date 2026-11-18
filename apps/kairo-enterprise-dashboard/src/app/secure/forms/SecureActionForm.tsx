@@ -7,6 +7,7 @@ import { FormInput } from "@kairo/ui/inputs";
 import SecureFormBrand from "./SecureFormBrand";
 import {
   actionFormService,
+  dashboardLoginSchema,
   businessSetupSchema,
   transferPinSchema,
   type ActionFormSession,
@@ -154,11 +155,15 @@ export default function SecureActionForm({ type }: { type: ActionFormType }) {
       busy ||
       !session ||
       session.stage === "DONE" ||
-      session.stage === "PROCESSING"
+      ["PROCESSING", "UNCERTAIN", "UNAVAILABLE"].includes(session.stage)
     )
       return;
     const parsed = (
-      type === "transfer_pin" ? transferPinSchema : businessSetupSchema
+      type === "dashboard_login"
+        ? dashboardLoginSchema
+        : type === "transfer_pin"
+          ? transferPinSchema
+          : businessSetupSchema
     ).safeParse({ action: "submit", screen: session.stage, data: fields });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Check your details.");
@@ -169,11 +174,23 @@ export default function SecureActionForm({ type }: { type: ActionFormType }) {
     try {
       const next = await service.submit(parsed.data);
       setSession(next);
-      if (type === "transfer_pin" || next.stage === "DONE") setFields({});
+      if (
+        type === "dashboard_login" ||
+        type === "transfer_pin" ||
+        next.stage === "DONE"
+      )
+        setFields({});
       if (next.data.show_error)
         setError(next.data.error_message || "Please check your details.");
     } catch (failure) {
-      if (type === "transfer_pin") setFields({});
+      if (type === "dashboard_login")
+        setSession({
+          ...session,
+          stage: "UNCERTAIN",
+          message:
+            "I couldn’t confirm your login setup. Return to your Kairo conversation to check its status, or use dashboard login/reset. Please don’t submit again.",
+        });
+      if (type === "dashboard_login" || type === "transfer_pin") setFields({});
       setError(
         failure instanceof Error
           ? failure.message
@@ -183,7 +200,12 @@ export default function SecureActionForm({ type }: { type: ActionFormType }) {
       try {
         const next = await service.session();
         setSession(next);
-        if (["DONE", "PROCESSING"].includes(next.stage)) setError("");
+        if (
+          ["DONE", "PROCESSING", "UNCERTAIN", "UNAVAILABLE"].includes(
+            next.stage,
+          )
+        )
+          setError("");
       } catch {
         /* Keep original error. */
       }
@@ -245,6 +267,58 @@ export default function SecureActionForm({ type }: { type: ActionFormType }) {
             </form>
           </>
         )}
+        {(session?.stage === "PASSWORD_SETUP" ||
+          session?.stage === "PASSCODE_SETUP") && (
+          <>
+            <h1>Set up dashboard login</h1>
+            <p>{session.instructions}</p>
+            <form onSubmit={submit} autoComplete="off">
+              {[
+                session.stage === "PASSCODE_SETUP" ? "passcode" : "password",
+                "confirmation",
+              ].map((key) => {
+                const numeric = session.stage === "PASSCODE_SETUP";
+                const label = `${key === "confirmation" ? "Confirm " : ""}${numeric ? "6-digit passcode" : "password"}`;
+                return (
+                  <FormInput
+                    key={key}
+                    id={key}
+                    name={key}
+                    label={label}
+                    aria-label={label}
+                    type="password"
+                    inputMode={numeric ? "numeric" : "text"}
+                    pattern={numeric ? "[0-9]{6}" : undefined}
+                    minLength={numeric ? 6 : 8}
+                    maxLength={numeric ? 6 : 1024}
+                    autoComplete="off"
+                    required
+                    disabled={busy}
+                    value={fields[key] ?? ""}
+                    onChange={(event) =>
+                      setFields((previous) => ({
+                        ...previous,
+                        [key]: numeric
+                          ? event.target.value
+                              .replace(/[^0-9]/g, "")
+                              .slice(0, 6)
+                          : event.target.value,
+                      }))
+                    }
+                  />
+                );
+              })}
+              <Button
+                type="submit"
+                classes={[ButtonClass.SOLID]}
+                size={ButtonSize.FULL}
+                disabled={busy}
+              >
+                {busy ? "Saving…" : "Save login"}
+              </Button>
+            </form>
+          </>
+        )}
         {session?.stage === "BUSINESS_INFO" && (
           <>
             <h1>Set up your business</h1>
@@ -294,14 +368,35 @@ export default function SecureActionForm({ type }: { type: ActionFormType }) {
             <h1>
               {type === "transfer_pin"
                 ? "Authorization submitted"
-                : "Business details saved"}
+                : type === "dashboard_login"
+                  ? "Dashboard login ready"
+                  : "Business details saved"}
             </h1>
             <p>
-              Return to {conversation} for the result and next steps.
+              {type === "dashboard_login"
+                ? session?.message
+                : `Return to ${conversation} for the result and next steps.`}
             </p>
           </>
         )}
-        {(done || session?.stage === "PROCESSING") &&
+        {(session?.stage === "UNCERTAIN" ||
+          session?.stage === "UNAVAILABLE") && (
+          <>
+            <h1>Check your login setup</h1>
+            <p>{session.message}</p>
+          </>
+        )}
+        {type === "dashboard_login" &&
+          session?.loginUrl &&
+          ["DONE", "UNCERTAIN", "UNAVAILABLE"].includes(session.stage) && (
+            <ReturnLink href={session.loginUrl} rel="noreferrer">
+              Open dashboard login
+            </ReturnLink>
+          )}
+        {(done ||
+          session?.stage === "PROCESSING" ||
+          session?.stage === "UNCERTAIN" ||
+          session?.stage === "UNAVAILABLE") &&
           returnLink && (
             <ReturnLink href={returnLink.href} rel="noreferrer">
               {returnLink.label}
