@@ -173,7 +173,11 @@ export async function handleBffRequest(
       ? { "X-Api-Key": request.headers.get("x-api-key")! }
       : undefined,
   });
-  if (/^v1\/orgs\/[^/]+\/flow\/channels(?:\/|$)/.test(pathSegments.join("/"))) {
+  if (
+    /^v1\/orgs\/[^/]+\/flow\/(?:channels|integrations)(?:\/|$)/.test(
+      pathSegments.join("/"),
+    )
+  ) {
     response.headers.set("Cache-Control", "no-store");
   }
   return response;

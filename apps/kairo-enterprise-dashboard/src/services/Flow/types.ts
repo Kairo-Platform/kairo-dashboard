@@ -151,6 +151,9 @@ export type BackendChannelConfig = {
   schema: {
     version: number;
     fields: ChannelFormField[];
+    variantKey?: string | null;
+    defaultVariant?: string | null;
+    variants?: { value: string; label: string; fields: ChannelFormField[] }[];
     helpText?: string | null;
   };
 };

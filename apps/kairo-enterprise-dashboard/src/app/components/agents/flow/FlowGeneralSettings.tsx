@@ -68,6 +68,7 @@ import {
   RESPONSE_RESTRICTIONS_OPTIONS,
   RESTRICTED_TOPICS_OPTIONS,
 } from "./resources";
+import { MerchantInstagramAppSettings } from "./MerchantInstagramAppSettings";
 import { FlowSetupFields } from "./FlowSetupFields";
 import type {
   FlowCheckboxOption,
@@ -430,7 +431,7 @@ type EditableSettingsState = {
 const INITIAL_EDITABLE_SETTINGS: EditableSettingsState = {
   tone: "",
   languages: ["en"],
-  setupValues: { voiceToTextResponse: false },
+  setupValues: { voiceToTextResponse: false, allowMerchantInstagramDm: true },
   conversationMemory: [
     "onboarding-progress",
     "preferred-language",
@@ -481,11 +482,14 @@ function fromBackendGeneral(
   return {
     tone: setup.tone ?? "",
     languages: setup.languages ?? ["en"],
-    setupValues: Object.fromEntries(
-      Object.entries(setup).filter(
-        ([key]) => key !== "tone" && key !== "languages",
+    setupValues: {
+      allowMerchantInstagramDm: true,
+      ...Object.fromEntries(
+        Object.entries(setup).filter(
+          ([key]) => key !== "tone" && key !== "languages",
+        ),
       ),
-    ),
+    },
     conversationMemory: booleanObjectToArray(
       { ...DEFAULT_MEM, ...(aiBehaviour?.conversationMemory ?? {}) },
       CONVERSATION_MEMORY_KEY_MAP,
@@ -1440,6 +1444,9 @@ export const FlowGeneralSettings = ({
                     }))
                   }
                 />
+                {setupFields.some(
+                  (field) => field.field === "allowMerchantInstagramDm",
+                ) && <MerchantInstagramAppSettings />}
               </>
             )}
 

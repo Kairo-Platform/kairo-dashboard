@@ -3,10 +3,11 @@
 import { loadChannelForm, saveChannelForm } from "@/app/store/flow";
 import type { BackendChannelConfig, ChannelFormValues } from "@/services/Flow";
 import {
+  channelFormFields,
   channelFormPayload,
   channelFormValues,
   channelInputTypes,
-} from "@/services/Flow/channelForms";
+} from "@/services/Flow";
 import { Icon } from "@iconify/react";
 import { showErrorNotification } from "@kairo/utils";
 import {
@@ -361,10 +362,11 @@ export const ConnectChannels = ({
     setValues({});
     setErrors({});
   };
-  const unsupported = config?.schema.fields.some(
+  const fields = config ? channelFormFields(config, values) : [];
+  const unsupported = fields.some(
     (field) => field.visible && !channelInputTypes.has(field.type),
   );
-  const unavailable = !config?.enabled || unsupported;
+  const unavailable = !config?.enabled || unsupported || fields.length === 0;
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (
@@ -376,7 +378,7 @@ export const ConnectChannels = ({
       unavailable
     )
       return;
-    const payload = channelFormPayload(config.schema.fields, values);
+    const payload = channelFormPayload(fields, values);
     setErrors(payload.errors);
     if (Object.keys(payload.errors).length) return;
     const channel = {
@@ -387,7 +389,12 @@ export const ConnectChannels = ({
     setIsSubmitting(true);
     let saved = false;
     try {
-      await saveChannelForm(channel.id, payload.body);
+      await saveChannelForm(channel.id, {
+        ...payload.body,
+        ...(config.schema.variantKey
+          ? { [config.schema.variantKey]: values[config.schema.variantKey] }
+          : {}),
+      });
       saved = true;
       if (id !== requestId.current) return;
       setValues({});
@@ -570,7 +577,43 @@ export const ConnectChannels = ({
               ) : (
                 config && (
                   <>
-                    {config.schema.fields
+                    {config.schema.variantKey &&
+                      !!config.schema.variants?.length && (
+                        <Flex
+                          gap="0.5rem"
+                          wrap="wrap"
+                          role="group"
+                          aria-label="Instagram API setup"
+                        >
+                          {config.schema.variants.map((variant) => (
+                            <Button
+                              key={variant.value}
+                              type="button"
+                              classes={[
+                                values[config.schema.variantKey!] ===
+                                variant.value
+                                  ? ButtonClass.SOLID
+                                  : ButtonClass.OUTLINED,
+                              ]}
+                              style={{ height: "2rem" }}
+                              aria-pressed={
+                                values[config.schema.variantKey!] ===
+                                variant.value
+                              }
+                              disabled={isSubmitting}
+                              onClick={() => {
+                                setValues(
+                                  channelFormValues(config, variant.value),
+                                );
+                                setErrors({});
+                              }}
+                            >
+                              {variant.label}
+                            </Button>
+                          ))}
+                        </Flex>
+                      )}
+                    {fields
                       .filter((field) => field.visible)
                       .map((field) => {
                         const label = `${field.label}${field.required ? "" : " (optional)"}`;
