@@ -412,7 +412,7 @@ export default function SecureOnboardingForm() {
                 {field("phone", "WhatsApp number", {
                   type: "text",
                   inputMode: "tel",
-                  placeholder: "08106395041",
+                  placeholder: "08109295041",
                   required: true,
                   maxLength: 25,
                 })}
