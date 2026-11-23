@@ -12,6 +12,7 @@ import { FormInput, SelectInput } from "@kairo/ui/inputs";
 import { secureOnboardingService as service } from "@/services/secure-forms/onboarding";
 import {
   isNigerianPhone,
+  normalizeWhatsAppPhone,
   personalSchema,
   phoneSchema,
   verificationCodeSchema,
@@ -63,6 +64,21 @@ const Card = styled.section`
     line-height: 1.6;
   }
 `;
+const PhoneFields = styled.div`
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+  > div {
+    min-width: 0;
+  }
+  input {
+    width: 100%;
+    min-width: 0;
+  }
+  @media (max-width: 380px) {
+    grid-template-columns: 1fr;
+  }
+`;
 const FormFooter = styled.small`
   display: block;
   margin-top: 2rem;
@@ -96,12 +112,18 @@ const Check = styled.label`
 
 export default function SecureOnboardingForm() {
   const [session, setSession] = useState<SecureSession | null>(null);
-  const [fields, setFields] = useState<Record<string, string>>({});
+  const [fields, setFields] = useState<Record<string, string>>({
+    countryCode: "+234",
+  });
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState("");
   const initial = useRef<Promise<SecureSession> | null>(null);
+  const normalizedPhone = normalizeWhatsAppPhone(
+    fields.phone ?? "",
+    fields.countryCode ?? "+234",
+  );
   const conversation = formConversation(session?.origin);
   const returnLink = formReturnLink(session?.origin);
   const resendSeconds = Math.max(
@@ -203,6 +225,7 @@ export default function SecureOnboardingForm() {
       const result = phoneSchema.safeParse({
         action: "phone",
         phone: fields.phone ?? "",
+        countryCode: fields.countryCode ?? "+234",
         nigerianPhone: fields.nigerianPhone,
       });
       if (!result.success) {
@@ -336,14 +359,30 @@ export default function SecureOnboardingForm() {
               it belongs to you. Only enter the code on this secure form.
             </p>
             <form onSubmit={submit} autoComplete="off">
-              {field("phone", "WhatsApp number", {
-                type: "tel",
-                inputMode: "tel",
-                placeholder: "+234…",
-                required: true,
-                maxLength: 25,
-              })}
-              {!!fields.phone && !isNigerianPhone(fields.phone) && (
+              <PhoneFields>
+                {field("countryCode", "Country code", {
+                  type: "text",
+                  inputMode: "tel",
+                  placeholder: "+234",
+                  required: true,
+                  maxLength: 4,
+                })}
+                {field("phone", "WhatsApp number", {
+                  type: "text",
+                  inputMode: "tel",
+                  placeholder: "08106395041",
+                  required: true,
+                  maxLength: 25,
+                })}
+              </PhoneFields>
+              <small>
+                Use +234 for Nigeria, or enter your WhatsApp country code. You
+                can include the leading 0 in your number.
+              </small>
+              {normalizedPhone && (
+                <small>We’ll send your code to {normalizedPhone}.</small>
+              )}
+              {!!normalizedPhone && !isNigerianPhone(normalizedPhone) && (
                 <>
                   <small>
                     For an international WhatsApp number, we also need the

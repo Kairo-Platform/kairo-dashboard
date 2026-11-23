@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 import type { SecureFormOrigin } from "../origin";
 
 export function isNigerianPhone(value: string) {
@@ -7,24 +8,57 @@ export function isNigerianPhone(value: string) {
   );
 }
 
+export function normalizeWhatsAppPhone(input: string, countryCode?: string) {
+  if (input.length > 32) return undefined;
+  const value = input.trim().replace(/[ ()-]/g, "");
+  if (!/^\+?[0-9]+$/.test(value)) return undefined;
+  const code = countryCode?.trim().replace(/^\+/, "");
+  if (code !== undefined && !/^[1-9][0-9]{0,2}$/.test(code)) return undefined;
+  let candidate: string;
+  if (value.startsWith("+")) candidate = value;
+  else if (code !== undefined) {
+    const full = parsePhoneNumberFromString(`+${value}`);
+    candidate =
+      full?.countryCallingCode === code && full.isValid()
+        ? `+${value}`
+        : `+${code}${value}`;
+  } else if (/^0?[789][0-9]{9}$/.test(value)) {
+    candidate = `+234${value.replace(/^0/, "")}`;
+  } else if (value.length >= 11) candidate = `+${value}`;
+  else return undefined;
+  const phone = parsePhoneNumberFromString(candidate);
+  if (
+    !phone?.isValid() ||
+    (code !== undefined && phone.countryCallingCode !== code)
+  )
+    return undefined;
+  return phone.number;
+}
+
 export const phoneSchema = z
   .object({
     action: z.literal("phone"),
-    phone: z
+    countryCode: z
       .string()
       .trim()
-      .max(25)
-      .refine(
-        (value) =>
-          isNigerianPhone(value) ||
-          /^\+?[1-9]\d{6,14}$/.test(value.replace(/[ ()-]/g, "")),
-        "Enter your WhatsApp number with its country code.",
-      ),
+      .regex(
+        /^\+?[1-9][0-9]{0,2}$/,
+        "Enter a valid country code, such as +234.",
+      )
+      .optional(),
+    phone: z.string().trim().max(25),
     nigerianPhone: z.string().trim().max(25).optional(),
   })
   .superRefine((value, context) => {
-    if (
-      !isNigerianPhone(value.phone) &&
+    const phone = normalizeWhatsAppPhone(value.phone, value.countryCode);
+    if (!phone) {
+      context.addIssue({
+        code: "custom",
+        path: ["phone"],
+        message: "Enter a valid WhatsApp number matching the country code.",
+      });
+    } else if (
+      !isNigerianPhone(phone) &&
       !isNigerianPhone(value.nigerianPhone ?? "")
     ) {
       context.addIssue({
@@ -33,7 +67,11 @@ export const phoneSchema = z
         message: "Enter the Nigerian phone number for your Kairo account.",
       });
     }
-  });
+  })
+  .transform((value) => ({
+    ...value,
+    phone: normalizeWhatsAppPhone(value.phone, value.countryCode)!,
+  }));
 
 export const personalSchema = z.object({
   dob: z
