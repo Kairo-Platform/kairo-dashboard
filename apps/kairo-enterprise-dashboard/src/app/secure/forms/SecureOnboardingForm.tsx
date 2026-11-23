@@ -71,7 +71,7 @@ const Card = styled.section`
 `;
 const PhoneFields = styled.div`
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
+  grid-template-columns: 6rem minmax(0, 1fr);
   gap: 12px;
   > div {
     min-width: 0;
@@ -80,11 +80,11 @@ const PhoneFields = styled.div`
     width: 100%;
     min-width: 0;
   }
-  @media (max-width: 380px) {
+  @media (max-width: 340px) {
     grid-template-columns: 1fr;
   }
   .country-code {
-    width: 104px !important;
+    width: 6rem !important;
 
     label {
       margin: 0;
