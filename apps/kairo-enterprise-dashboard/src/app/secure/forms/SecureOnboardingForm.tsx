@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import styled from "styled-components";
+import {
+  getCountries,
+  getCountryCallingCode,
+  type CountryCode,
+} from "libphonenumber-js";
 import SecureFormBrand from "./SecureFormBrand";
 import {
   formConversation,
@@ -12,6 +17,7 @@ import { FormInput, SelectInput } from "@kairo/ui/inputs";
 import { secureOnboardingService as service } from "@/services/secure-forms/onboarding";
 import {
   isNigerianPhone,
+  normalizeWhatsAppPhone,
   personalSchema,
   phoneSchema,
   verificationCodeSchema,
@@ -63,6 +69,31 @@ const Card = styled.section`
     line-height: 1.6;
   }
 `;
+const PhoneFields = styled.div`
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 12px;
+  > div {
+    min-width: 0;
+  }
+  input {
+    width: 100%;
+    min-width: 0;
+  }
+  @media (max-width: 380px) {
+    grid-template-columns: 1fr;
+  }
+  .country-code {
+    width: 104px !important;
+
+    label {
+      margin: 0;
+    }
+  }
+  .country-code .options-container {
+    width: min(280px, calc(100vw - 90px));
+  }
+`;
 const FormFooter = styled.small`
   display: block;
   margin-top: 2rem;
@@ -94,14 +125,34 @@ const Check = styled.label`
   }
 `;
 
+const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
+const countryOptions = getCountries()
+  .map((country) => ({
+    value: country,
+    label: `${countryNames.of(country)} (+${getCountryCallingCode(country)})`,
+  }))
+  .sort((a, b) =>
+    a.value === "NG"
+      ? -1
+      : b.value === "NG"
+        ? 1
+        : a.label.localeCompare(b.label, "en"),
+  );
+
 export default function SecureOnboardingForm() {
   const [session, setSession] = useState<SecureSession | null>(null);
-  const [fields, setFields] = useState<Record<string, string>>({});
+  const [fields, setFields] = useState<Record<string, string>>({
+    countryCode: "+234",
+  });
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState("");
   const initial = useRef<Promise<SecureSession> | null>(null);
+  const normalizedPhone = normalizeWhatsAppPhone(
+    fields.phone ?? "",
+    fields.countryCode ?? "+234",
+  );
   const conversation = formConversation(session?.origin);
   const returnLink = formReturnLink(session?.origin);
   const resendSeconds = Math.max(
@@ -203,6 +254,7 @@ export default function SecureOnboardingForm() {
       const result = phoneSchema.safeParse({
         action: "phone",
         phone: fields.phone ?? "",
+        countryCode: fields.countryCode ?? "+234",
         nigerianPhone: fields.nigerianPhone,
       });
       if (!result.success) {
@@ -336,14 +388,36 @@ export default function SecureOnboardingForm() {
               it belongs to you. Only enter the code on this secure form.
             </p>
             <form onSubmit={submit} autoComplete="off">
-              {field("phone", "WhatsApp number", {
-                type: "tel",
-                inputMode: "tel",
-                placeholder: "+234…",
-                required: true,
-                maxLength: 25,
-              })}
-              {!!fields.phone && !isNigerianPhone(fields.phone) && (
+              <PhoneFields>
+                <SelectInput
+                  className="country-code"
+                  name="phoneCountry"
+                  label="Code"
+                  aria-label="Country code"
+                  required
+                  searchable
+                  clearable={false}
+                  options={countryOptions}
+                  value={fields.phoneCountry ?? "NG"}
+                  selectedLabel={fields.countryCode ?? "+234"}
+                  onChange={(country: CountryCode | null) => {
+                    if (!country) return;
+                    setFields((previous) => ({
+                      ...previous,
+                      phoneCountry: country,
+                      countryCode: `+${getCountryCallingCode(country)}`,
+                    }));
+                  }}
+                />
+                {field("phone", "WhatsApp number", {
+                  type: "text",
+                  inputMode: "tel",
+                  placeholder: "08106395041",
+                  required: true,
+                  maxLength: 25,
+                })}
+              </PhoneFields>
+              {!!normalizedPhone && !isNigerianPhone(normalizedPhone) && (
                 <>
                   <small>
                     For an international WhatsApp number, we also need the

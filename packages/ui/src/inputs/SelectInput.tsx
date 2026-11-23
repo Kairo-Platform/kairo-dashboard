@@ -213,6 +213,8 @@ export interface SelectInputProps
   height?: string | number;
   isLoading?: boolean;
   searchable?: boolean;
+  selectedLabel?: React.ReactNode;
+  clearable?: boolean;
 }
 
 export const SelectInput: React.FC<SelectInputProps> = ({
@@ -230,6 +232,8 @@ export const SelectInput: React.FC<SelectInputProps> = ({
   height,
   isLoading,
   searchable,
+  selectedLabel,
+  clearable = true,
   ...rest
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -331,9 +335,9 @@ export const SelectInput: React.FC<SelectInputProps> = ({
                 className="listbox-btn-label"
                 style={parentWidth ? { maxWidth: parentWidth - 52 } : {}}
               >
-                {selected ? selected.label : placeholder}
+                {selected ? selectedLabel ?? selected.label : placeholder}
               </span>
-              {selected ? (
+              {selected && clearable ? (
                 <button
                   type="button"
                   aria-label="clear"
