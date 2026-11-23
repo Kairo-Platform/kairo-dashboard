@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import styled from "styled-components";
+import {
+  getCountries,
+  getCountryCallingCode,
+  type CountryCode,
+} from "libphonenumber-js";
 import SecureFormBrand from "./SecureFormBrand";
 import {
   formConversation,
@@ -66,7 +71,7 @@ const Card = styled.section`
 `;
 const PhoneFields = styled.div`
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-columns: 104px minmax(0, 1fr);
   gap: 12px;
   > div {
     min-width: 0;
@@ -77,6 +82,16 @@ const PhoneFields = styled.div`
   }
   @media (max-width: 380px) {
     grid-template-columns: 1fr;
+  }
+  .country-code {
+    width: 104px !important;
+
+    label {
+      margin: 0;
+    }
+  }
+  .country-code .options-container {
+    width: min(280px, calc(100vw - 90px));
   }
 `;
 const FormFooter = styled.small`
@@ -109,6 +124,20 @@ const Check = styled.label`
     margin-top: 5px;
   }
 `;
+
+const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
+const countryOptions = getCountries()
+  .map((country) => ({
+    value: country,
+    label: `${countryNames.of(country)} (+${getCountryCallingCode(country)})`,
+  }))
+  .sort((a, b) =>
+    a.value === "NG"
+      ? -1
+      : b.value === "NG"
+        ? 1
+        : a.label.localeCompare(b.label, "en"),
+  );
 
 export default function SecureOnboardingForm() {
   const [session, setSession] = useState<SecureSession | null>(null);
@@ -360,13 +389,26 @@ export default function SecureOnboardingForm() {
             </p>
             <form onSubmit={submit} autoComplete="off">
               <PhoneFields>
-                {field("countryCode", "Country code", {
-                  type: "text",
-                  inputMode: "tel",
-                  placeholder: "+234",
-                  required: true,
-                  maxLength: 4,
-                })}
+                <SelectInput
+                  className="country-code"
+                  name="phoneCountry"
+                  label="Code"
+                  aria-label="Country code"
+                  required
+                  searchable
+                  clearable={false}
+                  options={countryOptions}
+                  value={fields.phoneCountry ?? "NG"}
+                  selectedLabel={fields.countryCode ?? "+234"}
+                  onChange={(country: CountryCode | null) => {
+                    if (!country) return;
+                    setFields((previous) => ({
+                      ...previous,
+                      phoneCountry: country,
+                      countryCode: `+${getCountryCallingCode(country)}`,
+                    }));
+                  }}
+                />
                 {field("phone", "WhatsApp number", {
                   type: "text",
                   inputMode: "tel",
@@ -375,13 +417,6 @@ export default function SecureOnboardingForm() {
                   maxLength: 25,
                 })}
               </PhoneFields>
-              <small>
-                Use +234 for Nigeria, or enter your WhatsApp country code. You
-                can include the leading 0 in your number.
-              </small>
-              {normalizedPhone && (
-                <small>We’ll send your code to {normalizedPhone}.</small>
-              )}
               {!!normalizedPhone && !isNigerianPhone(normalizedPhone) && (
                 <>
                   <small>
