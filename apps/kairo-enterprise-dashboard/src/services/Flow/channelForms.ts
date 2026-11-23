@@ -91,14 +91,6 @@ function normalizeChannelPhoneNumber(value: string): string {
   return compact;
 }
 
-function normalizeChannelPhoneNumber(value: string): string {
-  if (!/^\+?[\d\s()-]+$/.test(value)) return value;
-  const compact = value.replace(/[\s()-]/g, "");
-  if (/^0\d{10}$/.test(compact)) return `+234${compact.slice(1)}`;
-  if (/^[1-9]\d{6,14}$/.test(compact)) return `+${compact}`;
-  return compact;
-}
-
 export function channelFormPayload(
   fields: ChannelFormField[],
   values: ChannelFormValues,
